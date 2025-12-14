@@ -1,0 +1,52 @@
+{
+  // Python formatting
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": [
+    "--line-length=88"
+  ],
+  // Editor settings
+  "editor.rulers": [
+    88
+  ],
+  "editor.wordWrapColumn": 88,
+  // Python linting
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=88"
+  ],
+  "python.linting.pylintEnabled": true,
+  "python.linting.pylintArgs": [
+    "--max-line-length=88"
+  ],
+  // Format on save
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  // Python-specific editor settings
+  "[python]": {
+    "editor.rulers": [
+      88
+    ],
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  // isort settings
+  "isort.args": [
+    "--profile",
+    "black",
+    "--line-length",
+    "88"
+  ],
+  // Pylance diagnostic settings for Jupyter notebooks
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportUndefinedVariable": "warning",
+    "reportMissingImports": "warning"
+  },
+  "jupyter.pylanceHandlesNotebooks": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "ruff.configuration": ""
+}

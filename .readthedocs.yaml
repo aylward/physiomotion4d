@@ -1,0 +1,37 @@
+# Read the Docs configuration file for PhysioMotion4D
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+version: 2
+
+# Build documentation in the docs/ directory with Sphinx
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.11"
+  jobs:
+    post_create_environment:
+      # Install uv for faster dependency installation
+      - pip install uv
+    post_install:
+      # Install torch with CUDA support (CPU version for docs build)
+      - uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Sphinx configuration
+sphinx:
+  builder: html
+  configuration: docs/conf.py
+  fail_on_warning: false
+
+# Python configuration
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+
+# Formats to build (PDF, ePub, HTML)
+formats:
+  - pdf
+  - epub
+
