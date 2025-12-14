@@ -1,0 +1,44 @@
+# Project files
+.claude
+.coverage
+coverage.xml
+*~
+venv*
+.venv
+build
+*.egg-info
+*.log
+__pycache__
+_version.py
+htmlcov
+
+# Network weights
+network_weights
+
+# Data files
+*.gz
+*.mha
+*.mhd
+*.zip
+*.nii
+*.tfm
+*.vtp
+*.vtk
+*.vtu
+*.usd
+*.usda
+*.usdc
+*.nrrd
+
+# Archive and Output Directories
+archive
+old
+output
+save
+results*
+
+# Test data and outputs
+tests/data/
+tests/results/
+tests/baseline_staging/
+test_output.txt

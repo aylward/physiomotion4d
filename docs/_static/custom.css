@@ -1,0 +1,60 @@
+/* Custom CSS for PhysioMotion4D documentation */
+
+/* Brand colors */
+:root {
+    --pm4d-primary: #76B900; /* NVIDIA green */
+    --pm4d-secondary: #2980B9;
+    --pm4d-dark: #1a1a1a;
+}
+
+/* Enhanced code blocks */
+.highlight {
+    background: #f8f8f8;
+    border-left: 3px solid var(--pm4d-primary);
+    padding-left: 10px;
+}
+
+/* Note/Warning/Tip boxes */
+.admonition {
+    border-left: 4px solid var(--pm4d-primary);
+}
+
+.admonition.warning {
+    border-left-color: #f0ad4e;
+}
+
+.admonition.danger {
+    border-left-color: #d9534f;
+}
+
+.admonition.tip {
+    border-left-color: #5bc0de;
+}
+
+/* Headers */
+h1, h2, h3 {
+    color: var(--pm4d-dark);
+}
+
+/* Links */
+a {
+    color: var(--pm4d-secondary);
+}
+
+a:hover {
+    color: var(--pm4d-primary);
+}
+
+/* Sidebar */
+.wy-side-nav-search {
+    background-color: var(--pm4d-dark);
+}
+
+/* Code inline */
+code.literal {
+    background-color: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+

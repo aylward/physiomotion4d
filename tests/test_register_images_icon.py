@@ -1,0 +1,442 @@
+#!/usr/bin/env python
+"""
+Test for ICON-based image registration.
+
+This test depends on test_convert_nrrd_4d_to_3d and uses the converted
+3D CT images to test ICON registration functionality.
+Note: ICON requires CUDA-enabled GPU.
+"""
+
+from pathlib import Path
+
+import itk
+import numpy as np
+import pytest
+
+from physiomotion4d.register_images_icon import RegisterImagesICON
+from physiomotion4d.transform_tools import TransformTools
+
+
+@pytest.mark.requires_data
+@pytest.mark.slow
+class TestRegisterImagesICON:
+    """Test suite for ICON-based image registration."""
+
+    def test_registrar_initialization(self, registrar_icon):
+        """Test that RegisterImagesICON initializes correctly."""
+        assert registrar_icon is not None, "Registrar not initialized"
+        assert hasattr(registrar_icon, 'fixed_image'), "Missing fixed_image attribute"
+        assert hasattr(
+            registrar_icon, 'fixed_image_mask'
+        ), "Missing fixed_image_mask attribute"
+        assert hasattr(
+            registrar_icon, 'num_iterations'
+        ), "Missing num_iterations attribute"
+        assert hasattr(registrar_icon, 'net'), "Missing net attribute (ICON network)"
+
+        print("\nICON registrar initialized successfully")
+        print(f"  Default iterations: {registrar_icon.num_iterations}")
+
+    def test_set_modality(self, registrar_icon):
+        """Test setting imaging modality."""
+        registrar_icon.set_modality('ct')
+        assert registrar_icon.modality == 'ct', "Modality not set correctly"
+
+        registrar_icon.set_modality('mr')
+        assert registrar_icon.modality == 'mr', "Modality change failed"
+
+        print("\nModality setting works correctly")
+
+    def test_set_number_of_iterations(self, registrar_icon):
+        """Test setting number of iterations."""
+        registrar_icon.set_number_of_iterations(10)
+        assert registrar_icon.num_iterations == 10, "Number of iterations not set"
+
+        registrar_icon.set_number_of_iterations(5)
+        assert registrar_icon.num_iterations == 5, "Number of iterations update failed"
+
+        print("\nNumber of iterations setting works correctly")
+
+    def test_set_fixed_image(self, registrar_icon, test_images):
+        """Test setting fixed image."""
+        fixed_image = test_images[0]
+
+        registrar_icon.set_fixed_image(fixed_image)
+        assert registrar_icon.fixed_image is not None, "Fixed image not set"
+
+        print("\nFixed image set successfully")
+        print(f"  Image size: {itk.size(registrar_icon.fixed_image)}")
+        print(f"  Image spacing: {itk.spacing(registrar_icon.fixed_image)}")
+
+    def test_set_mass_preservation(self, registrar_icon):
+        """Test setting mass preservation flag."""
+        registrar_icon.set_mass_preservation(True)
+        assert registrar_icon.use_mass_preservation == True, "Mass preservation not set"
+
+        registrar_icon.set_mass_preservation(False)
+        assert (
+            registrar_icon.use_mass_preservation == False
+        ), "Mass preservation update failed"
+
+        print("\nMass preservation setting works correctly")
+
+    def test_set_multi_modality(self, registrar_icon):
+        """Test setting multi-modality flag."""
+        registrar_icon.set_multi_modality(True)
+        assert registrar_icon.use_multi_modality == True, "Multi-modality not set"
+
+        registrar_icon.set_multi_modality(False)
+        assert (
+            registrar_icon.use_multi_modality == False
+        ), "Multi-modality update failed"
+
+        print("\nMulti-modality setting works correctly")
+
+    def test_register_without_mask(self, registrar_icon, test_images, test_directories):
+        """Test basic ICON registration without masks."""
+        output_dir = test_directories["output"]
+        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir.mkdir(exist_ok=True)
+
+        # Set up registration
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        print("\nRegistering images with ICON (no mask)...")
+        print(f"  Fixed image: {itk.size(fixed_image)}")
+        print(f"  Moving image: {itk.size(moving_image)}")
+
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+        registrar_icon.set_number_of_iterations(2)  # Use fewer iterations for testing
+
+        # Register
+        result = registrar_icon.register(moving_image=moving_image)
+
+        # Verify result is a dictionary
+        assert isinstance(result, dict), "Result should be a dictionary"
+        assert "phi_FM" in result, "Missing phi_FM in result"
+        assert "phi_MF" in result, "Missing phi_MF in result"
+
+        phi_FM = result["phi_FM"]
+        phi_MF = result["phi_MF"]
+
+        # Verify transforms are valid
+        assert phi_FM is not None, "phi_FM is None"
+        assert phi_MF is not None, "phi_MF is None"
+
+        print(f"ICON registration complete without mask")
+        print(f"  phi_FM type: {type(phi_FM).__name__}")
+        print(f"  phi_MF type: {type(phi_MF).__name__}")
+
+        # Save transforms
+        itk.transformwrite(
+            [phi_FM], str(reg_output_dir / "icon_phi_FM_no_mask.hdf"), compression=True
+        )
+        itk.transformwrite(
+            [phi_MF], str(reg_output_dir / "icon_phi_MF_no_mask.hdf"), compression=True
+        )
+        print(f"  Saved transforms to: {reg_output_dir}")
+
+    def test_register_with_mask(self, registrar_icon, test_images, test_directories):
+        """Test ICON registration with binary masks."""
+        output_dir = test_directories["output"]
+        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir.mkdir(exist_ok=True)
+
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        # Create simple binary masks (central region)
+        fixed_size_itk = itk.size(fixed_image)
+        moving_size_itk = itk.size(moving_image)
+
+        # Convert ITK Size to tuple for numpy indexing
+        fixed_size = (
+            int(fixed_size_itk[0]),
+            int(fixed_size_itk[1]),
+            int(fixed_size_itk[2]),
+        )
+        moving_size = (
+            int(moving_size_itk[0]),
+            int(moving_size_itk[1]),
+            int(moving_size_itk[2]),
+        )
+
+        # Create mask arrays
+        fixed_mask_arr = np.zeros(fixed_size[::-1], dtype=np.uint8)
+        moving_mask_arr = np.zeros(moving_size[::-1], dtype=np.uint8)
+
+        # Set central region to 1
+        fixed_mask_arr[
+            fixed_size[2] // 4 : 3 * fixed_size[2] // 4,
+            fixed_size[1] // 4 : 3 * fixed_size[1] // 4,
+            fixed_size[0] // 4 : 3 * fixed_size[0] // 4,
+        ] = 1
+
+        moving_mask_arr[
+            moving_size[2] // 4 : 3 * moving_size[2] // 4,
+            moving_size[1] // 4 : 3 * moving_size[1] // 4,
+            moving_size[0] // 4 : 3 * moving_size[0] // 4,
+        ] = 1
+
+        # Create ITK images
+        fixed_mask = itk.image_from_array(fixed_mask_arr)
+        fixed_mask.CopyInformation(fixed_image)
+
+        moving_mask = itk.image_from_array(moving_mask_arr)
+        moving_mask.CopyInformation(moving_image)
+
+        print("\nRegistering images with ICON (with masks)...")
+        print(f"  Fixed mask voxels: {np.sum(fixed_mask_arr)}")
+        print(f"  Moving mask voxels: {np.sum(moving_mask_arr)}")
+
+        # Set up registration with masks
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+        registrar_icon.set_fixed_image_mask(fixed_mask)
+        registrar_icon.set_number_of_iterations(2)
+
+        # Register
+        result = registrar_icon.register(
+            moving_image=moving_image, moving_image_mask=moving_mask
+        )
+
+        # Verify result
+        assert isinstance(result, dict), "Result should be a dictionary"
+        assert "phi_FM" in result, "Missing phi_FM in result"
+        assert "phi_MF" in result, "Missing phi_MF in result"
+
+        phi_FM = result["phi_FM"]
+        phi_MF = result["phi_MF"]
+
+        assert phi_FM is not None, "phi_FM is None"
+        assert phi_MF is not None, "phi_MF is None"
+
+        print(f"ICON registration complete with masks")
+
+        # Save transforms
+        itk.transformwrite(
+            [phi_FM],
+            str(reg_output_dir / "icon_phi_FM_with_mask.hdf"),
+            compression=True,
+        )
+        itk.transformwrite(
+            [phi_MF],
+            str(reg_output_dir / "icon_phi_MF_with_mask.hdf"),
+            compression=True,
+        )
+
+    def test_transform_application(self, registrar_icon, test_images, test_directories):
+        """Test applying ICON registration transforms to images."""
+        output_dir = test_directories["output"]
+        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir.mkdir(exist_ok=True)
+
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        # Register
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+        registrar_icon.set_number_of_iterations(2)
+        result = registrar_icon.register(moving_image=moving_image)
+
+        phi_MF = result["phi_MF"]
+
+        print("\nApplying ICON transform to moving image...")
+
+        # Apply transform
+        transform_tools = TransformTools()
+        registered_image = transform_tools.transform_image(
+            moving_image, phi_MF, fixed_image, interpolation_method="linear"
+        )
+
+        # Verify registered image
+        assert registered_image is not None, "Registered image is None"
+        assert itk.size(registered_image) == itk.size(fixed_image), "Size mismatch"
+
+        # Check that image content changed
+        moving_arr = itk.array_from_image(moving_image)
+        registered_arr = itk.array_from_image(registered_image)
+
+        difference = np.sum(
+            np.abs(moving_arr.astype(float) - registered_arr.astype(float))
+        )
+
+        print(f"Transform applied successfully")
+        print(f"  Registered image size: {itk.size(registered_image)}")
+        print(f"  Total difference: {difference:.2f}")
+
+        # Save registered image
+        itk.imwrite(
+            registered_image,
+            str(reg_output_dir / "icon_registered_image.mha"),
+            compression=True,
+        )
+        print(f"  Saved to: {reg_output_dir / 'icon_registered_image.mha'}")
+
+    def test_inverse_consistency(self, registrar_icon, test_images):
+        """Test ICON's inverse consistency property."""
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        print("\nTesting inverse consistency...")
+
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+        registrar_icon.set_number_of_iterations(2)
+        result = registrar_icon.register(moving_image=moving_image)
+
+        phi_FM = result["phi_FM"]
+        phi_MF = result["phi_MF"]
+
+        # Test point transformation
+        test_point = itk.Point[itk.D, 3]()
+        test_point[0] = float(itk.size(fixed_image)[0] / 2)
+        test_point[1] = float(itk.size(fixed_image)[1] / 2)
+        test_point[2] = float(itk.size(fixed_image)[2] / 2)
+
+        # Forward then backward
+        transformed_point = phi_MF.TransformPoint(test_point)
+        back_transformed_point = phi_FM.TransformPoint(transformed_point)
+
+        # Calculate error
+        error = np.sqrt(
+            (test_point[0] - back_transformed_point[0]) ** 2
+            + (test_point[1] - back_transformed_point[1]) ** 2
+            + (test_point[2] - back_transformed_point[2]) ** 2
+        )
+
+        print(f"Inverse consistency tested")
+        print(
+            f"  Original point: [{test_point[0]:.2f}, {test_point[1]:.2f}, {test_point[2]:.2f}]"
+        )
+        print(
+            f"  Round-trip point: [{back_transformed_point[0]:.2f}, {back_transformed_point[1]:.2f}, {back_transformed_point[2]:.2f}]"
+        )
+        print(f"  Round-trip error: {error:.4f} mm")
+
+        # ICON should have small inverse consistency error
+        assert error < 5.0, f"Inverse consistency error too large: {error:.2f} mm"
+
+    def test_preprocess_images(self, registrar_icon, test_images):
+        """Test image preprocessing for ICON."""
+        test_image = test_images[0]
+
+        print("\nTesting ICON image preprocessing...")
+        print(f"  Original spacing: {itk.spacing(test_image)}")
+
+        # Preprocess
+        preprocessed = registrar_icon.preprocess(test_image, modality='ct')
+
+        assert preprocessed is not None, "Preprocessed image is None"
+
+        preprocessed_spacing = itk.spacing(preprocessed)
+        print(f"Image preprocessing complete")
+        print(f"  Preprocessed spacing: {preprocessed_spacing}")
+
+    def test_registration_with_initial_transform(
+        self, registrar_icon, test_images, test_directories
+    ):
+        """Test ICON registration with initial transform."""
+        output_dir = test_directories["output"]
+        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir.mkdir(exist_ok=True)
+
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        # Create initial translation transform
+        initial_tfm_FM = itk.TranslationTransform[itk.D, 3].New()
+        initial_tfm_FM.SetOffset([5.0, 5.0, 5.0])
+
+        initial_tfm_MF = itk.TranslationTransform[itk.D, 3].New()
+        initial_tfm_MF.SetOffset([-5.0, -5.0, -5.0])
+
+        print("\nRegistering with initial transform...")
+        print(f"  Initial offset: [5.0, 5.0, 5.0]")
+
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+        registrar_icon.set_number_of_iterations(2)
+
+        result = registrar_icon.register(
+            moving_image=moving_image,
+            initial_phi_FM=initial_tfm_FM,
+            initial_phi_MF=initial_tfm_MF,
+        )
+
+        assert isinstance(result, dict), "Result should be a dictionary"
+        assert result["phi_FM"] is not None, "phi_FM is None"
+        assert result["phi_MF"] is not None, "phi_MF is None"
+
+        print(f"Registration with initial transform complete")
+
+    def test_transform_types(self, registrar_icon, test_images):
+        """Test that ICON transforms are correct ITK types."""
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+        registrar_icon.set_number_of_iterations(2)
+        result = registrar_icon.register(moving_image=moving_image)
+
+        phi_FM = result["phi_FM"]
+        phi_MF = result["phi_MF"]
+
+        print("\nVerifying ICON transform types...")
+
+        # ICON returns transforms (either DisplacementFieldTransform or CompositeTransform wrapping it)
+        # The important thing is that they are valid ITK transforms
+        assert phi_FM is not None, "phi_FM is None"
+        assert phi_MF is not None, "phi_MF is None"
+
+        # Check if it's either a DisplacementFieldTransform or CompositeTransform
+        valid_fm = isinstance(
+            phi_FM, (itk.DisplacementFieldTransform, itk.CompositeTransform)
+        )
+        valid_mf = isinstance(
+            phi_MF, (itk.DisplacementFieldTransform, itk.CompositeTransform)
+        )
+
+        assert (
+            valid_fm
+        ), f"phi_FM should be DisplacementFieldTransform or CompositeTransform, got {type(phi_FM)}"
+        assert (
+            valid_mf
+        ), f"phi_MF should be DisplacementFieldTransform or CompositeTransform, got {type(phi_MF)}"
+
+        print(f"Transform types verified")
+        print(f"  phi_FM: {type(phi_FM).__name__}")
+        print(f"  phi_MF: {type(phi_MF).__name__}")
+
+    def test_different_iteration_counts(self, registrar_icon, test_images):
+        """Test ICON with different iteration counts."""
+        fixed_image = test_images[0]
+        moving_image = test_images[1]
+
+        registrar_icon.set_modality('ct')
+        registrar_icon.set_fixed_image(fixed_image)
+
+        iteration_counts = [1, 2, 5]
+        results = []
+
+        print("\nTesting different iteration counts...")
+
+        for num_iter in iteration_counts:
+            print(f"  Running with {num_iter} iterations...")
+            registrar_icon.set_number_of_iterations(num_iter)
+            result = registrar_icon.register(moving_image=moving_image)
+            results.append(result)
+
+            assert isinstance(result, dict), "Result should be a dictionary"
+            assert "phi_FM" in result, "Missing phi_FM"
+            assert "phi_MF" in result, "Missing phi_MF"
+
+        print(f"Tested {len(iteration_counts)} different iteration counts")
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-s"])

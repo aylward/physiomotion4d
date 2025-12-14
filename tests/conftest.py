@@ -1,0 +1,290 @@
+#!/usr/bin/env python
+"""
+Shared pytest fixtures for PhysioMotion4D tests.
+
+This file defines fixtures that are available to all test modules
+in the tests directory via pytest's automatic fixture discovery.
+"""
+
+import shutil
+import urllib.request
+from pathlib import Path
+
+import itk
+import numpy as np
+import pytest
+from itk import TubeTK as ttk
+
+from physiomotion4d.contour_tools import ContourTools
+from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
+from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_icon import RegisterImagesICON
+from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
+from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
+from physiomotion4d.transform_tools import TransformTools
+
+# Directory and Data Download Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def test_directories():
+    """Set up test directories for data and results."""
+    data_dir = Path("tests/data/Slicer-Heart-CT")
+    output_dir = Path("tests/results")
+
+    # Create directories if they don't exist
+    data_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    return {"data": data_dir, "output": output_dir}
+
+
+@pytest.fixture(scope="session")
+def download_truncal_valve_data(test_directories):
+    """Download TruncalValve 4D CT data."""
+    data_dir = test_directories["data"]
+    input_image_filename = data_dir / "TruncalValve_4DCT.seq.nrrd"
+
+    # Check if file already exists in test data directory
+    if input_image_filename.exists():
+        print(f"\nData file already exists: {input_image_filename}")
+        return input_image_filename
+
+    # Check if file exists in main data directory (one level up from project root)
+    main_data_file = Path("data/Slicer-Heart-CT/TruncalValve_4DCT.seq.nrrd")
+    if main_data_file.exists():
+        print(f"\nCopying data from main data directory: {main_data_file}")
+        import shutil
+
+        data_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(str(main_data_file), str(input_image_filename))
+        print(f"Copied to {input_image_filename}")
+        return input_image_filename
+
+    # Try to download if not found locally
+    input_image_url = "https://github.com/Slicer-Heart-CT/Slicer-Heart-CT/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
+    print(f"\nDownloading TruncalValve 4D CT data from {input_image_url}...")
+
+    try:
+        urllib.request.urlretrieve(input_image_url, str(input_image_filename))
+        print(f"Downloaded to {input_image_filename}")
+    except urllib.error.HTTPError as e:
+        pytest.skip(
+            f"Could not download test data: {e}. Please manually place TruncalValve_4DCT.seq.nrrd in {data_dir}"
+        )
+
+    return input_image_filename
+
+
+# ============================================================================
+# Image Conversion Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def converted_3d_images(download_truncal_valve_data, test_directories):
+    """Convert 4D NRRD to 3D time series and return slice files."""
+    data_dir = test_directories["data"]
+    output_dir = test_directories["output"]
+    input_4d_file = download_truncal_valve_data
+
+    # Check if conversion already done
+    slice_000 = data_dir / "slice_000.mha"
+    slice_007 = data_dir / "slice_007.mha"
+
+    if not slice_000.exists() or not slice_007.exists():
+        # Convert 4D to 3D time series
+        print(f"\nConverting 4D NRRD to 3D time series...")
+        conv = ConvertNRRD4DTo3D()
+        conv.load_nrrd_4d(str(input_4d_file))
+        conv.save_3d_images(str(data_dir / "slice"))
+
+        # Copy mid-stroke slice as fixed/reference image
+        fixed_image_output = output_dir / "slice_fixed.mha"
+        shutil.copyfile(str(slice_007), str(fixed_image_output))
+        print(f"Conversion complete, saved fixed image to: {fixed_image_output}")
+    else:
+        print(f"\n3D slice files already exist")
+
+    return data_dir
+
+
+@pytest.fixture(scope="session")
+def test_images(converted_3d_images):
+    """Load two time points from the converted 3D data for testing."""
+    data_dir = converted_3d_images
+
+    # Load two time points (slice_000 and slice_001)
+    slice_000 = data_dir / "slice_000.mha"
+    slice_001 = data_dir / "slice_001.mha"
+
+    # Ensure the files exist
+    if not slice_000.exists() or not slice_001.exists():
+        pytest.skip("Converted 3D slice files not found. Run conversion test first.")
+
+    images = [itk.imread(str(slice_000)), itk.imread(str(slice_001))]
+
+    for i, img in enumerate(images):
+        resampler = ttk.ResampleImage.New(Input=img)
+        resampler.SetResampleFactor([0.5, 0.5, 0.5])
+        resampler.Update()
+        images[i] = resampler.GetOutput()
+
+    print(f"\nLoaded 2 time points for testing")
+    return images
+
+
+# ============================================================================
+# Segmentation Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def segmenter_total_segmentator():
+    """Create a SegmentChestTotalSegmentator instance."""
+    return SegmentChestTotalSegmentator()
+
+
+@pytest.fixture(scope="session")
+def segmenter_vista_3d():
+    """Create a SegmentChestVista3D instance."""
+    return SegmentChestVista3D()
+
+
+@pytest.fixture(scope="session")
+def segmentation_results(segmenter_total_segmentator, test_images, test_directories):
+    """
+    Get or create segmentation results using TotalSegmentator.
+    Used by multiple tests (contour, USD conversion, etc.)
+    """
+    output_dir = test_directories["output"]
+    seg_output_dir = output_dir / "segmentation_total_segmentator"
+
+    # Check if segmentation files exist
+    labelmap_000 = seg_output_dir / "slice_000_labelmap.mha"
+    labelmap_001 = seg_output_dir / "slice_001_labelmap.mha"
+
+    if not labelmap_000.exists() or not labelmap_001.exists():
+        # Run segmentation if results don't exist
+        print("\nSegmentation results not found, generating them...")
+        seg_output_dir.mkdir(parents=True, exist_ok=True)
+
+        results = []
+        for i, input_image in enumerate(test_images):
+            result = segmenter_total_segmentator.segment(
+                input_image, contrast_enhanced_study=False
+            )
+            results.append(result)
+
+            # Save labelmap
+            labelmap = result["labelmap"]
+            output_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
+            itk.imwrite(labelmap, str(output_file), compression=True)
+
+        return results
+    else:
+        # Load existing segmentation results
+        print("\nLoading existing segmentation results...")
+        results = []
+        for i in range(2):
+            labelmap_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
+            labelmap = itk.imread(str(labelmap_file))
+
+            # Create anatomy group masks from labelmap
+            masks = segmenter_total_segmentator.create_anatomy_group_masks(labelmap)
+
+            result = {
+                "labelmap": labelmap,
+                "lung": masks["lung"],
+                "heart": masks["heart"],
+                "major_vessels": masks["major_vessels"],
+                "bone": masks["bone"],
+                "soft_tissue": masks["soft_tissue"],
+                "other": masks["other"],
+                "contrast": masks["contrast"],
+            }
+            results.append(result)
+
+        return results
+
+
+# ============================================================================
+# Contour Tool Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def contour_tools():
+    """Create a ContourTools instance."""
+    return ContourTools()
+
+
+# ============================================================================
+# Registration Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def registrar_ants():
+    """Create a RegisterImagesANTs instance."""
+    return RegisterImagesANTs()
+
+
+@pytest.fixture(scope="session")
+def registrar_icon():
+    """Create a RegisterImagesICON instance."""
+    return RegisterImagesICON()
+
+
+@pytest.fixture(scope="session")
+def ants_registration_results(registrar_ants, test_images, test_directories):
+    """
+    Perform ANTs registration and return results.
+    Generates them if not already present, otherwise loads from disk.
+    """
+    output_dir = test_directories["output"]
+    reg_output_dir = output_dir / "registration_ants"
+    reg_output_dir.mkdir(exist_ok=True)
+
+    phi_FM_path = reg_output_dir / "ants_phi_FM_no_mask.hdf"
+    phi_MF_path = reg_output_dir / "ants_phi_MF_no_mask.hdf"
+
+    if phi_FM_path.exists() and phi_MF_path.exists():
+        print("\nLoading existing ANTs registration results...")
+        try:
+            phi_FM = itk.transformread(str(phi_FM_path))
+            phi_MF = itk.transformread(str(phi_MF_path))
+            return {"phi_FM": phi_FM, "phi_MF": phi_MF}
+        except (RuntimeError, Exception) as e:
+            print(f"Error loading transforms: {e}")
+            print("Regenerating registration results...")
+            # Delete corrupt files
+            phi_FM_path.unlink(missing_ok=True)
+            phi_MF_path.unlink(missing_ok=True)
+
+    # Perform registration if files don't exist or loading failed
+    print("\nPerforming ANTs registration...")
+    fixed_image = test_images[0]
+    moving_image = test_images[1]
+
+    registrar_ants.set_fixed_image(fixed_image)
+    result = registrar_ants.register(moving_image=moving_image)
+
+    phi_FM = result["phi_FM"]
+    phi_MF = result["phi_MF"]
+
+    itk.transformwrite(phi_FM, str(phi_FM_path), compression=True)
+    itk.transformwrite(phi_MF, str(phi_MF_path), compression=True)
+    return {"phi_FM": phi_FM, "phi_MF": phi_MF}
+
+
+# ============================================================================
+# Transform Tool Fixtures
+# ============================================================================
+
+
+@pytest.fixture(scope="session")
+def transform_tools():
+    """Create a TransformTools instance."""
+    return TransformTools()

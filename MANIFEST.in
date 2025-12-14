@@ -1,0 +1,39 @@
+# Include essential documentation
+include README.md
+include LICENSE
+include CLAUDE.md
+include CHANGELOG.md
+include doc/PYPI_RELEASE_GUIDE.md
+
+# Include configuration files
+include pyproject.toml
+include setup.py
+
+# Include example scripts (but not in the package itself)
+recursive-include scripts *.py
+recursive-include scripts *.md
+
+# Include all source code
+recursive-include src *.py
+
+# Include network weights and models
+recursive-include src/physiomotion4d/network_weights *
+
+# Include data files
+recursive-include src/physiomotion4d *.json
+recursive-include src/physiomotion4d *.yaml
+recursive-include src/physiomotion4d *.yml
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude *.dylib
+global-exclude .git*
+recursive-exclude tests *
+recursive-exclude experiments *
+recursive-exclude data *
+recursive-exclude build *
+recursive-exclude dist *
+recursive-exclude *.egg-info *
