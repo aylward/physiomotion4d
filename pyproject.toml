@@ -209,7 +209,7 @@ skip_gitignore = true
 
 [tool.flake8]
 max-line-length = 88
-extend-ignore = ["E203", "E501", "W503"]
+extend-ignore = ["E203", "W503"]
 exclude = [
     ".git",
     "__pycache__",
@@ -336,10 +336,14 @@ select = [
     "UP",  # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long, handled by black
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
+
+[tool.ruff.format]
+# Enable comment formatting and line wrapping
+docstring-code-format = true
+docstring-code-line-length = 88
 exclude = [
     ".git",
     "__pycache__",
