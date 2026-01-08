@@ -24,7 +24,7 @@
   "editor.formatOnPaste": false,
   // Python-specific editor settings
   "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.rulers": [
       88
     ],
@@ -54,6 +54,4 @@
   },
   "jupyter.pylanceHandlesNotebooks": true,
   "python.analysis.typeCheckingMode": "basic",
-  "ruff.enable": true,
-  "ruff.lint.enable": true,
 }

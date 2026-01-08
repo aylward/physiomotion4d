@@ -246,7 +246,6 @@ class ContourTools(PhysioMotion4DBase):
         squared_distance: bool = False,
         max_distance: float = 0.0,
         invert_distance_map: bool = False,
-        create_point_map: bool = False,
     ) -> itk.Image:
         self.log_info("Computing signed distance map...")
 
