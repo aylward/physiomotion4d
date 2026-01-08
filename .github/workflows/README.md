@@ -4,23 +4,29 @@ This directory contains GitHub Actions workflows for automated testing and CI/CD
 
 ## Workflows
 
-### `test.yml` - Main Test Suite
+### `ci.yml` - Main CI Pipeline
 
 Runs on every push and pull request to main branches. Includes:
 
-- **test-cpu**: Unit tests on CPU across Python 3.10, 3.11, and 3.12
+- **unit-tests**: Cross-platform unit tests
+  - Runs on Ubuntu and Windows
+  - Python 3.10, 3.11, and 3.12
   - Uses PyTorch CPU version to avoid GPU dependencies
-  - Runs tests marked with `unit` and excludes GPU-requiring tests
+  - Excludes slow tests and tests requiring external data
   - Generates coverage reports
 
-- **test-gpu**: Tests on self-hosted GPU runners (if available)
-  - Uses PyTorch with CUDA 12.6 support
-  - Runs all tests except those marked as slow
-  - Requires self-hosted runner with `[self-hosted, linux, gpu]` labels
+- **integration-tests**: Integration tests with external data
+  - Runs on Ubuntu only, for pull requests
+  - Downloads and caches test data
+  - Tests data processing pipelines
 
-- **test-integration**: Integration tests on CPU
-  - Runs after CPU tests pass
-  - Tests marked with `integration` marker
+- **gpu-tests**: Tests on self-hosted GPU runners
+  - **DISABLED BY DEFAULT** - Only runs when:
+    - Manually triggered via workflow_dispatch, OR
+    - PR has the `run-gpu-tests` label
+  - Requires self-hosted runner with `[self-hosted, linux, gpu]` labels
+  - Uses PyTorch with CUDA 12.6 support
+  - Timeout: 30 minutes
 
 - **code-quality**: Static code analysis
   - Black, isort, ruff, flake8 checks
@@ -28,12 +34,22 @@ Runs on every push and pull request to main branches. Includes:
 
 ### `test-slow.yml` - Long-Running Tests
 
-Runs nightly or on manual trigger. Includes:
+Runs nightly at 2 AM UTC or on manual trigger. Includes:
 
 - **test-slow-gpu**: Slow tests requiring GPU
   - Tests marked with `slow` marker
-  - Extended timeout (3600 seconds)
+  - Extended timeout: 60 minutes
   - Uses self-hosted GPU runners
+  - Will wait indefinitely if no runner is available
+
+### `docs.yml` - Documentation Build
+
+Builds Sphinx documentation on push to main and pull requests:
+
+- Installs documentation dependencies
+- Builds HTML documentation
+- Deploys to GitHub Pages (main branch only)
+- Uploads documentation artifacts
 
 ## Caching Strategy
 
@@ -49,12 +65,25 @@ The workflows use multiple caching layers to speed up builds:
 
 ## GPU Support
 
+### Important: GPU Tests Are Disabled by Default
+
+⚠️ **GPU tests do NOT run automatically** to prevent jobs from waiting indefinitely in the queue when no runner is available.
+
+To run GPU tests, you must either:
+1. **Manually trigger the workflow**: Go to Actions > CI > Run workflow
+2. **Add the `run-gpu-tests` label** to your pull request
+
 ### Self-Hosted Runners
 
 GPU tests require self-hosted runners with:
 - Linux OS
 - NVIDIA GPU with CUDA 12.6+ support
 - Runner labels: `[self-hosted, linux, gpu]`
+
+**Why are GPU tests disabled by default?**
+- GitHub Actions jobs wait indefinitely for a self-hosted runner if none are available
+- The `timeout-minutes` setting only applies AFTER a runner picks up the job
+- This can block CI pipelines and create confusion when runners are offline
 
 ### Setting Up Self-Hosted GPU Runners
 
@@ -84,9 +113,34 @@ GPU tests require self-hosted runners with:
    ./run.sh
    ```
 
+### How to Run GPU Tests
+
+**Option 1: Manual Workflow Trigger**
+1. Go to your repository on GitHub
+2. Click "Actions" tab
+3. Select "CI" workflow from the left sidebar
+4. Click "Run workflow" button
+5. Select branch and click "Run workflow"
+
+**Option 2: Add Label to PR**
+1. Open your pull request
+2. Add the `run-gpu-tests` label
+3. The CI workflow will automatically include GPU tests
+
+**Option 3: Run Locally**
+```bash
+# Install with CUDA support
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+pip install -e ".[test]"
+
+# Run GPU tests
+pytest tests/ -v -m "not slow"
+pytest tests/ -v -m "slow"  # For long-running tests
+```
+
 ### GitHub-Hosted Runners
 
-GitHub-hosted runners do **not** have GPU support. GPU tests will be skipped automatically if no self-hosted runners are available (`continue-on-error: true`).
+GitHub-hosted runners do **not** have GPU support. All GPU tests require self-hosted runners with NVIDIA GPUs.
 
 ## Test Dependencies
 
@@ -171,11 +225,16 @@ Coverage reports are:
 
 ### GPU Tests Not Running
 
-If GPU tests are not running:
-1. Verify self-hosted runner is online: Settings > Actions > Runners
-2. Check runner labels include `gpu`
-3. Verify `nvidia-smi` works on the runner
-4. Check workflow logs for runner assignment
+GPU tests are disabled by default. If you want to run them:
+1. **Check if GPU tests should run**: They only run on manual trigger or with `run-gpu-tests` label
+2. **Verify self-hosted runner is online**: Settings > Actions > Runners
+3. **Check runner labels**: Runner must have `self-hosted`, `linux`, and `gpu` labels
+4. **Verify GPU accessibility**: Run `nvidia-smi` on the runner machine
+5. **Check workflow logs**: Look for "Waiting for a runner" or "runner assignment" messages
+
+If GPU tests are stuck "Waiting for a runner":
+- The runner is offline or not properly configured
+- Cancel the workflow run (GPU tests won't hold up other jobs due to `continue-on-error: true`)
 
 ### Cache Not Working
 

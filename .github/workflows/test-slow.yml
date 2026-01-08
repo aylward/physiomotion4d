@@ -1,8 +1,12 @@
 name: Slow Tests
 
+# NOTE: This workflow requires a self-hosted GPU runner to be available.
+# It will wait indefinitely in the queue if no runner is available.
+# Only scheduled runs and manual triggers are enabled.
+
 on:
   schedule:
-    # Run nightly at 2 AM UTC
+    # Run nightly at 2 AM UTC (only if runner is available)
     - cron: '0 2 * * *'
   workflow_dispatch:
 
@@ -10,7 +14,7 @@ jobs:
   test-slow-gpu:
     name: Slow Tests on GPU
     runs-on: [self-hosted, linux, gpu]
-    timeout-minutes: 15
+    timeout-minutes: 60
     continue-on-error: true
 
     steps:

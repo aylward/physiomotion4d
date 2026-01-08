@@ -245,17 +245,20 @@ jobs:
   # ============================================================================
   # GPU Tests (Self-hosted runners with CUDA)
   # ============================================================================
+  # NOTE: GPU tests are DISABLED for automatic runs because they wait indefinitely
+  # if no self-hosted runner is available. Enable manually via workflow_dispatch
+  # or by setting the 'run-gpu-tests' label on the PR.
   gpu-tests:
     name: GPU Tests (Python ${{ matrix.python-version }})
     runs-on: [self-hosted, linux, gpu]
     needs: unit-tests
-    timeout-minutes: 15
+    timeout-minutes: 30
+    # Only run GPU tests on manual trigger or if 'run-gpu-tests' label is present
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-gpu-tests')
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11"]
-    # Only run GPU tests if self-hosted runners are available
-    # Timeout after 15 minutes if no runner picks up the job
     continue-on-error: true
 
     steps:
