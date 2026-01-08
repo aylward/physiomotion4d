@@ -22,9 +22,13 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
     Attributes:
         fixed_model (pv.PolyData)
         moving_model (pv.PolyData)
-        reference_image (itk.Image): Patient image providing coordinate frame and distance data
+        reference_image (itk.Image): Patient image providing coordinate frame and
+            distance data
         transform_type: Rigid or Affine
-        forward_point_transform (itk.ComposeScaleSkewVersor3DTransform): Optimized transformation
+        forward_point_transform (itk.ComposeScaleSkewVersor3DTransform): Optimized
+            transformation
+        inverse_point_transform (itk.ComposeScaleSkewVersor3DTransform): Optimized
+            transformation
         registered_model (pv.PolyData): Final registered model
 
     Note:
@@ -35,7 +39,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
     def __init__(
         self,
         fixed_model: pv.PolyData,
-        reference_image: Optional[itk.Image] = None,
+        reference_image: Optional[itk.image] = None,
         point_subsample_step: int = 4,
         log_level: int | str = logging.INFO,
     ):
@@ -56,9 +60,12 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         self.transform_type: str = "Affine"
 
         # outputs
-        self.forward_point_transform: (
-            Optional[itk.ComposeScaleSkewVersor3DTransform] | None
-        ) = None
+        self.forward_point_transform: Optional[
+            itk.ComposeScaleSkewVersor3DTransform
+        ] = None
+        self.inverse_point_transform: Optional[
+            itk.ComposeScaleSkewVersor3DTransform
+        ] = None
         self.registered_model: Optional[pv.PolyData] = None
         self.final_mean_distance = 0
 
@@ -67,7 +74,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         self._transform_tools = TransformTools()
 
         # Image interpolator (created when needed)
-        self.fixed_distance_map: itk.Image | None = None
+        self.fixed_distance_map: Optional[itk.image] = None
         self._interpolator: Optional[itk.LinearInterpolateImageFunction] = None
         self._max_distance: float = 0.0
 
@@ -131,7 +138,8 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         Higher values indicate better alignment with bright regions.
 
         Args:
-            pca_deformation: Nx3 numpy array of PCA deformation vectors to add to points.
+            pca_deformation: Nx3 numpy array of PCA deformation vectors to add to
+                model points.
                 If None, no deformation is applied.
             transform_params: 12-element array of affine transform parameters.
                 If None, no affine transformation is applied.
@@ -146,7 +154,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
                     self.reference_image,
                 )
                 self.log_debug("   Distance map created")
-                ImageType = type(self.fixed_distance_map)
+            ImageType = type(self.fixed_distance_map)
             self._interpolator = itk.LinearInterpolateImageFunction[
                 ImageType, itk.D
             ].New()
@@ -240,8 +248,8 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         self,
         moving_model: pv.PolyData,
         initial_transform: Optional[itk.MatrixOffsetTransformBase] = None,
-        transform_type: str = 'Affine',  # or 'Rigid'
-        method: str = 'L-BFGS-B',  # or 'Nelder-Mead'
+        transform_type: str = "Affine",  # or 'Rigid'
+        method: str = "L-BFGS-B",  # or 'Nelder-Mead'
         scale_bound: float = 0.20,
         skew_bound: float = 0.03,
         versor_bound: float = 0.15,
@@ -339,7 +347,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
             initial_params,
             method=method,
             bounds=bounds,
-            options={'maxiter': max_iterations, 'disp': disp},
+            options={"maxiter": max_iterations, "disp": disp},
         )
         self.log_info(
             "Optimization result: %s -> %f", result_affine.x, result_affine.fun
@@ -362,6 +370,10 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
                 opt_itk_params[i] = result_affine.x[i]
         self.forward_point_transform.SetParameters(opt_itk_params)
 
+        self.inverse_point_transform = (
+            self.forward_point_transform.GetInverseTransform()
+        )
+
         self.final_mean_distance = result_affine.fun
 
         self.registered_model = self._transform_tools.transform_pvcontour(
@@ -375,7 +387,8 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         self.log_info(f"Final mean distance: {self.final_mean_distance:.2f}")
 
         return {
-            'registered_model': self.registered_model,
-            'forward_point_transform': self.forward_point_transform,
-            'mean_distance': self.final_mean_distance,
+            "registered_model": self.registered_model,
+            "forward_point_transform": self.forward_point_transform,
+            "inverse_point_transform": self.inverse_point_transform,
+            "mean_distance": self.final_mean_distance,
         }
