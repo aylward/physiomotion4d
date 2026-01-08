@@ -82,6 +82,8 @@ dependencies = [
     "matplotlib>=3.5.0",
     "jupyterlab>=4.0.0",
     "typing-extensions>=4.0.0",
+    "cupy-cuda12x>=13.6.0",
+
 ]
 
 [tool.uv.sources]
@@ -121,7 +123,8 @@ dev = [
     "ruff>=0.1.0",
 ]
 docs = [
-    "linkify>=1.4",
+    "linkify-it-py>=2.0.0",
+    "uc-micro-py>=1.0.1",
     "sphinx>=7.0.0",
     "sphinx-rtd-theme>=2.0.0",
     "sphinx-autodoc-typehints>=1.25.0",
@@ -283,14 +286,14 @@ addopts = [
     "--cov=physiomotion4d",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-report=xml",
-    "--timeout=900"
+    "--cov-report=xml"
 ]
 testpaths = ["tests"]
 markers = [
+    "unit: marks tests as unit tests (fast, isolated)",
+    "integration: marks tests as integration tests (slower, multiple components)",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
+    "requires_gpu: marks tests that require GPU/CUDA support",
     "requires_data: marks tests that require external data download"
 ]
 timeout = 900

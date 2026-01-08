@@ -5,12 +5,16 @@ This module provides utilities for converting between different medical image fo
 and performing image processing operations.
 """
 
+import logging
+
 import itk
 import numpy as np
 import SimpleITK as sitk
 
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
-class ImageTools:
+
+class ImageTools(PhysioMotion4DBase):
     """
     Utilities for medical image format conversions and processing.
 
@@ -26,9 +30,63 @@ class ImageTools:
         >>> itk_image_back = tools.convert_sitk_image_to_itk(sitk_image)
     """
 
-    def __init__(self):
-        """Initialize ImageTools."""
-        pass
+    def __init__(self, log_level: int | str = logging.INFO):
+        """Initialize ImageTools.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
+        """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
+    def imreadVD3(self, filename: str) -> itk.Image:
+        """Read an ITK vector image with double precision vectors.
+
+        ITK's imread is not wrapped for itk.Image[itk.Vector[itk.D,3],3],
+        so this method reads as itk.Image[itk.Vector[itk.F,3],3] and converts
+        to double precision.
+
+        Args:
+            filename (str): Path to the image file to read
+
+        Returns:
+            itk.Image[itk.Vector[itk.D,3],3]: Vector image with double precision
+
+        Example:
+            >>> displacement_field = ImageTools().imreadVD3("deformation.mha")
+        """
+        # Read as float precision vector image
+        image = itk.imread(filename)
+        if "VD" in str(type(image)):
+            return image
+
+        image_arr = itk.array_from_image(image)
+        image_double = self.convert_array_to_image_of_vectors(image_arr, image, itk.D)
+
+        return image_double
+
+    def imwriteVD3(self, image: itk.Image, filename: str, compression: bool = True):
+        """Write an ITK vector image with double precision vectors.
+
+        ITK's imwrite is not wrapped for itk.Image[itk.Vector[itk.D,3],3],
+        so this method converts to itk.Image[itk.Vector[itk.F,3],3] and writes.
+
+        Args:
+            image (itk.Image[itk.Vector[itk.D,3],3]): Vector image to write
+            filename (str): Path to the output file
+            compression (bool): Whether to use compression (default: True)
+
+        Example:
+            >>> ImageTools().imwriteVD3(displacement_field, "deformation.mha")
+        """
+        # Convert to float precision for writing
+        if "VD" not in str(type(image)):
+            raise ValueError("Image must be a vector image with double precision")
+
+        image_arr = itk.array_from_image(image)
+        image_float = self.convert_array_to_image_of_vectors(image_arr, image, itk.F)
+
+        # Write the float image
+        itk.imwrite(image_float, filename, compression=compression)
 
     def convert_itk_image_to_sitk(self, itk_image: itk.Image) -> sitk.Image:
         """
@@ -78,8 +136,8 @@ class ImageTools:
 
         # Set metadata
         # Convert origin and spacing to tuples (reverse order for SimpleITK: x, y, z)
-        sitk_image.SetOrigin(tuple(reversed(origin)))
-        sitk_image.SetSpacing(tuple(reversed(spacing)))
+        sitk_image.SetOrigin(tuple(origin))
+        sitk_image.SetSpacing(tuple(spacing))
 
         # Direction matrix needs to be flattened and reversed appropriately
         # ITK and SimpleITK use the same direction convention, but we need to handle
@@ -161,7 +219,10 @@ class ImageTools:
         return itk_image
 
     def convert_array_to_image_of_vectors(
-        self, arr_data: np.array, ptype: itk.D, reference_image: itk.Image
+        self,
+        arr_data: np.array,
+        reference_image: itk.Image,
+        ptype=itk.D,
     ) -> itk.Image:
         """
         Convert a numpy array to an ITK image of vector type.

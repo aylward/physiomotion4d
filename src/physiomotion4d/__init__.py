@@ -16,9 +16,6 @@ Main Components:
 
 __version__ = "2025.05.0"
 
-# Base classes
-from .physiomotion4d_base import PhysioMotion4DBase
-
 from .contour_tools import ContourTools
 
 # Data processing utilities
@@ -34,15 +31,18 @@ from .heart_model_to_patient_workflow import HeartModelToPatientWorkflow
 
 # Utility classes
 from .image_tools import ImageTools
-from .usd_anatomy_tools import USDAnatomyTools
+
+# Base classes
+from .physiomotion4d_base import PhysioMotion4DBase
 from .register_images_ants import RegisterImagesANTs
 
 # Registration classes
 from .register_images_base import RegisterImagesBase
 from .register_images_icon import RegisterImagesICON
-from .register_model_to_image_pca import RegisterModelToImagePCA
-from .register_model_to_model_icp import RegisterModelToModelICP
-from .register_model_to_model_masks import RegisterModelToModelMasks
+from .register_models_distance_maps import RegisterModelsDistanceMaps
+from .register_models_icp import RegisterModelsICP
+from .register_models_icp_itk import RegisterModelsICPITK
+from .register_models_pca import RegisterModelsPCA
 from .register_time_series_images import RegisterTimeSeriesImages
 
 # Segmentation classes
@@ -52,6 +52,7 @@ from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from .segment_chest_vista_3d import SegmentChestVista3D
 from .segment_chest_vista_3d_nim import SegmentChestVista3DNIM
 from .transform_tools import TransformTools
+from .usd_anatomy_tools import USDAnatomyTools
 from .usd_tools import USDTools
 
 __all__ = [
@@ -69,9 +70,9 @@ __all__ = [
     "RegisterImagesICON",
     "RegisterImagesANTs",
     "RegisterTimeSeriesImages",
-    "RegisterModelToImagePCA",
-    "RegisterModelToModelICP",
-    "RegisterModelToModelMasks",
+    "RegisterModelsPCA",
+    "RegisterModelsICP",
+    "RegisterModelsDistanceMaps",
     # Base classes
     "PhysioMotion4DBase",
     # Utility classes

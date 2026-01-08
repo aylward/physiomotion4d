@@ -30,12 +30,12 @@ def itk_transform_to_ants_transform(
 3. Creates an ANTsPy transform object using `ants.transform_from_displacement_field()`
 4. Returns the ANTsPy transform object (no disk I/O)
 
-### Updated Method: `registration_method()`
+### Updated Method: `register()`
 
-The registration method now accepts an `initial_phi_MF` parameter:
+The registration method now accepts an `initial_forward_transform` parameter:
 
 **New Parameter:**
-- `initial_phi_MF` (itk.Transform, optional): Initial transform from moving to fixed space. Can be any ITK transform type.
+- `initial_forward_transform` (itk.Transform, optional): Initial transform from moving to fixed space. Can be any ITK transform type.
 
 **Supported Transform Types:**
 - `itk.AffineTransform`
@@ -69,7 +69,7 @@ registrar.set_fixed_image(fixed_image)
 
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=initial_tfm  # Pass ITK transform directly!
+    initial_forward_transform=initial_tfm  # Pass ITK transform directly!
 )
 ```
 
@@ -86,7 +86,7 @@ registrar_deform = RegisterImagesANTs()
 registrar_deform.set_fixed_image(fixed_image)
 result_deform = registrar_deform.register(
     moving_image=moving_image,
-    initial_phi_MF=result_rigid["phi_MF"]  # Use previous result
+    initial_forward_transform=result_rigid["forward_transform"]  # Use previous result
 )
 ```
 
@@ -105,7 +105,7 @@ registrar = RegisterImagesANTs()
 registrar.set_fixed_image(fixed_image)
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=disp_tfm
+    initial_forward_transform=disp_tfm
 )
 ```
 
@@ -118,8 +118,7 @@ registrar.set_fixed_image(fixed_labels)
 
 result = registrar.register(
     moving_image=moving_labels,
-    images_are_labelmaps=True,
-    initial_phi_MF=initial_transform  # Works with label registration too!
+    initial_forward_transform=initial_transform
 )
 ```
 
@@ -144,7 +143,7 @@ registrar = RegisterImagesANTs()
 registrar.set_fixed_image(fixed_image)
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=composite  # Composite is automatically converted
+    initial_forward_transform=composite  # Composite is automatically converted
 )
 ```
 
@@ -163,21 +162,21 @@ When you pass an `initial_transform` to `ants.registration()`:
 ```python
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=initial_transform
+    initial_forward_transform=initial_transform
 )
 
 # The returned transforms INCLUDE the initial transform!
-phi_MF = result["phi_MF"]  # = initial_phi_MF ∘ registration_refinement
-phi_FM = result["phi_FM"]  # = registration_refinement^(-1) ∘ initial_phi_MF^(-1)
+forward_transform = result["forward_transform"]
+inverse_transform = result["inverse_transform"]
 ```
 
 The composition is done as follows:
-- **phi_MF**: `initial_phi_MF` → `registration_result` (applied in sequence)
-- **phi_FM**: `registration_result_inverse` → `initial_phi_MF_inverse` (applied in sequence)
+- **forward_transform**: `initial_forward_transform` → `registration_result` (applied in sequence)
+- **inverse_transform**: `registration_result_inverse` → `initial_forward_transform_inverse` (applied in sequence)
 
 ### Coordinate Systems
 
-- The initial transform should map points from **moving space to fixed space** (phi_MF)
+- The initial forward transform maps points from **moving space to fixed space**
 - The displacement field represents the displacement at each voxel in the **fixed image space**
 - ANTs internally handles the transform composition with its optimization
 
@@ -189,8 +188,8 @@ The composition is done as follows:
 
 ### Transform Direction
 
-The parameter `initial_phi_MF` represents:
-- **phi_MF**: Transform from Moving → Fixed space
+The parameter `initial_forward_transform` represents:
+- **forward_transform**: Transform from Moving → Fixed space
 - This aligns with ANTs' expected initial transform direction
 
 ### Interpolation
@@ -231,7 +230,7 @@ result = ants.registration(
 
 The implementation handles several edge cases:
 
-1. **Null transforms**: If `initial_phi_MF=None`, uses identity transform (default behavior)
+1. **Null transforms**: If `initial_forward_transform=None`, uses identity transform (default behavior)
 2. **List transforms**: If ITK returns a list with one transform, extracts the single transform
 3. **Transform composition**: Composite transforms are flattened to a single displacement field
 4. **Type checking**: Validates that inputs are proper ITK transforms
@@ -256,11 +255,11 @@ registrar = RegisterImagesANTs()
 registrar.set_fixed_image(fixed_image)
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=initial_affine  # Pass initial alignment
+    initial_forward_transform=initial_affine  # Pass initial alignment
 )
 
 # Step 4: The returned transform includes BOTH the initial affine AND the deformation
-phi_MF = result["phi_MF"]
+forward_transform = result["forward_transform"]
 # phi_MF is a CompositeTransform containing:
 #   1. initial_affine (applied first)
 #   2. deformation from ANTs registration (applied second)
@@ -307,11 +306,11 @@ warped = ants.apply_transforms(
 # ✅ Composition is automatic!
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=initial_tfm
+    initial_forward_transform=initial_tfm
 )
 
 # The returned transform already includes everything
-phi_MF = result["phi_MF"]  # Complete transform ready to use
+forward_transform = result["forward_transform"]  # Complete transform ready to use
 ```
 
 ## Comparison with File-Based Approach
@@ -342,11 +341,11 @@ os.remove("temp_transform.mat")
 # ✅ No file I/O, automatic composition!
 result = registrar.register(
     moving_image=moving_image,
-    initial_phi_MF=itk_tfm  # ITK transform object
+    initial_forward_transform=itk_tfm  # ITK transform object
 )
 
 # Transform is complete and ready to use
-phi_MF = result["phi_MF"]
+forward_transform = result["forward_transform"]
 ```
 
 ## References

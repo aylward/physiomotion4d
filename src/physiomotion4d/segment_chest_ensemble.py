@@ -8,6 +8,7 @@
 #      -v /tmp/data:/home/aylward/tmp/data nvcr.io/nim/nvidia/vista3d:latest
 
 import argparse
+import logging
 
 import itk
 import numpy as np
@@ -23,9 +24,13 @@ class SegmentChestEnsemble(SegmentChestBase):
     segmentation method using VISTA3D.
     """
 
-    def __init__(self):
-        """Initialize the vista3d class."""
-        super().__init__()
+    def __init__(self, log_level: int | str = logging.INFO):
+        """Initialize the vista3d class.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
+        """
+        super().__init__(log_level=log_level)
 
         self.target_spacing = 0.0
 
@@ -316,15 +321,15 @@ class SegmentChestEnsemble(SegmentChestBase):
             itk.image: The combined segmentation result.
         """
 
-        print("Running ensemble segmentation: combining results")
+        self.log_info("Running ensemble segmentation: combining results")
 
         labelmap_vista_arr = itk.GetArrayFromImage(labelmap_vista)
         labelmap_totseg_arr = itk.GetArrayFromImage(labelmap_totseg)
-        print("Segs done", flush=True)
+        self.log_info("Segmentations loaded")
 
         results_arr = np.zeros_like(labelmap_vista_arr)
 
-        print("Setting interpolators")
+        self.log_info("Setting interpolators")
         labelmap_vista_interp = itk.LabelImageGaussianInterpolateImageFunction.New(
             labelmap_vista
         )
@@ -332,11 +337,15 @@ class SegmentChestEnsemble(SegmentChestBase):
             labelmap_totseg
         )
 
-        print("Iterating through labelmaps", flush=True)
+        self.log_info("Iterating through labelmaps")
         lastidx0 = -1
+        total_slices = labelmap_vista_arr.shape[0]
         for idx in np.ndindex(labelmap_vista_arr.shape):
             if idx[0] != lastidx0:
-                print("Processing slice", idx[0], flush=True)
+                if idx[0] % 10 == 0 or idx[0] == total_slices - 1:
+                    self.log_progress(
+                        idx[0] + 1, total_slices, prefix="Processing slices"
+                    )
                 lastidx0 = idx[0]
             # Skip if both are zero
             vista_label = labelmap_vista_arr[idx]

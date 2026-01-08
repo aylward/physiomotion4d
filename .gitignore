@@ -3,6 +3,7 @@
 .coverage
 coverage.xml
 *~
+*.swp
 venv*
 .venv
 build
@@ -17,6 +18,7 @@ network_weights
 
 # Data files
 *.gz
+*.mat
 *.mha
 *.mhd
 *.zip

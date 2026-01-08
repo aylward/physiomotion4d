@@ -11,16 +11,20 @@ analysis, particularly in the context of 4D cardiac imaging where transforms
 are used to track anatomical motion over time.
 """
 
+import logging
+
+import cupy as cp
 import itk
 import numpy as np
 import pyvista as pv
 import SimpleITK as sitk
 from pxr import Gf, Usd, UsdGeom
 
-from .image_tools import ImageTools
+from physiomotion4d.image_tools import ImageTools
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
 
-class TransformTools:
+class TransformTools(PhysioMotion4DBase):
     """
     Utilities for transforming and manipulating ITK transforms.
 
@@ -53,13 +57,13 @@ class TransformTools:
         >>> field = transform_tools.generate_field(transform, reference_image)
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the TransformTools class.
 
-        No parameters are required for initialization as all methods
-        operate on provided transforms and images.
+        Args:
+            log_level: Logging level (default: logging.INFO)
         """
-        pass
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
     def combine_displacement_field_transforms(
         self,
@@ -309,13 +313,18 @@ class TransformTools:
                     f"Expected single transform or list with one transform, got list with {len(tfm)} transforms"
                 )
 
-        new_pnts = [tfm.TransformPoint(p) for p in pnts]
+        pnts = np.array(pnts)
+        new_pnts = [
+            tfm.TransformPoint((float(p[0]), float(p[1]), float(p[2]))) for p in pnts
+        ]
         new_contour.points = new_pnts
 
+        new_pnts = cp.array(new_pnts)
+        pnts = cp.array(pnts)
         if with_deformation_magnitude:
-            new_contour.point_data["DeformationMagnitude"] = np.linalg.norm(
+            new_contour.point_data["DeformationMagnitude"] = cp.linalg.norm(
                 new_pnts - pnts, axis=1
-            )
+            ).get()
 
         return new_contour
 
@@ -557,15 +566,10 @@ class TransformTools:
 
         combined_field_arr = sum_fields_arr / denom
 
-        # Create displacement field by duplicating and updating
-        # This preserves the exact image type
-        duplicator = itk.ImageDuplicator.New(field1)
-        duplicator.Update()
-        combined_field = duplicator.GetOutput()
-
         # Copy array data to ITK image
-        combined_field_view = itk.array_view_from_image(combined_field)
-        combined_field_view[:] = combined_field_arr
+        combined_field = ImageTools().convert_array_to_image_of_vectors(
+            combined_field_arr, field1, itk.F
+        )
 
         # Correct spatial folding iteratively
         for _ in range(max_iter):
@@ -602,6 +606,11 @@ class TransformTools:
             ...     deformation_field
             ... )
         """
+        if "VF" not in str(type(field)):
+            field_arr = itk.array_from_image(field)
+            field = ImageTools().convert_array_to_image_of_vectors(
+                field_arr, field, itk.F
+            )
         jac_filter = itk.DisplacementFieldJacobianDeterminantFilter.New(field)
         jac_filter.SetUseImageSpacing(True)
         jac_filter.Update()
@@ -865,10 +874,10 @@ class TransformTools:
 
         # Save the stage
         stage.Save()
-        print(f"Created USD visualization: {output_filename}")
-        print(f"  Type: {visualization_type}")
-        print(f"  Points: {np.prod(subsampled_size)}")
-        print(f"  Subsample factor: {subsample_factor}")
+        self.log_info("Created USD visualization: %s", output_filename)
+        self.log_info("  Type: %s", visualization_type)
+        self.log_info("  Points: %d", np.prod(subsampled_size))
+        self.log_info("  Subsample factor: %d", subsample_factor)
 
         return output_filename
 
@@ -921,7 +930,7 @@ class TransformTools:
                     )
                     arrow_count += 1
 
-        print(f"  Created {arrow_count} arrows")
+        self.log_info("  Created %d arrows", arrow_count)
 
     def _create_arrow_prim(
         self, stage, prim_path, position, displacement, magnitude, arrow_scale
@@ -1050,7 +1059,7 @@ class TransformTools:
                         self._create_curve_prim(stage, curve_path, streamline_points)
                         flowline_count += 1
 
-        print(f"  Created {flowline_count} flowlines")
+        self.log_info("  Created %d flowlines", flowline_count)
 
     def _trace_streamline(
         self,
@@ -1137,5 +1146,4 @@ class TransformTools:
         # Set color (cyan for flowlines)
         curve.GetDisplayColorAttr().Set([Gf.Vec3f(0.0, 1.0, 1.0)])
 
-        return curve
         return curve

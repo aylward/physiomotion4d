@@ -24,7 +24,12 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method='ants')
         assert registrar is not None, "Registrar not initialized"
         assert registrar.registration_method == 'ants', "Method not set correctly"
-        assert registrar.registrar is not None, "Internal registrar not created"
+        assert (
+            registrar.registrar_ants is not None
+        ), "Internal ANTs registrar not created"
+        assert (
+            registrar.registrar_icon is not None
+        ), "Internal ICON registrar not created"
 
         print("\n✓ Time series registrar initialized with ANTs")
 
@@ -33,7 +38,12 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method='icon')
         assert registrar is not None, "Registrar not initialized"
         assert registrar.registration_method == 'icon', "Method not set correctly"
-        assert registrar.registrar is not None, "Internal registrar not created"
+        assert (
+            registrar.registrar_ants is not None
+        ), "Internal ANTs registrar not created"
+        assert (
+            registrar.registrar_icon is not None
+        ), "Internal ICON registrar not created"
 
         print("\n✓ Time series registrar initialized with ICON")
 
@@ -49,9 +59,6 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method='ants')
         registrar.set_modality('ct')
         assert registrar.modality == 'ct', "Modality not set correctly"
-        assert (
-            registrar.registrar.modality == 'ct'
-        ), "Modality not passed to internal registrar"
 
         print("\n✓ Modality setting works correctly")
 
@@ -62,9 +69,6 @@ class TestRegisterTimeSeriesImages:
 
         registrar.set_fixed_image(fixed_image)
         assert registrar.fixed_image is not None, "Fixed image not set"
-        assert (
-            registrar.registrar.fixed_image is not None
-        ), "Fixed image not passed through"
 
         print("\n✓ Fixed image set successfully")
         print(f"  Image size: {itk.size(registrar.fixed_image)}")
@@ -102,39 +106,45 @@ class TestRegisterTimeSeriesImages:
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=0,
-            register_start_to_reference=True,
-            portion_of_prior_transform_to_init_next_transform=0.0,
+            reference_frame=0,
+            register_reference=True,
+            prior_weight=0.0,
         )
 
         # Verify result structure
         assert isinstance(result, dict), "Result should be a dictionary"
-        assert "phi_MF_list" in result, "Missing phi_MF_list in result"
-        assert "phi_FM_list" in result, "Missing phi_FM_list in result"
+        assert "forward_transforms" in result, "Missing forward_transforms in result"
+        assert "inverse_transforms" in result, "Missing inverse_transforms in result"
         assert "losses" in result, "Missing losses in result"
 
-        phi_MF_list = result["phi_MF_list"]
-        phi_FM_list = result["phi_FM_list"]
+        forward_transforms = result["forward_transforms"]
+        inverse_transforms = result["inverse_transforms"]
         losses = result["losses"]
 
         # Verify list lengths
-        assert len(phi_MF_list) == len(moving_images), "phi_MF_list length mismatch"
-        assert len(phi_FM_list) == len(moving_images), "phi_FM_list length mismatch"
+        assert len(forward_transforms) == len(
+            moving_images
+        ), "forward_transforms length mismatch"
+        assert len(inverse_transforms) == len(
+            moving_images
+        ), "inverse_transforms length mismatch"
         assert len(losses) == len(moving_images), "losses length mismatch"
 
         # Verify all transforms are valid
-        for i, (phi_MF, phi_FM) in enumerate(zip(phi_MF_list, phi_FM_list)):
-            assert phi_MF is not None, f"phi_MF[{i}] is None"
-            assert phi_FM is not None, f"phi_FM[{i}] is None"
+        for i, (forward_transform, inverse_transform) in enumerate(
+            zip(forward_transforms, inverse_transforms, strict=False)
+        ):
+            assert forward_transform is not None, f"forward_transform[{i}] is None"
+            assert inverse_transform is not None, f"inverse_transform[{i}] is None"
 
         print("✓ Time series registration complete")
-        print(f"  Transforms generated: {len(phi_MF_list)}")
+        print(f"  Transforms generated: {len(forward_transforms)}")
         print(f"  Average loss: {np.mean(losses):.6f}")
 
         # Save first transform for verification
         itk.transformwrite(
-            [phi_MF_list[0]],
-            str(reg_output_dir / "time_series_phi_MF_0.hdf"),
+            [forward_transforms[0]],
+            str(reg_output_dir / "time_series_forward_transform_0.hdf"),
             compression=True,
         )
         print(f"  Saved sample transform to: {reg_output_dir}")
@@ -150,7 +160,7 @@ class TestRegisterTimeSeriesImages:
 
         print("\nRegistering time series (with prior)...")
         print(f"  Number of moving images: {len(moving_images)}")
-        print(f"  Using prior transform weight: 0.5")
+        print("  Using prior transform weight: 0.5")
 
         registrar = RegisterTimeSeriesImages(registration_method='ants')
         registrar.set_modality('ct')
@@ -159,17 +169,17 @@ class TestRegisterTimeSeriesImages:
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=1,  # Start from middle
-            register_start_to_reference=True,
-            portion_of_prior_transform_to_init_next_transform=0.5,
+            reference_frame=1,  # Start from middle
+            register_reference=True,
+            prior_weight=0.5,
         )
 
-        phi_MF_list = result["phi_MF_list"]
+        forward_transforms = result["forward_transforms"]
         losses = result["losses"]
 
         # Verify all transforms generated
-        for i, phi_MF in enumerate(phi_MF_list):
-            assert phi_MF is not None, f"phi_MF[{i}] is None"
+        for i, forward_transform in enumerate(forward_transforms):
+            assert forward_transform is not None, f"forward_transform[{i}] is None"
 
         print("✓ Time series registration with prior complete")
         print(f"  Losses: {[f'{loss:.6f}' for loss in losses]}")
@@ -188,9 +198,9 @@ class TestRegisterTimeSeriesImages:
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=0,
-            register_start_to_reference=False,  # Use identity
-            portion_of_prior_transform_to_init_next_transform=0.0,
+            reference_frame=0,
+            register_reference=False,  # Use identity
+            prior_weight=0.0,
         )
 
         # Starting image should have very low/zero loss
@@ -217,14 +227,14 @@ class TestRegisterTimeSeriesImages:
             print(f"  Starting index: {starting_index}")
             result = registrar.register_time_series(
                 moving_images=moving_images,
-                starting_index=starting_index,
-                register_start_to_reference=True,
-                portion_of_prior_transform_to_init_next_transform=0.0,
+                reference_frame=starting_index,
+                register_reference=True,
+                prior_weight=0.0,
             )
 
-            assert len(result["phi_MF_list"]) == len(
+            assert len(result["forward_transforms"]) == len(
                 moving_images
-            ), f"Wrong number of transforms for starting_index={starting_index}"
+            ), f"Wrong number of transforms for reference_frame={starting_index}"
 
         print("✓ Different starting indices work correctly")
 
@@ -247,15 +257,15 @@ class TestRegisterTimeSeriesImages:
         moving_images = test_images[1:4]
 
         # Test negative index
-        with pytest.raises(ValueError, match="starting_index.*out of range"):
+        with pytest.raises(ValueError, match="reference_frame.*out of range"):
             registrar.register_time_series(
-                moving_images=moving_images, starting_index=-1
+                moving_images=moving_images, reference_frame=-1
             )
 
         # Test index too large
-        with pytest.raises(ValueError, match="starting_index.*out of range"):
+        with pytest.raises(ValueError, match="reference_frame.*out of range"):
             registrar.register_time_series(
-                moving_images=moving_images, starting_index=10
+                moving_images=moving_images, reference_frame=10
             )
 
         print("\n✓ Invalid starting index correctly rejected")
@@ -271,14 +281,14 @@ class TestRegisterTimeSeriesImages:
         with pytest.raises(ValueError, match="must be in"):
             registrar.register_time_series(
                 moving_images=moving_images,
-                portion_of_prior_transform_to_init_next_transform=-0.1,
+                prior_weight=-0.1,
             )
 
         # Test value > 1
         with pytest.raises(ValueError, match="must be in"):
             registrar.register_time_series(
                 moving_images=moving_images,
-                portion_of_prior_transform_to_init_next_transform=1.5,
+                prior_weight=1.5,
             )
 
         print("\n✓ Invalid prior portion correctly rejected")
@@ -301,17 +311,20 @@ class TestRegisterTimeSeriesImages:
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=0,
-            register_start_to_reference=True,
-            portion_of_prior_transform_to_init_next_transform=0.0,
+            reference_frame=0,
+            register_reference=True,
+            prior_weight=0.0,
         )
 
-        phi_MF_list = result["phi_MF_list"]
+        forward_transforms = result["forward_transforms"]
 
         # Apply transform to first moving image
         transform_tools = TransformTools()
         registered_image = transform_tools.transform_image(
-            moving_images[0], phi_MF_list[0], fixed_image, interpolation_method="linear"
+            moving_images[0],
+            forward_transforms[0],
+            fixed_image,
+            interpolation_method="linear",
         )
 
         assert registered_image is not None, "Registered image is None"
@@ -341,21 +354,19 @@ class TestRegisterTimeSeriesImages:
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=0,
-            register_start_to_reference=True,
-            portion_of_prior_transform_to_init_next_transform=0.0,
+            reference_frame=0,
+            register_reference=True,
+            prior_weight=0.0,
         )
 
-        assert len(result["phi_MF_list"]) == len(moving_images)
-        assert len(result["phi_FM_list"]) == len(moving_images)
+        assert len(result["forward_transforms"]) == len(moving_images)
+        assert len(result["inverse_transforms"]) == len(moving_images)
         assert len(result["losses"]) == len(moving_images)
 
         print("✓ ICON time series registration complete")
 
     def test_register_time_series_with_mask(self, test_images, test_directories):
         """Test time series registration with fixed image mask."""
-        output_dir = test_directories["output"]
-
         fixed_image = test_images[0]
         moving_images = test_images[1:3]
 
@@ -383,17 +394,17 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method='ants')
         registrar.set_modality('ct')
         registrar.set_fixed_image(fixed_image)
-        registrar.set_fixed_image_mask(fixed_mask)
+        registrar.set_fixed_mask(fixed_mask)
         registrar.set_number_of_iterations([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=0,
-            register_start_to_reference=True,
-            portion_of_prior_transform_to_init_next_transform=0.0,
+            reference_frame=0,
+            register_reference=True,
+            prior_weight=0.0,
         )
 
-        assert len(result["phi_MF_list"]) == len(moving_images)
+        assert len(result["forward_transforms"]) == len(moving_images)
 
         print("✓ Masked time series registration complete")
 
@@ -404,7 +415,7 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTesting bidirectional registration...")
         print(f"  Total images: {len(moving_images)}")
-        print(f"  Starting from middle (index 2)")
+        print("  Starting from middle (index 2)")
 
         registrar = RegisterTimeSeriesImages(registration_method='ants')
         registrar.set_modality('ct')
@@ -413,19 +424,19 @@ class TestRegisterTimeSeriesImages:
 
         result = registrar.register_time_series(
             moving_images=moving_images,
-            starting_index=2,  # Middle image
-            register_start_to_reference=True,
-            portion_of_prior_transform_to_init_next_transform=0.0,
+            reference_frame=2,  # Middle image
+            register_reference=True,
+            prior_weight=0.0,
         )
 
-        phi_MF_list = result["phi_MF_list"]
+        forward_transforms = result["forward_transforms"]
 
         # All transforms should be generated
-        for i, phi_MF in enumerate(phi_MF_list):
-            assert phi_MF is not None, f"Transform {i} is None"
+        for i, forward_transform in enumerate(forward_transforms):
+            assert forward_transform is not None, f"Transform {i} is None"
 
         print("✓ Bidirectional registration successful")
-        print(f"  All {len(phi_MF_list)} transforms generated")
+        print(f"  All {len(forward_transforms)} transforms generated")
 
 
 if __name__ == "__main__":

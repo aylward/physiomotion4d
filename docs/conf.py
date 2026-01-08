@@ -5,9 +5,21 @@
 import os
 import sys
 from datetime import datetime
+from unittest.mock import MagicMock
 
 # Add the source directory to the path
 sys.path.insert(0, os.path.abspath('../src'))
+
+# Create a more robust mock for complex packages
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+# Mock modules that need special handling
+sys.modules['itk.TubeTK'] = Mock()
+sys.modules['icon_registration.losses'] = Mock()
+sys.modules['icon_registration.network_wrappers'] = Mock()
 
 # -- Project information -----------------------------------------------------
 project = 'PhysioMotion4D'
@@ -55,7 +67,7 @@ html_static_path = ['_static']
 
 html_theme_options = {
     'logo_only': False,
-    'display_version': True,
+    # 'display_version': True,  # Deprecated in sphinx_rtd_theme >= 1.0
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
     'vcs_pageview_mode': '',
@@ -109,6 +121,8 @@ autodoc_default_options = {
 }
 autodoc_typehints = 'description'
 autodoc_typehints_description_target = 'documented'
+autodoc_inherit_docstrings = True
+autodoc_warningiserror = False  # Don't treat import warnings as errors
 
 # Intersphinx mapping
 intersphinx_mapping = {
@@ -152,6 +166,23 @@ autodoc_mock_imports = [
     'nibabel',
     'pynrrd',
     'transformers',
+    'SimpleITK',
+    'cupy',
+    'cupyx',
+    'pxr',
+    'scipy',
+    'matplotlib',
+    'ants',
+    'antspyx',
+    'cv2',
+    'skimage',
+    'PIL',
+    'Usd',
+    'UsdGeom',
+    'UsdShade',
+    'Gf',
+    'Vt',
+    'Sdf',
 ]
 
 # Copybutton configuration
@@ -160,8 +191,20 @@ copybutton_prompt_is_regexp = True
 
 # -- Custom setup ------------------------------------------------------------
 
+def autodoc_skip_member(app, what, name, obj, skip, options):
+    """Custom function to skip certain members during autodoc processing."""
+    # Skip private methods unless explicitly documented
+    if name.startswith('_') and not name.startswith('__'):
+        return True
+    return skip
+
 def setup(app):
     """Custom setup function for Sphinx."""
-    # You can add custom setup here if needed
-    pass
+    # Connect the autodoc-skip-member event
+    app.connect('autodoc-skip-member', autodoc_skip_member)
+    
+    # Suppress specific warnings
+    import warnings
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
+    warnings.filterwarnings('ignore', category=FutureWarning)
 

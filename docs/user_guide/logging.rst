@@ -51,7 +51,7 @@ Example output:
 
 .. code-block:: text
 
-   2025-12-13 11:24:49 - PhysioMotion4D - INFO - [RegisterModelToImagePCA] Processing started
+   2025-12-13 11:24:49 - PhysioMotion4D - INFO - [RegisterModelsPCA] Processing started
    2025-12-13 11:24:49 - PhysioMotion4D - DEBUG - [HeartModelToPatientWorkflow] Detailed debug info
 
 Multiple Log Levels
@@ -79,12 +79,12 @@ Filter to show logs from only specific classes:
 
    from physiomotion4d import PhysioMotion4DBase
 
-   # Show only RegisterModelToImagePCA logs
-   PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
+   # Show only RegisterModelsPCA logs
+   PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
 
    # Show logs from multiple classes
    PhysioMotion4DBase.set_log_classes([
-       "RegisterModelToImagePCA",
+       "RegisterModelsPCA",
        "HeartModelToPatientWorkflow"
    ])
 
@@ -225,13 +225,13 @@ Class Filtering for Selective Debugging
 
    from physiomotion4d import (
        PhysioMotion4DBase,
-       RegisterModelToImagePCA,
+       RegisterModelsPCA,
        HeartModelToPatientWorkflow
    )
    import logging
 
    # Create multiple objects
-   registrar1 = RegisterModelToImagePCA(..., log_level=logging.INFO)
+   registrar1 = RegisterModelsPCA(..., log_level=logging.INFO)
    registrar2 = HeartModelToPatientWorkflow(..., log_level=logging.INFO)
 
    # Show logs from all classes (default)
@@ -239,14 +239,14 @@ Class Filtering for Selective Debugging
    registrar2.log_info("Message from Workflow")
    # Both messages are shown
 
-   # Filter to show only RegisterModelToImagePCA
-   PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
+   # Filter to show only RegisterModelsPCA
+   PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
    registrar1.log_info("This is shown")
    registrar2.log_info("This is hidden")
 
    # Show multiple specific classes
    PhysioMotion4DBase.set_log_classes([
-       "RegisterModelToImagePCA",
+       "RegisterModelsPCA",
        "HeartModelToPatientWorkflow"
    ])
 

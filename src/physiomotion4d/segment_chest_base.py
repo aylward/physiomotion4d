@@ -5,12 +5,16 @@ for implementing different chest CT segmentation algorithms. It handles common
 preprocessing, postprocessing, and anatomical structure organization tasks.
 """
 
+import logging
+
 import itk
 import numpy as np
 from itk import TubeTK as tube
 
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
-class SegmentChestBase:
+
+class SegmentChestBase(PhysioMotion4DBase):
     """Base class for chest segmentation that provides common functionality for
     segmenting chest CT images.
 
@@ -37,13 +41,18 @@ class SegmentChestBase:
         other_mask_ids (dict): Dictionary of remaining structure IDs
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the SegmentChestBase class.
 
         Sets up default parameters for image preprocessing and anatomical
         structure ID mappings. Subclasses should call this constructor and
         then override the mask ID dictionaries with their specific mappings.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
         """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
         self.target_spacing = 0
 
         self.rescale_intensity_range = False
@@ -138,7 +147,7 @@ class SegmentChestBase:
         # Check the input image
         assert len(input_image.GetSpacing()) == 3, "The input image must be 3D"
 
-        resale_image = False
+        rescale_image = False
         results_image = None
         if self.target_spacing > 0.0:
             if (
@@ -146,26 +155,26 @@ class SegmentChestBase:
                 or input_image.GetSpacing()[1] != self.target_spacing
                 or input_image.GetSpacing()[2] != self.target_spacing
             ):
-                resale_image = True
+                rescale_image = True
             else:
                 isotropy = (
                     (input_image.GetSpacing()[1] / input_image.GetSpacing()[0])
                     + (input_image.GetSpacing()[2] / input_image.GetSpacing()[0])
                 ) / 2
                 if isotropy < 0.9 or isotropy > 1.1:
-                    resale_image = True
+                    rescale_image = True
                     self.target_spacing = (
                         input_image.GetSpacing()[0]
                         + input_image.GetSpacing()[1]
                         + input_image.GetSpacing()[2]
                     ) / 3
-                    print(
-                        "    Resampling to", self.target_spacing, "isotropic spacing."
+                    self.log_info(
+                        "Resampling to %.3f isotropic spacing", self.target_spacing
                     )
-        if resale_image:
-            print("WARNING: The input image should have isotropic spacing.")
-            print("    The input image has spacing:", input_image.GetSpacing())
-            print("    Resampling to isotropic:", self.target_spacing)
+        if rescale_image:
+            self.log_warning("The input image should have isotropic spacing")
+            self.log_info("Input image has spacing: %s", str(input_image.GetSpacing()))
+            self.log_info("Resampling to isotropic: %.3f", self.target_spacing)
             interpolator = itk.LinearInterpolateImageFunction.New(input_image)
             results_image = itk.ResampleImageFilter(
                 input_image,
@@ -204,7 +213,7 @@ class SegmentChestBase:
         minv = results_image_arr.min()
         maxv = results_image_arr.max()
         if self.rescale_intensity_range:
-            print("Rescaling intensity range...")
+            self.log_info("Rescaling intensity range...")
             if (
                 self.input_intensity_scale_range is None
                 or self.output_intensity_scale_range is None

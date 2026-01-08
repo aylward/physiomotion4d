@@ -402,8 +402,8 @@ The workflow generates several intermediate files:
    │   ├── frame_001.mha
    │   └── ...
    ├── transforms/                # Registration transforms
-   │   ├── phi_FM_001.mha
-   │   ├── phi_MF_001.mha
+   │   ├── inverse_transform_001.mha
+   │   ├── forward_transform_001.mha
    │   └── ...
    ├── masks/                     # Segmentation masks
    │   ├── heart_mask.nrrd

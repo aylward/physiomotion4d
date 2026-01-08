@@ -149,13 +149,14 @@ Fast GPU-accelerated registration:
    results = registerer.register(moving)
 
    # Get results
-   phi_FM = results["phi_FM"]
-   phi_MF = results["phi_MF"]
+   inverse_transform = results["inverse_transform"]
+   forward_transform = results["forward_transform"]
    registered = results["registered_image"]
 
    # Save
    itk.imwrite(registered, "registered.mha")
-   itk.imwrite(phi_FM, "transform_forward.mha")
+   itk.transformwrite(forward_transform, "transform_forward.hdf")
+   itk.transformwrite(inverse_transform, "transform_inverse.hdf")
 
 Multi-Phase Cardiac Registration
 ---------------------------------
@@ -182,7 +183,7 @@ Register all cardiac phases to reference:
    for frame_file in frame_files[1:]:  # Skip reference
        moving = itk.imread(frame_file)
        results = registerer.register(moving)
-       transforms.append(results["phi_FM"])
+       transforms.append(results["inverse_transform"])
        
        print(f"Registered {frame_file}: similarity = {results['similarity_score']:.3f}")
 
@@ -577,7 +578,7 @@ Mix and match different components:
        results = registerer.register(frame)
        warped_mesh = transform_tools.apply_transform_to_contour(
            reference_mesh, 
-           results["phi_FM"]
+           results["inverse_transform"]
        )
        meshes.append(warped_mesh)
 

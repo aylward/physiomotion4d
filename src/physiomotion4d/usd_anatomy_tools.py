@@ -4,18 +4,28 @@ the anatomy meshes in a USD file.
 """
 
 import argparse
+import logging
 import os
 
 from pxr import Sdf, Usd, UsdGeom, UsdShade
 
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
-class USDAnatomyTools:
+
+class USDAnatomyTools(PhysioMotion4DBase):
     """
     This class is used to enhance the appearance of anatomy meshes in a USD
     file.
     """
 
-    def __init__(self, stage):
+    def __init__(self, stage, log_level: int | str = logging.INFO):
+        """Initialize USDAnatomyTools.
+
+        Args:
+            stage: USD stage to work with
+            log_level: Logging level (default: logging.INFO)
+        """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
         self.stage = stage
 
         self.heart_params = {
@@ -306,9 +316,9 @@ class USDAnatomyTools:
                 if transform_prim and not mesh_prim:
                     current_prim_path = str(prim.GetPrimPath())
                     root_prim_path = "/".join(current_prim_path.split("/")[:-1])
-                    print(f"Root prim path: {root_prim_path}")
+                    self.log_debug("Root prim path: %s", root_prim_path)
                     anatomy_prim_path = "/".join([root_prim_path, "Anatomy"])
-                    print(f"   Anatomy prim path: {anatomy_prim_path}")
+                    self.log_debug("   Anatomy prim path: %s", anatomy_prim_path)
                     if not self.stage.GetPrimAtPath(anatomy_prim_path):
                         UsdGeom.Xform.Define(self.stage, anatomy_prim_path)
                     anatomy_prim_path = "/".join(
@@ -326,8 +336,8 @@ class USDAnatomyTools:
                         ]
                     )
                     anatomy_prim_path = Sdf.Path(anatomy_prim_path)
-                    print(f"   Current prim path: {current_prim_path}")
-                    print(f"   Anatomy prim path: {anatomy_prim_path}")
+                    self.log_debug("   Current prim path: %s", current_prim_path)
+                    self.log_debug("   Anatomy prim path: %s", anatomy_prim_path)
                     editor.MovePrimAtPath(
                         current_prim_path,
                         anatomy_prim_path,

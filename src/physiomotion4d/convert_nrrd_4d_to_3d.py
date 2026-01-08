@@ -1,12 +1,21 @@
+import logging
 import os
 
 import itk
 import nrrd
 import numpy as np
 
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
-class ConvertNRRD4DTo3D:
-    def __init__(self):
+
+class ConvertNRRD4DTo3D(PhysioMotion4DBase):
+    def __init__(self, log_level: int | str = logging.INFO):
+        """Initialize the NRRD 4D to 3D converter.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
+        """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
         self.nrrd_4d = None
         self.img_3d = []
 

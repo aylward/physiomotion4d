@@ -10,13 +10,15 @@ The tools are specifically designed for medical imaging workflows where multiple
 anatomical structures need to be organized and visualized together.
 """
 
-import os
+import logging
 
 import numpy as np
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade, UsdUtils
+from pxr import Gf, Usd, UsdGeom, UsdShade
+
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
 
-class USDTools:
+class USDTools(PhysioMotion4DBase):
     """
     Utilities for manipulating Universal Scene Description (USD) files.
 
@@ -54,13 +56,13 @@ class USDTools:
         ... )
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the USDTools class.
 
-        No parameters are required for initialization as all methods
-        operate on provided USD files and stages.
+        Args:
+            log_level: Logging level (default: logging.INFO)
         """
-        pass
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
     def get_subtree_bounding_box(
         self, prim: UsdGeom.Xform
@@ -152,7 +154,7 @@ class USDTools:
         n_objects = len(usd_file_names)
         n_rows = int(np.floor(np.sqrt(n_objects)))
         n_cols = int(np.ceil(n_objects / n_rows))
-        print(f"n_rows: {n_rows}, n_cols: {n_cols}")
+        self.log_info("Grid layout: %d rows x %d cols", n_rows, n_cols)
         x_spacing = 400.0
         y_spacing = 400.0
         x_offset = -x_spacing * (n_cols - 1) / 2
@@ -165,17 +167,17 @@ class USDTools:
             source_root = source_stage.GetPrimAtPath("/World")
             children = source_root.GetChildren()
             for child in children:
-                print(f"Copying {usd_file_name}:{child.GetPrimPath()}")
+                self.log_info("Copying %s:%s", usd_file_name, child.GetPrimPath())
                 new_stage.DefinePrim(child.GetPrimPath()).GetReferences().AddReference(
                     assetPath=usd_file_name,
                     primPath=child.GetPrimPath(),
                 )
                 # Apply translation to t
                 for grandchild in child.GetAllChildren():
-                    print(f"   Bounding box of {grandchild.GetPrimPath()}")
+                    self.log_debug("   Bounding box of %s", grandchild.GetPrimPath())
                     bbox_min, bbox_max = self.get_subtree_bounding_box(grandchild)
                     bbox_center = (bbox_min + bbox_max) / 2
-                    print(f"   Bounding box center: {bbox_center}")
+                    self.log_debug("   Bounding box center: %s", bbox_center)
 
                     xform = UsdGeom.Xformable(grandchild)
                     if not xform.GetOrderedXformOps():
@@ -192,7 +194,9 @@ class USDTools:
                         grid_y - bbox_center[1],
                         -bbox_center[2],
                     )
-                    print(f"   Translating {grandchild.GetPrimPath()} to {translate}")
+                    self.log_debug(
+                        "   Translating %s to %s", grandchild.GetPrimPath(), translate
+                    )
                     xform_op.Set(translate, Usd.TimeCode.Default())
 
             for prim in source_stage.Traverse():
@@ -206,8 +210,10 @@ class USDTools:
                             and len(mesh_material) > 0
                             else str(mesh_material.GetPath())
                         )
-                        print(
-                            f"   Mesh {prim.GetPrimPath()} has material {material_path}"
+                        self.log_debug(
+                            "   Mesh %s has material %s",
+                            prim.GetPrimPath(),
+                            material_path,
                         )
                         new_prim = new_stage.GetPrimAtPath(prim.GetPrimPath())
                         material = UsdShade.Material.Get(new_stage, material_path)
@@ -215,11 +221,12 @@ class USDTools:
                             binding_api = UsdShade.MaterialBindingAPI.Apply(new_prim)
                             binding_api.Bind(material)
                         else:
-                            print(
-                                f"      Cannot bind. No new prim found for {prim.GetPrimPath()}"
+                            self.log_warning(
+                                "      Cannot bind. No new prim found for %s",
+                                prim.GetPrimPath(),
                             )
 
-        print("Exporting stage...")
+        self.log_info("Exporting stage...")
         new_stage.Export(new_stage_name)
 
     def merge_usd_files(self, output_filename: str, input_filenames_list: list[str]):
@@ -290,7 +297,7 @@ class USDTools:
             # Copy all root prims from input
             for prim in input_stage.GetPseudoRoot().GetAllChildren():
                 new_path = "/" + prim.GetName()
-                print(f"Copying {prim.GetPrimPath()} to {new_path}")
+                self.log_info("Copying %s to %s", prim.GetPrimPath(), new_path)
 
                 # Recursively copy prim hierarchy with all attributes and time samples
                 def _copy_prim(src_prim, target_path):
@@ -356,23 +363,29 @@ class USDTools:
                             and len(mesh_material) > 0
                             else str(mesh_material.GetPath())
                         )
-                        print(
-                            f"   Binding material {material_path} to {prim.GetPrimPath()}"
+                        self.log_debug(
+                            "   Binding material %s to %s",
+                            material_path,
+                            prim.GetPrimPath(),
                         )
                         # Get corresponding mesh prim and material in target stage
                         new_prim = stage.GetPrimAtPath(prim.GetPrimPath())
                         material = UsdShade.Material.Get(stage, material_path)
                         if new_prim is not None and new_prim.IsValid():
                             if material and material.GetPrim().IsValid():
-                                binding_api = UsdShade.MaterialBindingAPI.Apply(new_prim)
+                                binding_api = UsdShade.MaterialBindingAPI.Apply(
+                                    new_prim
+                                )
                                 binding_api.Bind(material)
                             else:
-                                print(
-                                    f"      Warning: Material not found at {material_path} in target stage"
+                                self.log_warning(
+                                    "      Material not found at %s in target stage",
+                                    material_path,
                                 )
                         else:
-                            print(
-                                f"      Warning: Cannot bind material. No mesh prim found at {prim.GetPrimPath()}"
+                            self.log_warning(
+                                "      Cannot bind material. No mesh prim found at %s",
+                                prim.GetPrimPath(),
                             )
 
         # Set stage time range metadata for animation playback
@@ -383,8 +396,14 @@ class USDTools:
                 stage.SetTimeCodesPerSecond(time_codes_per_second)
             if frames_per_second is not None:
                 stage.SetFramesPerSecond(frames_per_second)
-            print(f"\nSet stage time range: {global_start_time} to {global_end_time}")
-            print(f"Time codes per second: {time_codes_per_second}, Frames per second: {frames_per_second}")
+            self.log_info(
+                "Set stage time range: %.1f to %.1f", global_start_time, global_end_time
+            )
+            self.log_info(
+                "Time codes per second: %s, Frames per second: %s",
+                time_codes_per_second,
+                frames_per_second,
+            )
 
         # Save with USDA format
         # stage.GetRootLayer().Export(output_path, args=['--usdFormat', 'usda'])
@@ -445,8 +464,9 @@ class USDTools:
         frames_per_second = None
 
         # Add references to all input files
-        for input_path in input_filenames_list:
-            print(f"Referencing {input_path}")
+        num_files = len(input_filenames_list)
+        for idx, input_path in enumerate(input_filenames_list):
+            self.log_progress(idx + 1, num_files, prefix="Referencing files")
             input_stage = Usd.Stage.Open(input_path, Usd.Stage.LoadAll)
 
             # Track time range from this input file
@@ -463,12 +483,13 @@ class USDTools:
             # Reference each top-level prim from the input file
             for prim in input_stage.GetPseudoRoot().GetAllChildren():
                 new_path = "/" + prim.GetName()
-                print(f"  Adding reference: {prim.GetPrimPath()} -> {new_path}")
+                self.log_debug(
+                    "  Adding reference: %s -> %s", prim.GetPrimPath(), new_path
+                )
 
                 # Create prim and add reference to source file
                 temp_stage.DefinePrim(new_path).GetReferences().AddReference(
-                    assetPath=input_path,
-                    primPath=prim.GetPrimPath()
+                    assetPath=input_path, primPath=prim.GetPrimPath()
                 )
 
         # Set time range metadata on temporary stage before flattening
@@ -479,12 +500,18 @@ class USDTools:
                 temp_stage.SetTimeCodesPerSecond(time_codes_per_second)
             if frames_per_second is not None:
                 temp_stage.SetFramesPerSecond(frames_per_second)
-            print(f"Time range: {global_start_time} to {global_end_time}")
-            print(f"Time codes per second: {time_codes_per_second}, Frames per second: {frames_per_second}")
+            self.log_info(
+                "Time range: %.1f to %.1f", global_start_time, global_end_time
+            )
+            self.log_info(
+                "Time codes per second: %s, Frames per second: %s",
+                time_codes_per_second,
+                frames_per_second,
+            )
 
         # Flatten the composed stage into a single layer
         # This resolves all references and bakes everything into one file
-        print("Flattening composed stage...")
+        self.log_info("Flattening composed stage...")
         flattened_layer = temp_stage.Flatten()
 
         # Create output stage from flattened layer
@@ -497,11 +524,13 @@ class USDTools:
             output_stage.SetEndTimeCode(global_end_time)
             if time_codes_per_second is not None:
                 output_stage.SetTimeCodesPerSecond(time_codes_per_second)
-                print(f"Set output TimeCodesPerSecond: {time_codes_per_second}")
+                self.log_info(
+                    "Set output TimeCodesPerSecond: %s", time_codes_per_second
+                )
             if frames_per_second is not None:
                 output_stage.SetFramesPerSecond(frames_per_second)
-                print(f"Set output FramesPerSecond: {frames_per_second}")
+                self.log_info("Set output FramesPerSecond: %s", frames_per_second)
 
         # Export the flattened layer with corrected metadata
-        print(f"Exporting to {output_filename}")
+        self.log_info("Exporting to %s", output_filename)
         output_stage.Export(output_filename)

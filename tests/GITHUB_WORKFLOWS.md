@@ -2,29 +2,52 @@
 
 This document describes the GitHub Actions workflows configured for running tests on pull requests.
 
-## Workflow Configuration
+## Overview
 
-File: `.github/workflows/tests.yml`
+The project has two main workflow files:
+
+1. **`.github/workflows/ci.yml`** (Main CI Workflow)
+   - Runs on every PR and push to main/master/develop
+   - Unit tests (cross-platform: Ubuntu + Windows)
+   - Integration tests with external data
+   - GPU tests (self-hosted runners)
+   - Code quality checks
+
+2. **`.github/workflows/test-slow.yml`** (Scheduled Slow Tests)
+   - Runs nightly at 2 AM UTC
+   - Slow/GPU-intensive tests (registration, segmentation)
+   - Self-hosted GPU runners only
+
+3. **`.github/workflows/docs.yml`** (Documentation)
+   - Builds Sphinx documentation
+   - Deploys to GitHub Pages
+
+## Main CI Workflow
+
+File: `.github/workflows/ci.yml`
+
+This comprehensive CI workflow combines unit tests, integration tests, GPU tests, and code quality checks.
 
 ## Workflow Jobs
 
-### 1. Unit Tests (`test` job)
-**Trigger**: All pull requests and pushes to main
-**Platforms**: Ubuntu, Windows, macOS
+### 1. Unit Tests (`unit-tests` job)
+**Trigger**: All pull requests and pushes to main, master, and develop branches
+**Platforms**: Ubuntu, Windows
 **Python versions**: 3.10, 3.11, 3.12
 
 **What runs**:
 - Tests that don't require external data
 - Tests that aren't marked as slow
 - Coverage reporting to Codecov
+- Cross-platform validation
 
 **Command**:
 ```bash
-pytest tests/ -v -m "not requires_data and not slow" --cov=src/physiomotion4d --cov-report=xml
+pytest tests/ -v -m "not slow and not requires_data" --cov=physiomotion4d --cov-report=xml
 ```
 
 **Tests included**:
-- Basic unit tests
+- Basic unit tests (e.g., ImageTools conversions)
 - Fast integration tests with mocked data
 
 **Tests excluded**:
@@ -33,10 +56,11 @@ pytest tests/ -v -m "not requires_data and not slow" --cov=src/physiomotion4d --
 
 ---
 
-### 2. Integration Tests with Data (`test-with-data` job)
+### 2. Integration Tests with Data (`integration-tests` job)
 **Trigger**: Pull requests only
 **Platform**: Ubuntu only
 **Python version**: 3.10
+**Dependencies**: Requires `unit-tests` to pass first
 
 **What runs**:
 Tests that require downloading external data, executed in sequence with caching.
@@ -97,13 +121,76 @@ All data-dependent test steps use `continue-on-error: true` to prevent CI failur
 
 Coverage is still uploaded even if tests fail.
 
+### 3. GPU Tests (`gpu-tests` job)
+**Trigger**: All pull requests and pushes to main, master, and develop branches
+**Platform**: Self-hosted Linux runners with GPU
+**Python versions**: 3.10, 3.11
+**Dependencies**: Requires `unit-tests` to pass first
+
+**What runs**:
+- All non-slow tests with GPU support
+- PyTorch with CUDA 12.6
+- GPU-accelerated deep learning tests
+- Requires self-hosted runners with NVIDIA GPUs
+
+**Command**:
+```bash
+pytest tests/ -v -m "not slow" --cov=physiomotion4d --cov-report=xml
+```
+
+**Environment**:
+- `CUDA_VISIBLE_DEVICES: 0`
+- Self-hosted runners with NVIDIA GPU
+- PyTorch with CUDA support
+
+**Tests included**:
+- GPU-accelerated model inference (when available)
+- Tests that benefit from GPU but don't require hours of compute
+- Fast integration tests on GPU hardware
+
+**Note**: This job continues even on error (`continue-on-error: true`) since self-hosted GPU runners may not always be available.
+
+### 4. Code Quality Checks (`code-quality` job)
+**Trigger**: All pull requests and pushes to main, master, and develop branches
+**Platform**: Ubuntu only
+**Python version**: 3.10
+
+**What runs**:
+- Code formatting checks (Black)
+- Import sorting checks (isort)
+- Linting (Ruff, Flake8)
+- Style enforcement
+
+**Tools**:
+1. **Black**: Code formatting
+   ```bash
+   black --check src/ tests/
+   ```
+
+2. **isort**: Import sorting
+   ```bash
+   isort --check-only src/ tests/
+   ```
+
+3. **Ruff**: Fast Python linter
+   ```bash
+   ruff check src/ tests/
+   ```
+
+4. **Flake8**: Additional style checks
+   ```bash
+   flake8 src/ tests/
+   ```
+
+**Note**: All checks use `continue-on-error: true` to avoid blocking PRs on style issues while still providing feedback.
+
 ---
 
 ## Tests Excluded from CI
 
-### Slow and GPU-Dependent Tests
+### Slow Tests (Marked with `@pytest.mark.slow`)
 
-These tests are **NOT** run in CI because they are slow or require CUDA-enabled GPUs:
+These tests are **NOT** run in CI (even on GPU runners) because they require extended compute time:
 
 1. **ANTs Registration Tests** (`test_register_images_ants.py`)
    - Requires: ANTsPy library
@@ -136,11 +223,11 @@ These tests are **NOT** run in CI because they are slow or require CUDA-enabled 
    - Why excluded: Requires GPU, model inference
 
 **Why excluded**:
-- GitHub Actions runners don't have CUDA-enabled GPUs
-- Model inference requires significant GPU memory and time
+- These tests take 5-15 minutes each, even with GPU acceleration
 - Registration algorithms are computationally intensive
-- Tests would timeout or fail without GPU/sufficient compute
-- CI runtime would exceed reasonable limits
+- Deep learning model inference requires significant GPU memory and time
+- CI runtime would exceed reasonable limits (even on self-hosted GPU runners)
+- Better suited for nightly/scheduled testing or local development
 
 **Local testing**:
 ```bash
@@ -153,6 +240,14 @@ pytest tests/test_register_images_ants.py tests/test_register_images_icon.py -v 
 # Run only segmentation tests
 pytest tests/test_segment_chest_total_segmentator.py tests/test_segment_chest_vista_3d.py -v -s
 ```
+
+**Scheduled slow tests**:
+These tests run automatically on a schedule via `.github/workflows/test-slow.yml`:
+- **Schedule**: Nightly at 2 AM UTC
+- **Trigger**: Also available via manual workflow dispatch
+- **Platform**: Self-hosted Linux GPU runners
+- **Command**: `pytest tests/ -v -m "slow"`
+- **Purpose**: Regular validation of computationally intensive tests without blocking PRs
 
 ---
 
@@ -167,6 +262,16 @@ pytest tests/test_segment_chest_total_segmentator.py tests/test_segment_chest_vi
 - **Flag**: `integration-tests`
 - **When**: After all data-dependent tests complete
 - **Upload**: Even if tests fail (`fail_ci_if_error: false`)
+
+### GPU Tests Coverage
+- **Flag**: `gpu-tests`
+- **When**: Python 3.10 on self-hosted GPU runners
+- **Upload**: After GPU tests complete
+
+### Slow Tests Coverage
+- **Flag**: `slow-tests-gpu`
+- **When**: Nightly scheduled runs on self-hosted GPU runners
+- **Upload**: After slow tests complete
 
 ### Viewing Coverage
 Coverage reports are uploaded to Codecov and can be viewed at:
@@ -247,7 +352,7 @@ Currently not configured, but can be added for:
 - Consider parallel execution
 
 ### Workflow Files
-- Main workflow: `.github/workflows/tests.yml`
+- Main workflow: `.github/workflows/ci.yml`
 - Test configuration: `tests/conftest.py`
 - Test documentation: `tests/TEST_ORGANIZATION.md`
 

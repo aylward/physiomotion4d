@@ -215,11 +215,11 @@ class PhysioMotion4DBase:
 
         Args:
             class_names: List of class names to show logs from.
-                Example: ["RegisterModelToImagePCA", "HeartModelToPatientWorkflow"]
+                Example: ["RegisterModelsPCA", "HeartModelToPatientWorkflow"]
 
         Example:
-            >>> PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
-            >>> # Now only RegisterModelToImagePCA logs will be shown
+            >>> PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
+            >>> # Now only RegisterModelsPCA logs will be shown
         """
         if cls._class_filter is not None:
             cls._class_filter.enabled = True
@@ -250,7 +250,7 @@ class PhysioMotion4DBase:
         Example:
             >>> classes = PhysioMotion4DBase.get_log_classes()
             >>> print(classes)
-            ['RegisterModelToImagePCA', 'HeartModelToPatientWorkflow']
+            ['RegisterModelsPCA', 'HeartModelToPatientWorkflow']
         """
         if cls._class_filter is not None and cls._class_filter.enabled:
             return sorted(cls._class_filter.allowed_classes)

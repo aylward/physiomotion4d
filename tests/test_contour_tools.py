@@ -6,14 +6,10 @@ This test depends on test_segment_chest_total_segmentator and uses the
 segmentation results to test contour extraction and manipulation.
 """
 
-from pathlib import Path
-
 import itk
 import numpy as np
 import pytest
 import pyvista as pv
-
-from physiomotion4d.contour_tools import ContourTools
 
 
 @pytest.mark.requires_data
@@ -132,9 +128,7 @@ class TestContourTools:
         # Create mask from the extracted mesh
         print("\nCreating mask from extracted heart contours...")
         reference_image = test_images[0]
-        recreated_mask = contour_tools.create_mask_from_mesh(
-            contours, reference_image, resample_to_reference=True
-        )
+        recreated_mask = contour_tools.create_mask_from_mesh(contours, reference_image)
 
         # Verify recreated mask
         assert recreated_mask is not None, "Mask not created from mesh"

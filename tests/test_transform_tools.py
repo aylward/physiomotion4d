@@ -14,6 +14,7 @@ import pytest
 import pyvista as pv
 import vtk
 
+from physiomotion4d.image_tools import ImageTools
 from physiomotion4d.transform_tools import TransformTools
 
 
@@ -44,12 +45,12 @@ class TestTransformTools:
 
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nTransforming image with linear interpolation...")
 
         transformed_image = transform_tools.transform_image(
-            moving_image, phi_MF, fixed_image, interpolation_method="linear"
+            moving_image, forward_transform, fixed_image, interpolation_method="linear"
         )
 
         # Verify result
@@ -80,12 +81,12 @@ class TestTransformTools:
 
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nTransforming image with nearest neighbor interpolation...")
 
         transformed_image = transform_tools.transform_image(
-            moving_image, phi_MF, fixed_image, interpolation_method="nearest"
+            moving_image, forward_transform, fixed_image, interpolation_method="nearest"
         )
 
         assert transformed_image is not None, "Transformed image is None"
@@ -110,12 +111,12 @@ class TestTransformTools:
 
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nTransforming image with sinc interpolation...")
 
         transformed_image = transform_tools.transform_image(
-            moving_image, phi_MF, fixed_image, interpolation_method="sinc"
+            moving_image, forward_transform, fixed_image, interpolation_method="sinc"
         )
 
         assert transformed_image is not None, "Transformed image is None"
@@ -136,13 +137,16 @@ class TestTransformTools:
         """Test that invalid interpolation method raises error."""
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nTesting invalid interpolation method...")
 
         with pytest.raises(ValueError):
             transform_tools.transform_image(
-                moving_image, phi_MF, fixed_image, interpolation_method="invalid"
+                moving_image,
+                forward_transform,
+                fixed_image,
+                interpolation_method="invalid",
             )
 
         print(f"✓ Invalid method correctly raises ValueError")
@@ -151,13 +155,13 @@ class TestTransformTools:
         self, transform_tools, test_contour, ants_registration_results
     ):
         """Test transforming PyVista contour without deformation magnitude."""
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nTransforming contour without deformation magnitude...")
         print(f"  Original contour points: {test_contour.n_points}")
 
         transformed_contour = transform_tools.transform_pvcontour(
-            test_contour, phi_MF, with_deformation_magnitude=False
+            test_contour, forward_transform, with_deformation_magnitude=False
         )
 
         # Verify result
@@ -187,12 +191,12 @@ class TestTransformTools:
         tfm_output_dir = output_dir / "transform_tools"
         tfm_output_dir.mkdir(exist_ok=True)
 
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nTransforming contour with deformation magnitude...")
 
         transformed_contour = transform_tools.transform_pvcontour(
-            test_contour, phi_MF, with_deformation_magnitude=True
+            test_contour, forward_transform, with_deformation_magnitude=True
         )
 
         # Verify result
@@ -227,12 +231,12 @@ class TestTransformTools:
         tfm_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nConverting transform to deformation field...")
 
         deformation_field = transform_tools.convert_transform_to_displacement_field(
-            phi_MF, fixed_image
+            forward_transform, fixed_image
         )
 
         # Verify deformation field
@@ -247,8 +251,9 @@ class TestTransformTools:
         print(f"  Field size: {itk.size(deformation_field)}")
         print(f"  Field shape: {field_arr.shape}")
 
-        # Save deformation field
-        itk.imwrite(
+        # Save deformation field using imwriteVD3 (for double precision vector images)
+        image_tools = ImageTools()
+        image_tools.imwriteVD3(
             deformation_field,
             str(tfm_output_dir / "deformation_field.mha"),
             compression=True,
@@ -293,13 +298,13 @@ class TestTransformTools:
         tfm_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         # First convert transform to field
         print("\nComputing Jacobian determinant from deformation field...")
 
         deformation_field = transform_tools.convert_transform_to_displacement_field(
-            phi_MF, fixed_image
+            forward_transform, fixed_image
         )
 
         jacobian_det = transform_tools.compute_jacobian_determinant_from_field(
@@ -336,13 +341,13 @@ class TestTransformTools:
     ):
         """Test detecting spatial folding in deformation field."""
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         # Convert transform to field
         print("\nDetecting folding in deformation field...")
 
         deformation_field = transform_tools.convert_transform_to_displacement_field(
-            phi_MF, fixed_image
+            forward_transform, fixed_image
         )
 
         # Compute jacobian determinant from field
@@ -362,7 +367,7 @@ class TestTransformTools:
         self, transform_tools, ants_registration_results, test_images
     ):
         """Test temporal interpolation between transforms."""
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         # Create an identity transform as second transform
         identity_tfm = itk.AffineTransform[itk.D, 3].New()
@@ -374,7 +379,7 @@ class TestTransformTools:
 
         # Interpolate at midpoint (portion=0.5)
         interpolated_tfm = transform_tools.combine_displacement_field_transforms(
-            phi_MF,
+            forward_transform,
             identity_tfm,
             fixed_image,
             tfm1_weight=0.5,
@@ -396,7 +401,7 @@ class TestTransformTools:
         self, transform_tools, ants_registration_results, test_images
     ):
         """Test composing two transforms with various weights."""
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
         fixed_image = test_images[0]
 
         # Create an identity transform as second transform
@@ -408,7 +413,7 @@ class TestTransformTools:
         # Test 1: Equal weights (should be similar to interpolation at 0.5)
         print("  Test 1: Equal weights (0.5, 0.5)")
         composed_tfm1 = transform_tools.combine_displacement_field_transforms(
-            phi_MF,
+            forward_transform,
             identity_tfm,
             fixed_image,
             tfm1_weight=0.5,
@@ -425,7 +430,7 @@ class TestTransformTools:
         # Test 2: First transform only (weight 1.0, 0.0)
         print("  Test 2: First transform only (1.0, 0.0)")
         composed_tfm2 = transform_tools.combine_displacement_field_transforms(
-            phi_MF,
+            forward_transform,
             identity_tfm,
             fixed_image,
             tfm1_weight=1.0,
@@ -438,7 +443,7 @@ class TestTransformTools:
         # Test 3: Second transform only (weight 0.0, 1.0)
         print("  Test 3: Second transform only (0.0, 1.0)")
         composed_tfm3 = transform_tools.combine_displacement_field_transforms(
-            phi_MF,
+            forward_transform,
             identity_tfm,
             fixed_image,
             tfm1_weight=0.0,
@@ -451,7 +456,7 @@ class TestTransformTools:
         # Test 4: Custom weights
         print("  Test 4: Custom weights (0.75, 0.25)")
         composed_tfm4 = transform_tools.combine_displacement_field_transforms(
-            phi_MF,
+            forward_transform,
             identity_tfm,
             fixed_image,
             tfm1_weight=0.75,
@@ -464,7 +469,7 @@ class TestTransformTools:
         # Test 5: With blur sigma
         print("  Test 5: With blur sigma (1.0, 1.0)")
         composed_tfm5 = transform_tools.combine_displacement_field_transforms(
-            phi_MF,
+            forward_transform,
             identity_tfm,
             fixed_image,
             tfm1_weight=0.5,
@@ -500,21 +505,21 @@ class TestTransformTools:
         print(f"  Field magnitude (0.0, 1.0): {mag3:.3f} mm")
         print(f"  Difference between (1.0,0.0) and (0.0,1.0): {diff_2_3:.3f} mm")
 
-        # The difference should be non-zero since phi_MF is not identity
+        # The difference should be non-zero since forward_transform is not identity
         assert diff_2_3 > 0, "Different weights should produce different results"
 
     def test_smooth_transform(
         self, transform_tools, ants_registration_results, test_images
     ):
         """Test smoothing a transform."""
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
         fixed_image = test_images[0]
 
         print("\nSmoothing transform...")
 
         # Smooth the transform
         smoothed_tfm = transform_tools.smooth_transform(
-            phi_MF, sigma=2.0, reference_image=fixed_image
+            forward_transform, sigma=2.0, reference_image=fixed_image
         )
 
         # Verify result
@@ -530,7 +535,7 @@ class TestTransformTools:
         self, transform_tools, ants_registration_results, test_images
     ):
         """Test combining transforms with spatial masks."""
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
         fixed_image = test_images[0]
 
         # Create identity transform
@@ -559,7 +564,7 @@ class TestTransformTools:
 
         # Combine transforms
         combined_tfm = transform_tools.combine_transforms_with_masks(
-            phi_MF, identity_tfm, mask1, mask2, fixed_image
+            forward_transform, identity_tfm, mask1, mask2, fixed_image
         )
 
         # Verify result
@@ -576,18 +581,18 @@ class TestTransformTools:
         """Test applying multiple transforms in sequence."""
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        phi_MF = ants_registration_results["phi_MF"]
+        forward_transform = ants_registration_results["forward_transform"]
 
         print("\nApplying transforms multiple times...")
 
         # Apply transform once
         result1 = transform_tools.transform_image(
-            moving_image, phi_MF, fixed_image, interpolation_method="linear"
+            moving_image, forward_transform, fixed_image, interpolation_method="linear"
         )
 
         # Apply transform again (should work even though it's already transformed)
         result2 = transform_tools.transform_image(
-            result1, phi_MF, fixed_image, interpolation_method="linear"
+            result1, forward_transform, fixed_image, interpolation_method="linear"
         )
 
         assert result1 is not None, "First transform result is None"

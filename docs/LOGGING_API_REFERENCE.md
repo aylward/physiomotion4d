@@ -15,7 +15,7 @@ PhysioMotion4DBase.set_log_level(logging.INFO)
 PhysioMotion4DBase.set_log_level('DEBUG')  # Can use string too
 
 # Filter to show only specific classes
-PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA", "HeartModelToPatientWorkflow"])
+PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA", "HeartModelToPatientWorkflow"])
 
 # Show all classes (disable filtering)
 PhysioMotion4DBase.set_log_all_classes()
@@ -44,24 +44,24 @@ obj.log_progress(current, total, prefix="Processing")
 
 ### PhysioMotion4DBase Class Methods
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `set_log_level(log_level)` | `log_level: int \| str` | Set logging level for all classes |
-| `set_log_classes(class_names)` | `class_names: list[str]` | Show logs only from specified classes |
-| `set_log_all_classes()` | None | Show logs from all classes |
-| `get_log_classes()` | None | Get list of currently filtered classes |
+| Method                         | Parameters               | Description                            |
+| ------------------------------ | ------------------------ | -------------------------------------- |
+| `set_log_level(log_level)`     | `log_level: int \| str`  | Set logging level for all classes      |
+| `set_log_classes(class_names)` | `class_names: list[str]` | Show logs only from specified classes  |
+| `set_log_all_classes()`        | None                     | Show logs from all classes             |
+| `get_log_classes()`            | None                     | Get list of currently filtered classes |
 
 ### Instance Methods
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `log_debug(message)` | `message: str` | Log DEBUG level message |
-| `log_info(message)` | `message: str` | Log INFO level message |
-| `log_warning(message)` | `message: str` | Log WARNING level message |
-| `log_error(message)` | `message: str` | Log ERROR level message |
-| `log_critical(message)` | `message: str` | Log CRITICAL level message |
-| `log_section(title, width, char)` | `title: str, width: int=70, char: str='='` | Log formatted section header |
-| `log_progress(current, total, prefix)` | `current: int, total: int, prefix: str='Progress'` | Log progress information |
+| Method                                 | Parameters                                         | Description                  |
+| -------------------------------------- | -------------------------------------------------- | ---------------------------- |
+| `log_debug(message)`                   | `message: str`                                     | Log DEBUG level message      |
+| `log_info(message)`                    | `message: str`                                     | Log INFO level message       |
+| `log_warning(message)`                 | `message: str`                                     | Log WARNING level message    |
+| `log_error(message)`                   | `message: str`                                     | Log ERROR level message      |
+| `log_critical(message)`                | `message: str`                                     | Log CRITICAL level message   |
+| `log_section(title, width, char)`      | `title: str, width: int=70, char: str='='`         | Log formatted section header |
+| `log_progress(current, total, prefix)` | `current: int, total: int, prefix: str='Progress'` | Log progress information     |
 
 ## Usage Patterns
 
@@ -108,7 +108,7 @@ def process_items(self, items):
 ### Pattern 4: Global Log Control
 ```python
 # Create multiple objects
-pca_reg = RegisterModelToImagePCA(..., log_level=logging.INFO)
+pca_reg = RegisterModelsPCA(..., log_level=logging.INFO)
 workflow = HeartModelToPatientWorkflow(..., log_level=logging.INFO)
 
 # Change log level for both at once
@@ -125,14 +125,14 @@ PhysioMotion4DBase.set_log_level(logging.WARNING)
 ### Pattern 5: Selective Class Filtering
 ```python
 # Show only PCA registration logs
-PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
+PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
 
 pca_reg.log_info("This is shown")
 workflow.log_info("This is hidden")
 
 # Show both classes
 PhysioMotion4DBase.set_log_classes([
-    "RegisterModelToImagePCA",
+    "RegisterModelsPCA",
     "HeartModelToPatientWorkflow"
 ])
 
@@ -151,7 +151,7 @@ workflow.run_workflow()
 
 # Focus on specific class for debugging
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
-PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
+PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
 
 # Now only PCA registration shows detailed debug output
 workflow.run_workflow()
@@ -163,13 +163,13 @@ PhysioMotion4DBase.set_log_all_classes()
 
 ## Log Levels
 
-| Level | Numeric Value | When to Use |
-|-------|---------------|-------------|
-| `logging.DEBUG` | 10 | Detailed diagnostic information for debugging |
-| `logging.INFO` | 20 | General informational messages (default) |
-| `logging.WARNING` | 30 | Warning messages about potential issues |
-| `logging.ERROR` | 40 | Error messages for serious problems |
-| `logging.CRITICAL` | 50 | Critical errors that may cause termination |
+| Level              | Numeric Value | When to Use                                   |
+| ------------------ | ------------- | --------------------------------------------- |
+| `logging.DEBUG`    | 10            | Detailed diagnostic information for debugging |
+| `logging.INFO`     | 20            | General informational messages (default)      |
+| `logging.WARNING`  | 30            | Warning messages about potential issues       |
+| `logging.ERROR`    | 40            | Error messages for serious problems           |
+| `logging.CRITICAL` | 50            | Critical errors that may cause termination    |
 
 ## Output Format
 
@@ -180,15 +180,15 @@ TIMESTAMP - PhysioMotion4D - LEVEL - [ClassName] Message
 
 Example:
 ```
-2025-12-13 11:35:27 - PhysioMotion4D - INFO - [RegisterModelToImagePCA] Converting mean shape points...
+2025-12-13 11:35:27 - PhysioMotion4D - INFO - [RegisterModelsPCA] Converting mean shape points...
 2025-12-13 11:35:27 - PhysioMotion4D - DEBUG - [HeartModelToPatientWorkflow] Auto-generating masks...
-2025-12-13 11:35:27 - PhysioMotion4D - WARNING - [RegisterModelToImagePCA] No points found within threshold
+2025-12-13 11:35:27 - PhysioMotion4D - WARNING - [RegisterModelsPCA] No points found within threshold
 ```
 
 ## Available Classes
 
 Current PhysioMotion4D classes with logging support:
-- `RegisterModelToImagePCA` - PCA-based model-to-image registration
+- `RegisterModelsPCA` - PCA-based model-to-image registration
 - `HeartModelToPatientWorkflow` - Multi-stage heart model registration
 - (More classes will be added as they are converted)
 
@@ -197,7 +197,7 @@ Current PhysioMotion4D classes with logging support:
 ### Use Case 1: Normal Operation
 ```python
 # Default: INFO level, all classes shown
-registrar = RegisterModelToImagePCA(..., log_level=logging.INFO)
+registrar = RegisterModelsPCA(..., log_level=logging.INFO)
 result = registrar.register(...)
 ```
 
@@ -205,15 +205,15 @@ result = registrar.register(...)
 ```python
 # WARNING level: only warnings and errors
 PhysioMotion4DBase.set_log_level(logging.WARNING)
-registrar = RegisterModelToImagePCA(...)
+registrar = RegisterModelsPCA(...)
 result = registrar.register(...)
 ```
 
 ### Use Case 3: Debug Specific Component
 ```python
-# Debug only RegisterModelToImagePCA
+# Debug only RegisterModelsPCA
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
-PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
+PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
 
 workflow = HeartModelToPatientWorkflow(...)
 # Only PCA component will show debug messages
@@ -223,7 +223,7 @@ workflow.run_workflow()
 ### Use Case 4: Production Logging to File
 ```python
 # Log everything to file for analysis
-registrar = RegisterModelToImagePCA(
+registrar = RegisterModelsPCA(
     ...,
     log_level=logging.DEBUG,
     log_to_file="registration.log"
@@ -239,7 +239,7 @@ PhysioMotion4DBase.set_log_level(logging.INFO)
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
 
 # Focus on specific class
-PhysioMotion4DBase.set_log_classes(["RegisterModelToImagePCA"])
+PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
 
 # Re-run the problematic part
 registrar.optimize_rigid_alignment(...)

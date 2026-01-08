@@ -2,21 +2,30 @@
 Tools for creating and manipulating contours.
 """
 
+import logging
+
 import itk
 import numpy as np
 import pyvista as pv
 import trimesh
 
+from physiomotion4d.image_tools import ImageTools
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.transform_tools import TransformTools
 
 
-class ContourTools:
+class ContourTools(PhysioMotion4DBase):
     """
     Tools for creating and manipulating contours.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, log_level: int | str = logging.INFO):
+        """Initialize ContourTools.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
+        """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
     def extract_contours(
         self,
@@ -87,7 +96,7 @@ class ContourTools:
         pv.PolyData
             Merged mesh
         """
-        print("Merging meshes...")
+        self.log_info("Merging meshes...")
         if hasattr(meshes[0], 'n_faces_strict'):
             meshes = [
                 trimesh.Trimesh(
@@ -118,11 +127,39 @@ class ContourTools:
 
         return merged_mesh, pv_meshes
 
+    def create_reference_image(
+        self,
+        mesh,
+        spatial_resolution: float = 0.5,
+        buffer_factor: float = 0.25,
+        ptype: type = itk.F,
+    ) -> itk.Image:
+        """
+        Create a reference image from a mesh.
+        """
+        points = np.array(mesh.points)
+        min_bounds = points.min(axis=0)
+        max_bounds = points.max(axis=0)
+        min_bounds = min_bounds - buffer_factor * (max_bounds - min_bounds)
+        max_bounds = max_bounds + buffer_factor * (max_bounds - min_bounds)
+        region = (
+            ((max_bounds - min_bounds) / spatial_resolution + 1)
+            .astype(np.int32)
+            .tolist()
+        )
+        itk_region = itk.ImageRegion[3]()
+        itk_region.SetSize(region)
+        reference_image = itk.Image[ptype, 3].New()
+        reference_image.SetRegions(itk_region)
+        reference_image.SetSpacing([spatial_resolution] * 3)
+        reference_image.SetOrigin(min_bounds.tolist())
+        reference_image.Allocate()
+        return reference_image
+
     def create_mask_from_mesh(
         self,
         mesh,
         reference_image,
-        resample_to_reference=True,
     ):
         ref_spacing = np.array(reference_image.GetSpacing())
 
@@ -177,7 +214,8 @@ class ContourTools:
         binary_image.SetSpacing([voxel_pitch] * 3)
 
         # Direction: use identity for now (axis-aligned), will be handled by resampling
-        ref_dir = np.array(reference_image.GetDirection())
+        # Flip Z axis to match ITK convention
+        ref_dir = np.array(binary_image.GetDirection())
         ref_dir[2, 2] = -ref_dir[2, 2]
         binary_image.SetDirection(ref_dir)
 
@@ -189,67 +227,156 @@ class ContourTools:
         fill_filter.Update()
         mask_image = fill_filter.GetOutput()
 
-        if resample_to_reference:
-            resampler = itk.ResampleImageFilter.New(Input=mask_image)
-            resampler.SetReferenceImage(reference_image)
-            resampler.SetUseReferenceImage(True)
-            resampler.SetInterpolator(
-                itk.NearestNeighborInterpolateImageFunction.New(mask_image)
-            )
-            resampler.SetDefaultPixelValue(0)
-            resampler.Update()
-            mask_image = resampler.GetOutput()
+        resampler = itk.ResampleImageFilter.New(Input=mask_image)
+        resampler.SetReferenceImage(reference_image)
+        resampler.SetUseReferenceImage(True)
+        resampler.SetInterpolator(
+            itk.NearestNeighborInterpolateImageFunction.New(mask_image)
+        )
+        resampler.SetDefaultPixelValue(0)
+        resampler.Update()
+        mask_image = resampler.GetOutput()
 
         return mask_image
 
-    def create_contour_distance_map_from_mesh(
+    def create_distance_map(
         self,
         mesh,
         reference_image,
-        max_distance: float = 100.0,
+        squared_distance: bool = False,
+        max_distance: float = 0.0,
         invert_distance_map: bool = False,
-    ):
+        create_point_map: bool = False,
+    ) -> itk.Image:
+        self.log_info("Computing signed distance map...")
+
         # Convert mask to binary
-        mesh_mask = self.create_mask_from_mesh(mesh, reference_image)
-        mask_arr = itk.GetArrayFromImage(mesh_mask)
-        binary_mask_arr = (mask_arr > 0).astype(np.uint8)
-        binary_mask_image = itk.GetImageFromArray(binary_mask_arr)
-        binary_mask_image.CopyInformation(reference_image)
+        points = mesh.points
 
-        edge_filter = itk.BinaryContourImageFilter.New(Input=binary_mask_image)
-        edge_filter.SetForegroundValue(1)
-        edge_filter.SetBackgroundValue(0)
-        edge_filter.SetFullyConnected(False)
-        edge_filter.Update()
-        edge_mask_image = edge_filter.GetOutput()
+        size = reference_image.GetLargestPossibleRegion().GetSize()
+        size = (size[2], size[1], size[0])
 
-        # Compute signed distance map (positive inside, negative outside)
-        print("  Computing signed distance map...")
-        distance_filter = itk.SignedMaurerDistanceMapImageFilter.New(
-            Input=edge_mask_image
+        tmp_arr = np.zeros(size, dtype=np.int32)
+        itk_point = itk.Point[itk.D, 3]()
+        for i, point in enumerate(points):
+            itk_point[0] = float(point[0])
+            itk_point[1] = float(point[1])
+            itk_point[2] = float(point[2])
+            indx = reference_image.TransformPhysicalPointToIndex(itk_point)
+            tmp_arr[indx[2], indx[1], indx[0]] = i
+        tmp_binary_arr = (tmp_arr > 0).astype(np.float32)
+        tmp_binary_image = itk.GetImageFromArray(tmp_binary_arr)
+        tmp_binary_image.CopyInformation(reference_image)
+
+        distance_filter = itk.DanielssonDistanceMapImageFilter.New(
+            Input=tmp_binary_image
         )
-        distance_filter.SetSquaredDistance(False)
+        distance_filter.SetSquaredDistance(squared_distance)
         distance_filter.SetUseImageSpacing(True)
-        distance_filter.SetInsideIsPositive(False)
+        distance_filter.SetInputIsBinary(True)
         distance_filter.Update()
         distance_image = distance_filter.GetOutput()
 
-        distance_arr = itk.GetArrayFromImage(distance_image)
-        min_val = distance_arr.min()
-        if max_distance is None:
+        distance_arr = itk.GetArrayFromImage(distance_image).astype(np.float32)
+        if max_distance == 0.0:
             max_val = distance_arr.max()
         else:
             max_val = max_distance
-            distance_arr = np.clip(distance_arr, min_val, max_val)
+            distance_arr = np.clip(distance_arr, 0.0, max_val)
         if invert_distance_map:
-            distance_arr = (
-                (1.0 - (distance_arr - min_val) / (max_val - min_val)) * max_distance
-            ).astype(np.float32)
-        else:
-            distance_arr = (
-                ((distance_arr - min_val) / (max_val - min_val)) * max_distance
-            ).astype(np.float32)
+            distance_arr = max_distance - distance_arr
         distance_image = itk.GetImageFromArray(distance_arr)
         distance_image.CopyInformation(reference_image)
 
         return distance_image
+
+    def create_deformation_field(
+        self,
+        points: np.ndarray,
+        point_displacements: np.ndarray,
+        reference_image: itk.Image,
+        blur_sigma: float = 2.5,
+        ptype=itk.D,
+    ) -> itk.Image:
+        """
+        Create a displacement map from model points and displacements.
+        """
+        size = reference_image.GetLargestPossibleRegion().GetSize()
+        norm_map = np.zeros((size[2], size[1], size[0])).astype(np.float32)
+        displacement_map_x = np.zeros((size[2], size[1], size[0])).astype(np.float32)
+        displacement_map_y = np.zeros((size[2], size[1], size[0])).astype(np.float32)
+        displacement_map_z = np.zeros((size[2], size[1], size[0])).astype(np.float32)
+        itk_point = itk.Point[itk.D, 3]()
+        for i, point in enumerate(points):
+            itk_point[0] = float(point[0])
+            itk_point[1] = float(point[1])
+            itk_point[2] = float(point[2])
+            indx = reference_image.TransformPhysicalPointToIndex(itk_point)
+            displacement_map_x[int(indx[2]), int(indx[1]), int(indx[0])] = (
+                point_displacements[i, 0]
+            )
+            displacement_map_y[int(indx[2]), int(indx[1]), int(indx[0])] = (
+                point_displacements[i, 1]
+            )
+            displacement_map_z[int(indx[2]), int(indx[1]), int(indx[0])] = (
+                point_displacements[i, 2]
+            )
+            norm_map[int(indx[2]), int(indx[1]), int(indx[0])] = 1
+
+        norm_img = itk.GetImageFromArray(norm_map)
+        norm_img.CopyInformation(reference_image)
+
+        blurred_norm = itk.SmoothingRecursiveGaussianImageFilter(
+            Input=norm_img, Sigma=blur_sigma
+        )
+        blurred_norm_arr = itk.GetArrayFromImage(blurred_norm)
+        blurred_norm_arr = np.where(blurred_norm_arr < 1.0e-4, 1.0e-4, blurred_norm_arr)
+
+        deformation_field_x_img = itk.GetImageFromArray(displacement_map_x)
+        deformation_field_x_img.CopyInformation(reference_image)
+        deformation_field_x_img = itk.SmoothingRecursiveGaussianImageFilter(
+            Input=deformation_field_x_img, Sigma=blur_sigma
+        )
+
+        deformation_field_y_img = itk.GetImageFromArray(displacement_map_y)
+        deformation_field_y_img.CopyInformation(reference_image)
+        deformation_field_y_img = itk.SmoothingRecursiveGaussianImageFilter(
+            Input=deformation_field_y_img, Sigma=blur_sigma
+        )
+
+        deformation_field_z_img = itk.GetImageFromArray(displacement_map_z)
+        deformation_field_z_img.CopyInformation(reference_image)
+        deformation_field_z_img = itk.SmoothingRecursiveGaussianImageFilter(
+            Input=deformation_field_z_img, Sigma=blur_sigma
+        )
+
+        deformation_field_x = (
+            itk.GetArrayFromImage(deformation_field_x_img) / blurred_norm_arr
+        )
+        deformation_field_y = (
+            itk.GetArrayFromImage(deformation_field_y_img) / blurred_norm_arr
+        )
+        deformation_field_z = (
+            itk.GetArrayFromImage(deformation_field_z_img) / blurred_norm_arr
+        )
+
+        deformation_field_x = np.where(
+            blurred_norm_arr > 1.0e-3, deformation_field_x, 0.0
+        )
+        deformation_field_y = np.where(
+            blurred_norm_arr > 1.0e-3, deformation_field_y, 0.0
+        )
+        deformation_field_z = np.where(
+            blurred_norm_arr > 1.0e-3, deformation_field_z, 0.0
+        )
+
+        deformation_field = np.stack(
+            [deformation_field_x, deformation_field_y, deformation_field_z], axis=-1
+        )
+
+        image_tools = ImageTools()
+        deformation_field_img = image_tools.convert_array_to_image_of_vectors(
+            deformation_field, reference_image, ptype=ptype
+        )
+
+        return deformation_field_img

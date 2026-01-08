@@ -17,12 +17,12 @@ and supports both local inference and NVIDIA NIM deployment modes.
 #      -v /tmp/data:/home/aylward/tmp/data nvcr.io/nim/nvidia/vista3d:latest
 
 import argparse
+import logging
 import os
 import shutil
 import tempfile
 
 import itk
-import numpy as np
 import torch
 from huggingface_hub import snapshot_download
 
@@ -65,7 +65,7 @@ class SegmentChestVista3D(SegmentChestBase):
         >>> result = segmenter.segment(ct_image)
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the VISTA-3D based chest segmentation.
 
         Sets up the VISTA-3D model including downloading weights from Hugging Face,
@@ -75,11 +75,14 @@ class SegmentChestVista3D(SegmentChestBase):
         The initialization automatically downloads the VISTA-3D model weights
         from the MONAI/VISTA3D-HF repository on Hugging Face if not already present.
 
+        Args:
+            log_level: Logging level (default: logging.INFO)
+
         Raises:
             RuntimeError: If CUDA is not available for GPU acceleration
             ConnectionError: If model weights cannot be downloaded
         """
-        super().__init__()
+        super().__init__(log_level=log_level)
 
         self.target_spacing = 0.0
         self.resale_intensity_range = False

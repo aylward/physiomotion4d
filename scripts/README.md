@@ -192,8 +192,8 @@ The workflow executes the following steps automatically:
 #### Intermediate Files (in output directory)
 - `slice_*.mha` - Individual 3D images for each time point
 - `slice_*.labelmap.mha` - Segmentation masks
-- `slice_*.reg_*.phi_FM.hdf` - Forward transformation files
-- `slice_*.reg_*.phi_MF.hdf` - Backward transformation files
+- `slice_*.reg_*.inverse_transform.hdf` - Backward transformation files
+- `slice_*.reg_*.forward_transform.hdf` - Forward transformation files
 - `slice_max.reg_*.mha` - Maximum intensity projection images
 - `*.vtk` - VTK mesh files for contours
 - `*_4d.vtk` - Time series VTK files

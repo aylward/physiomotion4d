@@ -10,6 +10,7 @@ deformable registration with mass preservation constraints.
 """
 
 import argparse
+import logging
 
 import icon_registration as icon
 import icon_registration.itk_wrapper
@@ -54,17 +55,20 @@ class RegisterImagesICON(RegisterImagesBase):
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> result = registrar.register(moving_image)
-        >>> phi_FM = result["phi_FM"]
+        >>> forward_transform = result["forward_transform"]
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the ICON image registration class.
 
         Calls the parent RegisterImagesBase constructor to set up common parameters.
         The ICON deep learning network is initialized lazily on first use to avoid
         unnecessary GPU memory allocation.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
         """
-        super().__init__()
+        super().__init__(log_level=log_level)
 
         self.net = None
         self.use_multi_modality = False
@@ -127,10 +131,9 @@ class RegisterImagesICON(RegisterImagesBase):
     def registration_method(
         self,
         moving_image,
-        moving_image_mask=None,
+        moving_mask=None,
         moving_image_pre=None,
-        images_are_labelmaps=False,
-        initial_phi_MF=None,
+        initial_forward_transform=None,
     ):
         """Register moving image to fixed image using ICON registration algorithm.
 
@@ -141,31 +144,26 @@ class RegisterImagesICON(RegisterImagesBase):
 
         Args:
             moving_image (itk.image): The 3D image to be registered/aligned
-            moving_image_mask (itk.image, optional): Binary mask defining the
+            moving_mask (itk.image, optional): Binary mask defining the
                 region of interest in the moving image. If provided along with
-                fixed_image_mask, enables mask-constrained registration
+                fixed_mask, enables mask-constrained registration
             moving_image_pre (itk.image, optional): Pre-processed moving image.
                 If None, preprocessing is performed automatically
-            images_are_labelmaps (bool, optional): Whether the images are labelmaps.
-                Currently not used by ICON implementation
-            initial_phi_MF (itk.Transform, optional): Initial transformation from fixed
-                to moving. If provided, it is used to transform the moving image before
+            initial_forward_transform (itk.Transform, optional): Initial transformation from moving
+                to fixed. If provided, it is used to transform the moving image before
                 registration.
 
         Returns:
             dict: Dictionary containing:
-                - "phi_FM": transform fixed image to moving space
-                    - transform goes from moving space into fixed space
-                - "phi_MF": transform moving image into fixed space
-                    - transform goes from fixed space into moving space
+                - "forward_transform": transform moving image into fixed space
+                - "inverse_transform": transform fixed image to moving space
                 - "loss": Loss value from the registration
 
         Note:
-            The transformations phi_FM and phi_MF
-            are inverse consistent, meaning phi_MF ≈ inverse(
-            phi_FM).
-            The phi_FM transform is used to warp the fixed image
-            to the moving image space. The phi_MF transform is used
+            The transformations are inverse consistent, meaning
+            forward_transform ≈ inverse(inverse_transform).
+            The inverse_transform is used to warp the fixed image
+            to the moving image space. The forward_transform is used
             to warp the moving image to the fixed image space.
 
         Implementation details:
@@ -177,13 +175,13 @@ class RegisterImagesICON(RegisterImagesBase):
         Example:
             >>> # Basic registration
             >>> result = registrar.register(moving_image)
-            >>> phi_FM = result["phi_FM"]
-            >>> phi_MF = result["phi_MF"]
+            >>> forward_transform = result["forward_transform"]
+            >>> inverse_transform = result["inverse_transform"]
             >>>
             >>> # Masked registration for cardiac structures
-            >>> registrar.set_fixed_image_mask(heart_mask_fixed)
+            >>> registrar.set_fixed_mask(heart_mask_fixed)
             >>> result = registrar.register(
-            ...     moving_image, moving_image_mask=heart_mask_moving
+            ...     moving_image, moving_mask=heart_mask_moving
             ... )
         """
 
@@ -193,10 +191,10 @@ class RegisterImagesICON(RegisterImagesBase):
             moving_image_pre = self.preprocess(moving_image, self.modality)
 
         new_moving_image_pre = moving_image_pre
-        if initial_phi_MF is not None:
+        if initial_forward_transform is not None:
             new_moving_image_pre = tfm_tools.transform_image(
                 moving_image_pre,
-                initial_phi_MF,
+                initial_forward_transform,
                 self.fixed_image,
             )
 
@@ -213,23 +211,23 @@ class RegisterImagesICON(RegisterImagesBase):
                     apply_intensity_conservation_loss=self.use_mass_preservation,
                 )
 
-        phi_FM = None
-        phi_MF = None
+        inverse_transform = None
+        forward_transform = None
         loss_artifacts = None
-        if self.fixed_image_mask is not None and moving_image_mask is not None:
-            phi_FM, phi_MF, loss_artifacts = (
+        if self.fixed_mask is not None and moving_mask is not None:
+            inverse_transform, forward_transform, loss_artifacts = (
                 icon_registration.itk_wrapper.register_pair_with_mask(
                     self.net,
                     self.fixed_image_pre,
                     new_moving_image_pre,
-                    self.fixed_image_mask,
-                    moving_image_mask,
+                    self.fixed_mask,
+                    moving_mask,
                     finetune_steps=self.number_of_iterations,
                     return_artifacts=True,
                 )
             )
         else:
-            phi_FM, phi_MF, loss_artifacts = (
+            inverse_transform, forward_transform, loss_artifacts = (
                 icon_registration.itk_wrapper.register_pair(
                     self.net,
                     self.fixed_image_pre,
@@ -241,10 +239,10 @@ class RegisterImagesICON(RegisterImagesBase):
 
         loss = loss_artifacts[0]
 
-        if initial_phi_MF is not None:
-            phi_MF = tfm_tools.combine_displacement_field_transforms(
-                initial_phi_MF,
-                phi_MF,
+        if initial_forward_transform is not None:
+            forward_transform = tfm_tools.combine_displacement_field_transforms(
+                initial_forward_transform,
+                forward_transform,
                 self.fixed_image,
                 tfm1_weight=1.0,
                 tfm2_weight=1.0,
@@ -252,14 +250,14 @@ class RegisterImagesICON(RegisterImagesBase):
             )
 
             dftfm = tfm_tools.convert_transform_to_displacement_field_transform(
-                phi_MF,
+                forward_transform,
                 self.fixed_image,
             )
-            phi_FM = tfm_tools.invert_displacement_field_transform(dftfm)
+            inverse_transform = tfm_tools.invert_displacement_field_transform(dftfm)
 
         return {
-            "phi_FM": phi_FM,
-            "phi_MF": phi_MF,
+            "forward_transform": forward_transform,
+            "inverse_transform": inverse_transform,
             "loss": loss,
         }
 
@@ -298,9 +296,9 @@ if __name__ == "__main__":
     registrar.set_fixed_image(itk.imread(args.fixed_image))
     moving_image = itk.imread(args.moving_image)
     result = registrar.register(moving_image=moving_image)
-    phi_FM = result["phi_FM"]
-    phi_MF = result["phi_MF"]
+    forward_transform = result["forward_transform"]
+    inverse_transform = result["inverse_transform"]
     moving_image_reg = TransformTools().transform_image(
-        moving_image, phi_MF, registrar.fixed_image, "sinc"
+        moving_image, forward_transform, registrar.fixed_image, "sinc"
     )  # Final resampling with sinc
     itk.imwrite(moving_image_reg, args.output_image, compression=True)

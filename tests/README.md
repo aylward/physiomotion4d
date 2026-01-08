@@ -140,7 +140,7 @@ Tests automatically run on pull requests via GitHub Actions. The CI workflow:
 **Problem: Test timeout**
 - Global timeout: 900 seconds (15 minutes)
 - Registration tests need GPU for reasonable speed
-- Override with: `pytest --timeout=1800`
+- Override with: `@pytest.mark.timeout(1800)` decorator or use `-o timeout=1800`
 
 **Problem: Fixture naming errors**
 - ✅ **Fixed!** Use correct fixture names from `conftest.py`

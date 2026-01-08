@@ -15,14 +15,17 @@ Concrete implementations should inherit from RegisterImagesBase and implement
 the register() method with their specific algorithm (e.g., Icon, ANTs, etc.).
 """
 
+import logging
+
 import itk
 import numpy as np
 from itk import TubeTK as ttk
 
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.transform_tools import TransformTools
 
 
-class RegisterImagesBase:
+class RegisterImagesBase(PhysioMotion4DBase):
     """Base class for deformable image registration algorithms.
 
     This class provides a common interface and shared functionality for
@@ -47,41 +50,50 @@ class RegisterImagesBase:
         modality (str): Image modality ('ct', 'mri', etc.) for parameter optimization
         fixed_image (itk.image): The target/reference image
         fixed_image_pre (itk.image): Preprocessed fixed image
-        fixed_image_mask (itk.image): Binary mask for fixed image ROI
+        fixed_mask (itk.image): Binary mask for fixed image ROI
         mask_dilation_mm (float): Mask dilation amount in millimeters
 
     Example:
         >>> class MyRegistration(RegisterImagesBase):
         ...     def registration_method(self, moving_image, **kwargs):
         ...         # Implement specific registration algorithm
-        ...         return {"phi_FM": tfm_forward, "phi_MF": tfm_backward}
+        ...         return {
+        ...             "forward_transform": tfm_forward,  # Moving → Fixed
+        ...             "inverse_transform": tfm_inverse,  # Fixed → Moving
+        ...             "loss": 0.0
+        ...         }
         >>>
         >>> registrar = MyRegistration()
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> result = registrar.register(moving_image)
-        >>> phi_FM = result["phi_FM"]
-        >>> phi_MF = result["phi_MF"]
+        >>> forward_tfm = result["forward_transform"]  # Moving → Fixed
+        >>> inverse_tfm = result["inverse_transform"]  # Fixed → Moving
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the base image registration class.
 
         Sets up the common registration parameters with default values. Algorithm-specific
         components (like neural networks or optimization objects) should be initialized
         in the concrete implementation to avoid unnecessary resource allocation.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
         """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
         self.net = None
 
         self.modality = 'ct'
 
         self.fixed_image = None
         self.fixed_image_pre = None
-        self.fixed_image_mask = None
+        self.fixed_mask = None
 
         self.moving_image = None
         self.moving_image_pre = None
-        self.moving_image_mask = None
+        self.moving_mask = None
 
         self.mask_dilation_mm = 5
 
@@ -136,7 +148,7 @@ class RegisterImagesBase:
         """
         self.mask_dilation_mm = mask_dilation_mm
 
-    def set_fixed_image_mask(self, fixed_image_mask):
+    def set_fixed_mask(self, fixed_mask):
         """Set a binary mask for the fixed image region of interest.
 
         The mask constrains registration to focus on specific anatomical
@@ -145,30 +157,30 @@ class RegisterImagesBase:
         the mask is dilated by the specified amount.
 
         Args:
-            fixed_image_mask (itk.image): Binary or label mask defining the
+            fixed_mask (itk.image): Binary or label mask defining the
                 region of interest in the fixed image. Non-zero values are
                 treated as foreground
 
         Example:
             >>> # Use heart mask to focus registration on cardiac structures
-            >>> registrar.set_fixed_image_mask(heart_mask)
+            >>> registrar.set_fixed_mask(heart_mask)
         """
         self.fixed_image_pre = None
 
-        if fixed_image_mask is None:
-            self.fixed_image_mask = None
+        if fixed_mask is None:
+            self.fixed_mask = None
             return
 
-        mask_arr = itk.GetArrayFromImage(fixed_image_mask)
+        mask_arr = itk.GetArrayFromImage(fixed_mask)
         mask_arr = np.where(mask_arr > 0, 1, 0)
-        self.fixed_image_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
-        self.fixed_image_mask.CopyInformation(self.fixed_image)
+        self.fixed_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
+        self.fixed_mask.CopyInformation(self.fixed_image)
         if self.mask_dilation_mm > 0:
-            imMath = ttk.ImageMath.New(self.fixed_image_mask)
+            imMath = ttk.ImageMath.New(self.fixed_mask)
             imMath.Dilate(
                 int(self.fixed_image.GetSpacing()[0] / self.mask_dilation_mm), 1, 0
             )
-            self.fixed_image_mask = imMath.GetOutputUChar()
+            self.fixed_mask = imMath.GetOutputUChar()
 
     def preprocess(self, image, modality='ct'):
         """Preprocess the image based on modality-specific requirements.
@@ -194,28 +206,31 @@ class RegisterImagesBase:
     def registration_method(
         self,
         moving_image,
-        moving_image_mask=None,
+        moving_mask=None,
         moving_image_pre=None,
-        images_are_labelmaps=False,
-        initial_phi_MF=None,
+        initial_forward_transform=None,
     ) -> dict:
         """Main registration method to align moving image to fixed image.
 
         This method serves as the primary interface for performing image
         registration. It takes a moving image and optional mask and
-        preprocessed image, and returns the registered image along with
-        forward and backward transformations.
+        preprocessed image, and returns the forward and backward transformations.
+
+        Note: This is an internal method that should be implemented by subclasses.
+        The public API is register() which wraps this method.
 
         Args:
             moving_image (itk.image): The 3D image to be registered to the fixed image
-            moving_image_mask (itk.image, optional): Binary mask for moving image ROI
+            moving_mask (itk.image, optional): Binary mask for moving image ROI
             moving_image_pre (itk.image, optional): Preprocessed moving image
-            images_are_labelmaps (bool, optional): Whether the images are labelmaps
-            initial_phi_MF (itk.Transform, optional): Initial transformation from moving to fixed
+            initial_forward_transform (itk.Transform, optional): Initial transformation from moving to fixed
+
         Returns:
             dict: Dictionary containing:
-                - "phi_FM": Used to warp fixed image into moving space
-                - "phi_MF": Used to warp moving image into fixed space
+                - "forward_transform": Transform that warps moving image into fixed space
+                - "inverse_transform": Transform that warps fixed image into moving space
+                - "loss": Registration loss/metric value
+
         Raises:
             ValueError: If fixed image is not set
         """
@@ -224,10 +239,9 @@ class RegisterImagesBase:
     def register(
         self,
         moving_image,
-        moving_image_mask=None,
+        moving_mask=None,
         moving_image_pre=None,
-        images_are_labelmaps=False,
-        initial_phi_MF=None,
+        initial_forward_transform=None,
     ) -> dict:
         """Register a moving image to the fixed image.
 
@@ -237,15 +251,19 @@ class RegisterImagesBase:
 
         Args:
             moving_image (itk.image): The 3D image to be registered to the fixed image
-            moving_image_mask (itk.image, optional): Binary mask for moving image ROI
+            moving_mask (itk.image, optional): Binary mask for moving image ROI
             moving_image_pre (itk.image, optional): Preprocessed moving image
-            images_are_labelmaps (bool, optional): Whether the images are labelmaps for label-based registration
-            initial_phi_MF (itk.Transform, optional): Initial transformation from fixed to moving
+            initial_forward_transform (itk.Transform, optional): Initial transformation from moving to fixed
 
         Returns:
-            dict: Dictionary containing:
-                - "phi_FM": Forward transformation from moving to fixed
-                - "phi_MF": Backward transformation from fixed to moving
+            dict: Dictionary containing transformation results:
+                - "forward_transform": Transforms moving image to fixed space (warps moving → fixed)
+                - "inverse_transform": Transforms fixed image to moving space (warps fixed → moving)
+                - "loss": Registration loss/metric value
+
+        Note:
+            - forward_transform: Use this to warp the moving image to match the fixed image
+            - inverse_transform: Use this to warp the fixed image to match the moving image
 
         Raises:
             NotImplementedError: This method must be implemented by subclasses
@@ -262,37 +280,36 @@ class RegisterImagesBase:
                 modality=self.modality,
             )
 
-        new_moving_image_mask = moving_image_mask
-        if moving_image_mask is not None:
-            mask_arr = itk.GetArrayFromImage(moving_image_mask)
+        new_moving_mask = moving_mask
+        if moving_mask is not None:
+            mask_arr = itk.GetArrayFromImage(moving_mask)
             mask_arr = np.where(mask_arr > 0, 1, 0)
-            new_moving_image_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
-            new_moving_image_mask.CopyInformation(moving_image)
+            new_moving_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
+            new_moving_mask.CopyInformation(moving_image)
             if self.mask_dilation_mm > 0:
-                imMath = ttk.ImageMath.New(new_moving_image_mask)
+                imMath = ttk.ImageMath.New(new_moving_mask)
                 imMath.Dilate(
                     int(moving_image.GetSpacing()[0] / self.mask_dilation_mm), 1, 0
                 )
-                new_moving_image_mask = imMath.GetOutputUChar()
+                new_moving_mask = imMath.GetOutputUChar()
 
         self.moving_image = moving_image
         self.moving_image_pre = moving_image_pre
-        self.moving_image_mask = new_moving_image_mask
+        self.moving_mask = new_moving_mask
 
         result = self.registration_method(
             moving_image,
-            moving_image_mask=new_moving_image_mask,
+            moving_mask=new_moving_mask,
             moving_image_pre=moving_image_pre,
-            images_are_labelmaps=images_are_labelmaps,
-            initial_phi_MF=initial_phi_MF,
+            initial_forward_transform=initial_forward_transform,
         )
 
-        phi_FM = result["phi_FM"]
-        phi_MF = result["phi_MF"]
+        forward_transform = result["forward_transform"]
+        inverse_transform = result["inverse_transform"]
         loss = result["loss"]
 
         return {
-            "phi_FM": phi_FM,
-            "phi_MF": phi_MF,
+            "forward_transform": forward_transform,  # Warps moving → fixed
+            "inverse_transform": inverse_transform,  # Warps fixed → moving
             "loss": loss,
         }

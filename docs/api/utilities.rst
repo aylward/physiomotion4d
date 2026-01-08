@@ -481,7 +481,7 @@ Class-Based Filtering
 
    # Show logs only from specific classes
    PhysioMotion4DBase.set_log_classes([
-       "RegisterModelToImagePCA",
+       "RegisterModelsPCA",
        "HeartModelToPatientWorkflow"
    ])
    

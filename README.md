@@ -98,9 +98,9 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
     - `RegisterImagesANTs`: Classical deformable registration using ANTs
     - `RegisterTimeSeriesImages`: Specialized time series registration for 4D CT
   - Model-to-Image/Model Registration:
-    - `RegisterModelToImagePCA`: PCA-based statistical shape model registration
-    - `RegisterModelToModelICP`: ICP-based surface registration
-    - `RegisterModelToModelMasks`: Mask-based deformable model registration
+    - `RegisterModelsPCA`: PCA-based statistical shape model registration
+    - `RegisterModelsICP`: ICP-based surface registration
+    - `RegisterModelsDistanceMaps`: Mask-based deformable model registration
   - `RegisterImagesBase`: Base class for custom registration methods
 - **Base Classes**: Foundation classes providing common functionality
   - `PhysioMotion4DBase`: Base class providing standardized logging and debug settings
@@ -227,8 +227,8 @@ transforms = time_series_reg.register_time_series(
 )
 
 # Get forward and inverse displacement fields
-phi_FM = results["phi_FM"]  # Fixed to moving
-phi_MF = results["phi_MF"]  # Moving to fixed
+inverse_transform = results["inverse_transform"]  # Fixed to moving
+forward_transform = results["forward_transform"]  # Moving to fixed
 ```
 
 ### Logging and Debug Control
@@ -243,7 +243,7 @@ from physiomotion4d import HeartModelToPatientWorkflow, PhysioMotion4DBase
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
 
 # Or filter to show logs from specific classes only
-PhysioMotion4DBase.set_log_classes(["HeartModelToPatientWorkflow", "RegisterModelToImagePCA"])
+PhysioMotion4DBase.set_log_classes(["HeartModelToPatientWorkflow", "RegisterModelsPCA"])
 
 # Show all classes again
 PhysioMotion4DBase.set_log_all_classes()

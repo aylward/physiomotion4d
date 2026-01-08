@@ -37,19 +37,19 @@ Model-to-Image/Model Registration
 
 For registering anatomical models to patient data:
 
-* **ICP (RegisterModelToModelICP)**: Iterative Closest Point for surface alignment
+* **ICP (RegisterModelsICP)**: Iterative Closest Point for surface alignment
   
   - Best for: Initial rough alignment, mesh registration
   - Speed: Very fast (<10 seconds)
   - Type: Rigid/affine registration
 
-* **Mask-based (RegisterModelToModelMasks)**: Deformable registration using binary masks
+* **Mask-based (RegisterModelsDistanceMaps)**: Deformable registration using binary masks
   
   - Best for: Model-to-patient fitting
   - Features: Dice coefficient optimization
   - Type: Deformable registration
 
-* **PCA-based (RegisterModelToImagePCA)**: Statistical shape model registration
+* **PCA-based (RegisterModelsPCA)**: Statistical shape model registration
   
   - Best for: Shape prior constraints
   - Features: Low-dimensional optimization
@@ -87,8 +87,8 @@ Image Registration with ICON
    results = registerer.register(moving)
    
    # Get displacement fields
-   phi_FM = results["phi_FM"]  # Fixed to moving
-   phi_MF = results["phi_MF"]  # Moving to fixed
+   inverse_transform = results["inverse_transform"]  # Fixed to moving
+   forward_transform = results["forward_transform"]  # Moving to fixed
 
 Time Series Registration
 -------------------------
@@ -108,8 +108,8 @@ Time Series Registration
    results = reg.register_time_series(image_filenames=image_files)
    
    # Access transforms
-   transforms_FM = results["phi_FM_list"]
-   transforms_MF = results["phi_MF_list"]
+   transforms_inverse = results["inverse_transforms"]
+   transforms_forward = results["forward_transforms"]
 
 Model to Patient Registration
 ------------------------------

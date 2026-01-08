@@ -69,6 +69,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
    tutorials/vtk_to_usd
    tutorials/colormap_rendering
    tutorials/model_to_image_registration
+   ants_initial_transform_guide
 
 .. toctree::
    :maxdepth: 3
@@ -87,6 +88,10 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
    architecture
    testing
    changelog
+   README
+   DOCUMENTATION_SETUP
+   LOGGING_API_REFERENCE
+   PYPI_RELEASE_GUIDE
 
 .. toctree::
    :maxdepth: 1

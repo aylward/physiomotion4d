@@ -73,15 +73,15 @@ ICON (Inverse Consistent Optimization Network)
       results = registerer.register(moving_image)
       
       # Get results
-      phi_FM = results["phi_FM"]  # Forward deformation field
-      phi_MF = results["phi_MF"]  # Inverse deformation field
+      forward_transform = results["forward_transform"]  # Forward deformation field
+      inverse_transform = results["inverse_transform"]  # Inverse deformation field
       registered_image = results["registered_image"]
       similarity = results["similarity_score"]
 
    **Output Dictionary:**
 
-   * ``phi_FM``: Forward deformation field (fixed → moving)
-   * ``phi_MF``: Inverse deformation field (moving → fixed)
+   * ``forward_transform``: Used to warp an image from moving to fixed space
+   * ``inverse_transform``: Used to warp an image from fixed to moving space
    * ``registered_image``: Moving image warped to fixed space
    * ``similarity_score``: Registration quality metric
    * ``inverse_consistency_error``: Inverse consistency metric
@@ -189,9 +189,9 @@ Time Series Registration
       )
       
       # Access results
-      phi_MF_list = results["phi_MF_list"]  # List of transforms
-      phi_FM_list = results["phi_FM_list"]  # List of inverse transforms
-      losses = results["losses"]  # List of registration losses
+      forward_transforms_list = results["forward_transforms"]  # List of transforms
+      inverse_transforms_list = results["inverse_transforms"]  # List of inverse transforms
+      registration_losses = results["losses"]  # List of registration losses
 
    **Use Cases:**
 
@@ -218,7 +218,7 @@ These methods register statistical shape models or segmentation meshes to medica
 PCA-based Registration
 ----------------------
 
-.. autoclass:: physiomotion4d.RegisterModelToImagePCA
+.. autoclass:: physiomotion4d.RegisterModelsPCA
    :members:
    :undoc-members:
    :show-inheritance:
@@ -236,10 +236,10 @@ PCA-based Registration
 
    .. code-block:: python
 
-      from physiomotion4d import RegisterModelToImagePCA
+      from physiomotion4d import RegisterModelsPCA
       import itk
 
-      registerer = RegisterModelToImagePCA()
+      registerer = RegisterModelsPCA()
       
       # Load shape model and image
       shape_model = load_statistical_shape_model("heart_model.pkl")
@@ -292,7 +292,7 @@ Model-to-Model Registration
 ICP Registration
 ----------------
 
-.. autoclass:: physiomotion4d.RegisterModelToModelICP
+.. autoclass:: physiomotion4d.RegisterModelsICP
    :members:
    :undoc-members:
    :show-inheritance:
@@ -310,25 +310,29 @@ ICP Registration
 
    .. code-block:: python
 
-      from physiomotion4d import RegisterModelToModelICP
+      from physiomotion4d import RegisterModelsICP
       import pyvista as pv
 
-      registerer = RegisterModelToModelICP()
-      
       # Load meshes
       fixed_mesh = pv.read("reference_mesh.vtp")
       moving_mesh = pv.read("target_mesh.vtp")
       
-      registerer.set_fixed_mesh(fixed_mesh)
-      registerer.set_max_iterations(100)
+      # Initialize registrar
+      registrar = RegisterModelsICP(
+          moving_mesh=moving_mesh,
+          fixed_mesh=fixed_mesh
+      )
       
       # Register
-      aligned_mesh, transform = registerer.register(moving_mesh)
+      result = registrar.register(mode='rigid', max_iterations=100)
+      aligned_mesh = result['moving_mesh']
+      forward_point_transform = result['forward_point_transform']
+      inverse_point_transform = result['inverse_point_transform']
 
 Mask-based Registration
 -----------------------
 
-.. autoclass:: physiomotion4d.RegisterModelToModelMasks
+.. autoclass:: physiomotion4d.RegisterModelsDistanceMaps
    :members:
    :undoc-members:
    :show-inheritance:
@@ -396,10 +400,10 @@ PhysioMotion4D provides utilities for evaluating registration quality:
    tre = compute_target_registration_error(fixed_landmarks, warped_landmarks)
    
    # Inverse consistency (bidirectional registration)
-   ice = compute_inverse_consistency_error(phi_FM, phi_MF)
+   ice = compute_inverse_consistency_error(inverse_transform, forward_transform)
    
    # Jacobian determinant (topology preservation)
-   jac_det = compute_jacobian_determinant(phi_FM)
+   jac_det = compute_jacobian_determinant(inverse_transform)
    folding_points = jac_det < 0  # Locations with folding
 
 Best Practices
@@ -419,12 +423,12 @@ Choosing a Registration Method
 
 3. **For initialization/coarse alignment**:
 
-   * Start with :class:`RegisterModelToModelICP`
+   * Start with :class:`RegisterModelsICP`
    * Then refine with image-based registration
 
 4. **For shape model fitting**:
 
-   * Use :class:`RegisterModelToImagePCA`
+   * Use :class:`RegisterModelsPCA`
    * Especially when prior knowledge available
 
 Parameter Selection

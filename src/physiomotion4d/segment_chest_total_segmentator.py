@@ -7,6 +7,7 @@ TotalSegmentator's output labels.
 """
 
 import argparse
+import logging
 import os
 import tempfile
 
@@ -54,14 +55,17 @@ class SegmentChestTotalSegmentator(SegmentChestBase):
         >>> heart_mask = result["heart"]
     """
 
-    def __init__(self):
+    def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the TotalSegmentator-based chest segmentation.
 
         Sets up the TotalSegmentator-specific anatomical structure ID mappings
         and processing parameters. The target spacing is set to 1.5mm which
         provides a good balance between accuracy and processing speed.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
         """
-        super().__init__()
+        super().__init__(log_level=log_level)
 
         self.target_spacing = 1.5
 
@@ -232,10 +236,10 @@ class SegmentChestTotalSegmentator(SegmentChestBase):
 
             # For higher performance, you can use fast=True, which uses a
             # faster but less accurate model.
-            output_nib_image1 = totalsegmentator(nib_image, task="total", device="cuda")
+            output_nib_image1 = totalsegmentator(nib_image, task="total", device="gpu")
             labelmap_arr1 = output_nib_image1.get_fdata().astype(np.uint8)
 
-            output_nib_image2 = totalsegmentator(nib_image, task="body", device="cuda")
+            output_nib_image2 = totalsegmentator(nib_image, task="body", device="gpu")
             labelmap_arr2 = output_nib_image2.get_fdata().astype(np.uint8)
 
             # The data from nibabel is in RAS orientation with xyz axis order.

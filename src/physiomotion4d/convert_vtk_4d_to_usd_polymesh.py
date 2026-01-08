@@ -1,5 +1,8 @@
 """Converter for VTK PolyData to USD Mesh with surface meshes."""
 
+import itertools
+import time
+
 import numpy as np
 import pyvista as pv
 import vtk
@@ -42,9 +45,12 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         Returns:
             bool: True if mesh is PolyData or can be converted to surface
         """
-        if self._is_polydata(mesh):
+        if isinstance(mesh, (pv.PolyData, vtk.vtkPolyData)):
             return True
-        if self._is_unstructured_grid(mesh) and self.convert_to_surface:
+        if (
+            isinstance(mesh, (pv.UnstructuredGrid, vtk.vtkUnstructuredGrid))
+            and self.convert_to_surface
+        ):
             return True
         return False
 
@@ -58,7 +64,7 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         Returns:
             dict: Processed mesh data organized by labels or 'default'
         """
-        if self._is_unstructured_grid(mesh):
+        if isinstance(mesh, (pv.UnstructuredGrid, vtk.vtkUnstructuredGrid)):
             if self.convert_to_surface:
                 # Convert UnstructuredGrid to surface PolyData first
                 surface_mesh = self._convert_ugrid_to_surface(mesh)
@@ -68,7 +74,7 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                     "UnstructuredGrid not supported by PolyMesh converter. "
                     "Use convert_to_surface=True or TetMesh converter."
                 )
-        elif self._is_polydata(mesh):
+        elif isinstance(mesh, (pv.PolyData, vtk.vtkPolyData)):
             return self._process_polydata(mesh)
         else:
             raise TypeError(f"Unsupported mesh type: {type(mesh)}")
@@ -91,15 +97,15 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             has_topology_change: Whether topology varies over time
         """
         if has_topology_change:
-            print(
-                f"Creating time-varying UsdGeomMesh for label: {label} "
-                f"(topology changes detected)"
+            self.log_info(
+                "Creating time-varying UsdGeomMesh for label: %s (topology changes detected)",
+                label,
             )
             self._create_usd_polymesh_varying(
                 transform_path, label, mesh_time_data, label_colors
             )
         else:
-            print(f"Creating UsdGeomMesh for label: {label}")
+            self.log_info("Creating UsdGeomMesh for label: %s", label)
             self._create_usd_polymesh(
                 transform_path, label, mesh_time_data, label_colors
             )
@@ -150,12 +156,12 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         ):
             label_array = polydata.GetCellData().GetArray("boundary_labels")
             # Get all unique labels from both components
-            boundary_labels = set()
-            for i in range(label_array.GetNumberOfTuples()):
-                tuple_values = label_array.GetTuple(i)
-                for value in tuple_values:
-                    if int(value) != 0:
-                        boundary_labels.add(value)
+            tuple_values = [
+                label_array.GetTuple(i) for i in range(label_array.GetNumberOfTuples())
+            ]
+            tuple_values_flattened = list(itertools.chain.from_iterable(tuple_values))
+            boundary_labels = set(tuple_values_flattened)
+            boundary_labels.discard(0)
 
         # Get deformation magnitude if it exists
         def_mag = None
@@ -172,17 +178,23 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         offsets = faces.GetOffsetsArray()
 
         # Process face data
-        face_vertex_counts = []
+        num_faces = offsets.GetNumberOfValues() - 1
+        start_idx = [offsets.GetValue(i) for i in range(num_faces)]
+        end_idx = [offsets.GetValue(i + 1) for i in range(num_faces)]
+        face_vertex_counts = [end_idx[i] - start_idx[i] for i in range(num_faces)]
         face_vertex_indices = []
+        for i in range(num_faces):
+            face_vertex_indices.extend(
+                [connectivity.GetValue(j) for j in range(start_idx[i], end_idx[i])]
+            )
 
-        for i in range(offsets.GetNumberOfValues() - 1):
-            start_idx = offsets.GetValue(i)
-            end_idx = offsets.GetValue(i + 1)
-            num_vertices = end_idx - start_idx
-            face_vertex_counts.append(num_vertices)
-
-            for j in range(start_idx, end_idx):
-                face_vertex_indices.append(connectivity.GetValue(j))
+        # for i in range(offsets.GetNumberOfValues() - 1):
+        # start_idx = offsets.GetValue(i)
+        # end_idx = offsets.GetValue(i + 1)
+        # num_vertices = end_idx - start_idx
+        # face_vertex_counts.append(num_vertices)
+        # for j in range(start_idx, end_idx):
+        # face_vertex_indices.append(connectivity.GetValue(j))
 
         # Create objects for each cell based on its labels
         if boundary_labels:
@@ -208,50 +220,66 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                 label_array = polydata.GetCellData().GetArray("boundary_labels")
 
             # Process each cell
+            start_time = time.time()
             for cell_id in range(polydata.GetNumberOfCells()):
+                if cell_id % 1000000 == 0 or cell_id == polydata.GetNumberOfCells() - 1:
+                    self.log_progress(
+                        cell_id + 1,
+                        polydata.GetNumberOfCells(),
+                        prefix="Processing cells",
+                    )
+
                 cell = polydata.GetCell(cell_id)
                 cell_labels = set()
 
                 # Get all labels for this cell
                 if label_array:
                     tuple_values = label_array.GetTuple(cell_id)
-                    for label_id in tuple_values:
-                        if int(label_id) != 0:
-                            label = self.mask_ids[int(label_id)]
-                            cell_labels.add(label)
-
-                # For each label of this cell, create a copy of the cell
-                for label_str in cell_labels:
-                    obj = label_objects[label_str]
+                    labels = [
+                        self.mask_ids[int(label_id)]
+                        for label_id in tuple_values
+                        if int(label_id) != 0
+                    ]
+                    cell_labels.update(labels)
 
                     # Get the points of this cell
-                    cell_point_indices = []
-                    for i in range(cell.GetNumberOfPoints()):
-                        point_id = cell.GetPointId(i)
-                        point = points.GetPoint(point_id)
-                        usd_point = self._ras_to_usd(point)
+                    n_points = cell.GetNumberOfPoints()
+                    point_ids = [int(cell.GetPointId(i)) for i in range(n_points)]
+                    usd_points = [
+                        self._ras_to_usd(points.GetPoint(pnt_id))
+                        for pnt_id in point_ids
+                    ]
 
-                        # Check if we've already added this point
-                        if point_id not in obj['point_mapping']:
-                            obj['point_mapping'][point_id] = len(obj['points'])
-                            obj['points'].append(usd_point)
-                            if def_mag:
-                                obj['deformation_magnitude'].append(def_mag[point_id])
-                            if color_array is not None:
-                                obj['color_array'].append(color_array[point_id])
+                    # For each label of this cell, create a copy of the cell
+                    for label_str in cell_labels:
+                        obj = label_objects[label_str]
+                        cell_point_indices = []
+                        for pnt_num, pnt_id in enumerate(point_ids):
+                            indx = obj['point_mapping'].get(pnt_id, None)
+                            if indx is None:
+                                indx = len(obj['points'])
+                                obj['points'].append(usd_points[pnt_num])
+                                obj['point_mapping'][pnt_id] = indx
+                                if def_mag:
+                                    obj['deformation_magnitude'].append(def_mag[pnt_id])
+                                if color_array is not None:
+                                    obj['color_array'].append(color_array[pnt_id])
+                            cell_point_indices.append(indx)
 
-                        cell_point_indices.append(obj['point_mapping'][point_id])
+                        obj['face_vertex_counts'].append(len(cell_point_indices))
+                        obj['face_vertex_indices'].extend(cell_point_indices)
 
-                    # Add the face to this label's object
-                    obj['face_vertex_counts'].append(len(cell_point_indices))
-                    obj['face_vertex_indices'].extend(cell_point_indices)
+            end_time = time.time()
+            self.log_info(
+                "Time taken to process cells %d: %s seconds",
+                polydata.GetNumberOfCells(),
+                end_time - start_time,
+            )
 
             # Convert color_array lists to numpy arrays
-            for label in label_objects:
-                if label_objects[label]['color_array'] is not None:
-                    label_objects[label]['color_array'] = np.array(
-                        label_objects[label]['color_array']
-                    )
+            # for label, obj in label_objects.items():
+            # if obj['color_array'] is not None:
+            # obj['color_array'] = np.array(obj['color_array'])
 
             return label_objects
         else:
@@ -299,10 +327,11 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         mesh.CreateSubdivisionSchemeAttr("none")  # Prevent unwanted subdivision
         mesh.CreateDoubleSidedAttr(True)  # Ensure visibility from both sides
 
-        # Create normals attribute (REQUIRED for IndeX renderer)
+        # Create normals attribute
         # Normals will be computed per timestep since mesh deforms
-        normals_attr = mesh.CreateNormalsAttr()
-        normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
+        if self.compute_normals:
+            normals_attr = mesh.CreateNormalsAttr()
+            normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
 
         # Set display color - either per-vertex from color array or fixed label color
         use_color_array = self.color_by_array is not None and any(
@@ -351,23 +380,30 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             global_vmin = float('inf')
             global_vmax = float('-inf')
 
+        num_times = len(self.times)
         for time_idx, time_code in enumerate(self.times):
-            print(f"Processing time sample: {time_code} for label: {label}")
+            if time_idx % 10 == 0 or time_idx == num_times - 1:
+                self.log_progress(
+                    time_idx + 1,
+                    num_times,
+                    prefix=f"Processing time samples for {label}",
+                )
             time_data = mesh_time_data[time_idx][label]
 
-            # Compute per-vertex normals for this timestep (REQUIRED for IndeX renderer)
-            vertex_normals = self._compute_vertex_normals(
-                time_data['points'],
-                time_data['face_vertex_counts'],
-                time_data['face_vertex_indices'],
-            )
+            if self.compute_normals:
+                vertex_normals = self._compute_facevarying_normals_tri(
+                    time_data['points'],
+                    time_data['face_vertex_counts'],
+                    time_data['face_vertex_indices'],
+                )
 
             # Set points first
             time_samples[time_code] = {
                 'points': time_data['points'],
                 'extent': UsdGeom.Mesh.ComputeExtent(time_data['points']),
-                'normals': vertex_normals,
             }
+            if self.compute_normals:
+                time_samples[time_code]['normals'] = vertex_normals
 
             # Compute per-vertex colors if using color array
             if use_color_array and time_data.get('color_array') is not None:
@@ -387,7 +423,8 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         for t_code, time_data_dict in time_samples.items():
             points_attr.Set(time_data_dict['points'], t_code)
             extent_attr.Set(time_data_dict['extent'], t_code)
-            normals_attr.Set(time_data_dict['normals'], t_code)
+            if self.compute_normals:
+                normals_attr.Set(time_data_dict['normals'], t_code)
             if use_color_array and 'vertex_colors' in time_data_dict:
                 display_color_primvar.Set(time_data_dict['vertex_colors'], t_code)
                 # Set raw scalar values for colormap control
@@ -406,7 +443,8 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         # Set initial values (non-timewarped)
         points_attr.Set(time_samples[self.times[0]]['points'])
         extent_attr.Set(time_samples[self.times[0]]['extent'])
-        normals_attr.Set(time_samples[self.times[0]]['normals'])
+        if self.compute_normals:
+            normals_attr.Set(time_samples[self.times[0]]['normals'])
         if use_color_array and 'vertex_colors' in time_samples[self.times[0]]:
             display_color_primvar.Set(time_samples[self.times[0]]['vertex_colors'])
             scalar_values_0 = time_samples[self.times[0]]['scalar_values']
@@ -471,8 +509,12 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         UsdGeom.Xform.Define(self.stage, parent_path)
 
         # Create separate mesh for each time step
+        num_times = len(self.times)
         for time_idx, time_code in enumerate(self.times):
-            print(f"Creating UsdGeomMesh for label: {label} at time: {time_code}")
+            if time_idx % 10 == 0 or time_idx == num_times - 1:
+                self.log_progress(
+                    time_idx + 1, num_times, prefix=f"Creating meshes for {label}"
+                )
             # Skip if label doesn't exist at this timestep
             if label not in mesh_time_data[time_idx]:
                 continue
@@ -493,14 +535,15 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             mesh.CreateDoubleSidedAttr(True)
 
             # Compute and set normals
-            vertex_normals = self._compute_vertex_normals(
-                time_data['points'],
-                time_data['face_vertex_counts'],
-                time_data['face_vertex_indices'],
-            )
-            normals_attr = mesh.CreateNormalsAttr()
-            normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
-            normals_attr.Set(vertex_normals)
+            if self.compute_normals:
+                vertex_normals = self.compute_facevarying_normals_tri(
+                    time_data['points'],
+                    time_data['face_vertex_counts'],
+                    time_data['face_vertex_indices'],
+                )
+                normals_attr = mesh.CreateNormalsAttr()
+                normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
+                normals_attr.Set(vertex_normals)
 
             # Set extent
             extent_attr = mesh.CreateExtentAttr()

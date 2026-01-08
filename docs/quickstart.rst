@@ -158,8 +158,8 @@ For standalone registration:
    results = registerer.register(moving_image)
    
    # Get transformation fields
-   phi_FM = results["phi_FM"]  # Forward transform
-   phi_MF = results["phi_MF"]  # Inverse transform
+   inverse_transform = results["inverse_transform"]  # Fixed to moving space
+   forward_transform = results["forward_transform"]  # Moving to fixed space
 
 VTK to USD Conversion
 ---------------------

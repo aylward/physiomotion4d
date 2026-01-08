@@ -5,8 +5,9 @@ This module implements the complete pipeline for processing 4D cardiac CT images
 as demonstrated in the Heart-GatedCT experiment notebooks.
 """
 
+import logging
 import os
-from typing import List, Optional
+from typing import Optional
 
 import itk
 import numpy as np
@@ -16,6 +17,7 @@ from pxr import Usd
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
 from physiomotion4d.convert_vtk_4d_to_usd import ConvertVTK4DToUSD
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
@@ -23,7 +25,7 @@ from physiomotion4d.transform_tools import TransformTools
 from physiomotion4d.usd_anatomy_tools import USDAnatomyTools
 
 
-class HeartGatedCTToUSDWorkflow:
+class HeartGatedCTToUSDWorkflow(PhysioMotion4DBase):
     """
     Complete workflow for Heart-gated CT images to dynamic USD models.
 
@@ -33,19 +35,20 @@ class HeartGatedCTToUSDWorkflow:
 
     def __init__(
         self,
-        input_filenames: List[str],
+        input_filenames: list,
         contrast_enhanced: bool,
         output_directory: str,
         project_name: str,
         reference_image_filename: Optional[str] = None,
         number_of_registration_iterations: Optional[int] = 1,
         registration_method: str = 'icon',
+        log_level: int | str = logging.INFO,
     ):
         """
         Initialize the Heart-gated CT to USD workflow.
 
         Args:
-            input_filenames (List[str]): List of paths to the 3D NRRD files containing cardiac CT data.
+            input_filenames (List): List of paths to the 3D NRRD files containing cardiac CT data.
                 If there is only one file, it will be used as the 4D NRRD file.
             contrast_enhanced (bool): Whether the study uses contrast enhancement
             output_directory (str): Directory path where output files will be stored
@@ -53,7 +56,10 @@ class HeartGatedCTToUSDWorkflow:
             reference_image_filename (Optional[str]): Path to reference image file
             number_of_registration_iterations (Optional[int]): Number of registration iterations
             registration_method (str): Registration method to use: 'ants' or 'icon' (default: 'icon')
+            log_level: Logging level (default: logging.INFO)
         """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
         self.input_filenames = input_filenames
         self.contrast_enhanced = contrast_enhanced
         self.output_directory = output_directory
@@ -73,14 +79,14 @@ class HeartGatedCTToUSDWorkflow:
         os.makedirs(output_directory, exist_ok=True)
 
         # Initialize processing components
-        self.converter = ConvertNRRD4DTo3D()
-        self.segmenter = SegmentChestTotalSegmentator()
+        self.converter = ConvertNRRD4DTo3D(log_level=log_level)
+        self.segmenter = SegmentChestTotalSegmentator(log_level=log_level)
         self.segmenter.contrast_threshold = 500
 
         # Initialize registration method
         if self.registration_method == 'ants':
-            print(f"Initializing ANTs registration...")
-            self.registrar = RegisterImagesANTs()
+            self.log_info("Initializing ANTs registration...")
+            self.registrar = RegisterImagesANTs(log_level=log_level)
             self.registrar.set_modality('ct')
             self.registrar.set_transform_type('SyN')
             if (
@@ -95,8 +101,8 @@ class HeartGatedCTToUSDWorkflow:
                     )
                 )
         else:  # icon (default)
-            print(f"Initializing ICON registration...")
-            self.registrar = RegisterImagesICON()
+            self.log_info("Initializing ICON registration...")
+            self.registrar = RegisterImagesICON(log_level=log_level)
             self.registrar.set_modality('ct')
             if (
                 number_of_registration_iterations is not None
@@ -124,7 +130,7 @@ class HeartGatedCTToUSDWorkflow:
         Returns:
             str: Path to the final dynamic anatomy USD file
         """
-        print("Starting Heart-gated CT processing pipeline...")
+        self.log_section("Heart-gated CT Processing Pipeline")
 
         # Load and convert data
         self._load_time_series()
@@ -141,12 +147,12 @@ class HeartGatedCTToUSDWorkflow:
         # Create USD files
         self._create_usd_files()
 
-        print("Processing pipeline completed successfully")
+        self.log_info("Processing pipeline completed successfully")
         return f"{self.project_name}.dynamic_anatomy_painted.usd"
 
     def _load_time_series(self):
         """Load and convert 4D data to time series images."""
-        print("Loading time series data...")
+        self.log_info("Loading time series data...")
 
         if len(self.input_filenames) == 1:
             self.converter.load_nrrd_4d(self.input_filenames[0])
@@ -156,7 +162,7 @@ class HeartGatedCTToUSDWorkflow:
                 )
             )
         else:
-            print(f"Loading {len(self.input_filenames)} 3D NRRD files")
+            self.log_info("Loading %d 3D NRRD files", len(self.input_filenames))
             self.converter.load_nrrd_3d(self.input_filenames)
 
         self._num_time_points = self.converter.get_number_of_3d_images()
@@ -178,14 +184,14 @@ class HeartGatedCTToUSDWorkflow:
                 compression=True,
             )
 
-        print(f"Loaded {self._num_time_points} time points")
+        self.log_info("Loaded %d time points", self._num_time_points)
 
     def _segment_and_register_frames(self):
         """Segment each frame and register to reference image."""
-        print("Segmenting and registering frames...")
+        self.log_info("Segmenting and registering frames...")
 
         # Segment reference image
-        print("Segmenting reference image...")
+        self.log_info("Segmenting reference image...")
         self._fixed_segmentation = self.segmenter.segment(
             self._fixed_image, contrast_enhanced_study=self.contrast_enhanced
         )
@@ -231,29 +237,29 @@ class HeartGatedCTToUSDWorkflow:
         # Process each time point
         self._time_series_transforms = []
         for i in range(self._num_time_points):
-            print(f"Processing frame {i+1}/{self._num_time_points}")
+            self.log_progress(i + 1, self._num_time_points, prefix="Processing frames")
 
             moving_image = self._time_series_images[i]
 
             # Register without mask first
             self.registrar.set_fixed_image_mask(None)
             result_all = self.registrar.register(moving_image)
-            phi_FM_all = result_all["phi_FM"]
-            phi_MF_all = result_all["phi_MF"]
+            inverse_transform_all = result_all["inverse_transform"]
+            forward_transform_all = result_all["forward_transform"]
             itk.transformwrite(
-                phi_FM_all,
+                inverse_transform_all,
                 os.path.join(self.output_directory, f"slice_{i:03d}_all_AB.hdf"),
                 compression=True,
             )
             itk.transformwrite(
-                phi_MF_all,
+                forward_transform_all,
                 os.path.join(self.output_directory, f"slice_{i:03d}_all_BA.hdf"),
                 compression=True,
             )
 
             # Estimate the moving dynamic mask by the inverse transform of the fixed dynamic mask
             moving_dynamic_mask = TransformTools().transform_image(
-                fixed_dynamic_mask, phi_FM_all, moving_image, "nearest"
+                fixed_dynamic_mask, inverse_transform_all, moving_image, "nearest"
             )
             itk.imwrite(
                 moving_dynamic_mask,
@@ -262,12 +268,12 @@ class HeartGatedCTToUSDWorkflow:
             )
             self.registrar.set_fixed_image_mask(fixed_dynamic_mask)
             result_dynamic = self.registrar.register(moving_image, moving_dynamic_mask)
-            phi_FM_dynamic = result_dynamic["phi_FM"]
-            phi_MF_dynamic = result_dynamic["phi_MF"]
+            inverse_transform_dynamic = result_dynamic["inverse_transform"]
+            forward_transform_dynamic = result_dynamic["forward_transform"]
 
             # Estimate the moving static mask by the inverse transform of the fixed static mask
             moving_static_mask = TransformTools().transform_image(
-                fixed_static_mask, phi_FM_all, moving_image, "nearest"
+                fixed_static_mask, inverse_transform_all, moving_image, "nearest"
             )
             itk.imwrite(
                 moving_static_mask,
@@ -276,32 +282,41 @@ class HeartGatedCTToUSDWorkflow:
             )
             self.registrar.set_fixed_image_mask(fixed_static_mask)
             result_static = self.registrar.register(moving_image, moving_static_mask)
-            phi_FM_static = result_static["phi_FM"]
-            phi_MF_static = result_static["phi_MF"]
+            inverse_transform_static = result_static["inverse_transform"]
+            forward_transform_static = result_static["forward_transform"]
 
             # Store transforms
             transforms = {
-                'dynamic': {'phi_FM': phi_FM_dynamic, 'phi_MF': phi_MF_dynamic},
-                'static': {'phi_FM': phi_FM_static, 'phi_MF': phi_MF_static},
-                'all': {'phi_FM': phi_FM_all, 'phi_MF': phi_MF_all},
+                'dynamic': {
+                    'inverse_transform': inverse_transform_dynamic,
+                    'forward_transform': forward_transform_dynamic,
+                },
+                'static': {
+                    'inverse_transform': inverse_transform_static,
+                    'forward_transform': forward_transform_static,
+                },
+                'all': {
+                    'inverse_transform': inverse_transform_all,
+                    'forward_transform': forward_transform_all,
+                },
             }
             itk.transformwrite(
-                phi_FM_dynamic,
+                inverse_transform_dynamic,
                 os.path.join(self.output_directory, f"slice_{i:03d}_dynamic_AB.hdf"),
                 compression=True,
             )
             itk.transformwrite(
-                phi_MF_dynamic,
+                forward_transform_dynamic,
                 os.path.join(self.output_directory, f"slice_{i:03d}_dynamic_BA.hdf"),
                 compression=True,
             )
             itk.transformwrite(
-                phi_FM_static,
+                inverse_transform_static,
                 os.path.join(self.output_directory, f"slice_{i:03d}_static_AB.hdf"),
                 compression=True,
             )
             itk.transformwrite(
-                phi_MF_static,
+                forward_transform_static,
                 os.path.join(self.output_directory, f"slice_{i:03d}_static_BA.hdf"),
                 compression=True,
             )
@@ -309,7 +324,7 @@ class HeartGatedCTToUSDWorkflow:
 
     def _generate_reference_contours(self):
         """Generate contour meshes from reference segmentation."""
-        print("Generating reference contours...")
+        self.log_info("Generating reference contours...")
 
         (
             labelmap_image,
@@ -363,22 +378,26 @@ class HeartGatedCTToUSDWorkflow:
 
     def _transform_all_contours(self):
         """Transform contours for all time points using registration transforms."""
-        print("Transforming contours for all time points...")
+        self.log_info("Transforming contours for all time points...")
 
         self._transformed_contours = {'all': [], 'dynamic': [], 'static': []}
 
         for i in range(self._num_time_points):
-            print(f"Transforming contours for frame {i+1}/{self._num_time_points}")
+            self.log_progress(
+                i + 1, self._num_time_points, prefix="Transforming contours"
+            )
 
             frame_contours = {}
             for anatomy_type in ['all', 'dynamic', 'static']:
-                # Get the inverse transform for this anatomy type and frame
-                phi_MF = self._time_series_transforms[i][anatomy_type]['phi_MF']
+                # Get the forward transform for this anatomy type and frame
+                forward_transform = self._time_series_transforms[i][anatomy_type][
+                    'forward_transform'
+                ]
 
                 # Transform the reference contours
                 transformed_contours = self.contour_tools.transform_contours(
                     self._reference_contours[anatomy_type],
-                    phi_MF,
+                    forward_transform,
                     with_deformation_magnitude=False,
                 )
 
@@ -387,25 +406,26 @@ class HeartGatedCTToUSDWorkflow:
 
     def _create_usd_files(self):
         """Create painted USD files for all anatomy types."""
-        print("Creating USD files...")
+        self.log_info("Creating USD files...")
 
         # Create USD for each anatomy type
         for anatomy_type in ['all', 'dynamic', 'static']:
-            print(f"Creating {anatomy_type} anatomy USD...")
+            self.log_info("Creating %s anatomy USD...", anatomy_type)
 
             # Convert VTK contours to USD
             converter = ConvertVTK4DToUSD(
                 self.project_name,
                 self._transformed_contours[anatomy_type],
                 self.segmenter.all_mask_ids,
-                os.path.join(
-                    self.output_directory, f"{self.project_name}.{anatomy_type}.usd"
-                ),
+                log_level=self.log_level,
             )
-            stage = converter.convert()
+            usd_file = os.path.join(
+                self.output_directory, f"{self.project_name}.{anatomy_type}.usd"
+            )
+            stage = converter.convert(usd_file)
 
             # Paint the USD file
-            print(f"Painting {anatomy_type} anatomy USD...")
+            self.log_info("Painting %s anatomy USD...", anatomy_type)
             output_filename = os.path.join(
                 self.output_directory, f"{self.project_name}.{anatomy_type}_painted.usd"
             )

@@ -1,13 +1,18 @@
 """Abstract base class for converting 4D VTK data to animated USD meshes."""
 
+import logging
 import os
+import time
 from abc import ABC, abstractmethod
 
+import cupy as cp
 import matplotlib.cm as cm
 import numpy as np
 import pyvista as pv
 import vtk
-from pxr import Gf, Sdf, Usd, UsdGeom
+from pxr import Gf, Usd, UsdGeom, Vt
+
+from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
 # VTK Cell Type Constants
 VTK_TRIANGLE = 5
@@ -18,7 +23,7 @@ VTK_WEDGE = 13
 VTK_PYRAMID = 14
 
 
-class ConvertVTK4DToUSDBase(ABC):
+class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
     """
     Abstract base class for VTK to USD conversion.
 
@@ -27,7 +32,15 @@ class ConvertVTK4DToUSDBase(ABC):
     mesh-specific processing and USD creation methods.
     """
 
-    def __init__(self, data_basename, input_polydata, mask_ids=None, convert_to_surface=False):
+    def __init__(
+        self,
+        data_basename,
+        input_polydata,
+        mask_ids=None,
+        convert_to_surface=False,
+        compute_normals=False,
+        log_level: int | str = logging.INFO,
+    ):
         """
         Initialize VTK to USD converter.
 
@@ -41,12 +54,17 @@ class ConvertVTK4DToUSDBase(ABC):
             convert_to_surface (bool): If True, convert UnstructuredGrid meshes to surface
                                       PolyData before processing. Only applicable for PolyMesh
                                       converter. Default: False
+            log_level: Logging level (default: logging.INFO)
         """
+        super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
         self.data_basename = data_basename
         self.input_polydata = input_polydata
         self.mask_ids = mask_ids
 
         self.convert_to_surface = convert_to_surface
+
+        self.compute_normals = compute_normals
 
         # Colormap settings (set via set_colormap())
         self.color_by_array = None
@@ -90,7 +108,9 @@ class ConvertVTK4DToUSDBase(ABC):
                 if array_name not in available_arrays:
                     array_data = mesh.point_data[array_name]
                     available_arrays[array_name] = {
-                        'n_components': (array_data.shape[1] if len(array_data.shape) > 1 else 1),
+                        'n_components': (
+                            array_data.shape[1] if len(array_data.shape) > 1 else 1
+                        ),
                         'dtype': str(array_data.dtype),
                         'range': (float(np.min(array_data)), float(np.max(array_data))),
                         'present_in_steps': [time_idx],
@@ -107,7 +127,9 @@ class ConvertVTK4DToUSDBase(ABC):
 
         return available_arrays
 
-    def set_colormap(self, color_by_array=None, colormap='plasma', intensity_range=None):
+    def set_colormap(
+        self, color_by_array=None, colormap='plasma', intensity_range=None
+    ):
         """
         Configure colormap settings for vertex coloring.
 
@@ -130,20 +152,6 @@ class ConvertVTK4DToUSDBase(ABC):
         self.colormap = colormap
         self.intensity_range = intensity_range
 
-        # Validate colormap choice
-        self._validate_colormap()
-
-        # Initialize random seed for reproducible random colormap
-        if self.colormap == 'random':
-            np.random.seed(42)
-
-        return self
-
-    def _ras_to_usd(self, point):
-        """Convert RAS coordinates to USD's right-handed Y-up system"""
-        return Gf.Vec3f(float(point[0]), float(point[2]), float(-point[1]))
-
-    def _validate_colormap(self):
         """Validate that the chosen colormap is supported"""
         supported_colormaps = [
             'plasma',
@@ -159,6 +167,16 @@ class ConvertVTK4DToUSDBase(ABC):
                 f"Unsupported colormap '{self.colormap}'. "
                 f"Choose from: {', '.join(supported_colormaps)}"
             )
+
+        # Initialize random seed for reproducible random colormap
+        if self.colormap == 'random':
+            np.random.seed(42)
+
+        return self
+
+    def _ras_to_usd(self, point):
+        """Convert RAS coordinates to USD's right-handed Y-up system"""
+        return Gf.Vec3f(float(point[0]), float(point[2]), float(-point[1]))
 
     def _get_matplotlib_colormap(self, colormap_name):
         """
@@ -299,7 +317,7 @@ class ConvertVTK4DToUSDBase(ABC):
                 color_values.append(scalar_value)
             return np.array(color_values)
         else:
-            print(f"Warning: Array '{self.color_by_array}' not found in point data")
+            self.log_warning("Array '%s' not found in point data", self.color_by_array)
             return None
 
     def _check_topology_changes(self, mesh_time_data):
@@ -347,79 +365,81 @@ class ConvertVTK4DToUSDBase(ABC):
                 if mesh_type == 'polymesh':
                     curr_num_points = len(curr_data['points'])
                     curr_num_faces = len(curr_data['face_vertex_counts'])
-                    if curr_num_points != ref_num_points or curr_num_faces != ref_num_faces:
+                    if (
+                        curr_num_points != ref_num_points
+                        or curr_num_faces != ref_num_faces
+                    ):
                         has_change = True
                         break
                 elif mesh_type == 'tetmesh':
                     curr_num_points = len(curr_data['points'])
                     curr_num_tets = len(curr_data['tet_indices'])
-                    if curr_num_points != ref_num_points or curr_num_tets != ref_num_tets:
+                    if (
+                        curr_num_points != ref_num_points
+                        or curr_num_tets != ref_num_tets
+                    ):
                         has_change = True
                         break
 
             topology_changes[label] = has_change
 
             if has_change:
-                print(
-                    f"Detected topology changes for label '{label}' - "
-                    f"will use time-varying mesh approach"
+                self.log_info(
+                    "Detected topology changes for label '%s' - will use time-varying mesh approach",
+                    label,
                 )
 
         return topology_changes
 
-    def _is_unstructured_grid(self, mesh) -> bool:
-        """Check if mesh is an UnstructuredGrid"""
-        return isinstance(mesh, (pv.UnstructuredGrid, vtk.vtkUnstructuredGrid))
-
-    def _is_polydata(self, mesh) -> bool:
-        """Check if mesh is a PolyData"""
-        return isinstance(mesh, (pv.PolyData, vtk.vtkPolyData))
-
-    def _compute_vertex_normals(self, points, face_vertex_counts, face_vertex_indices):
+    def _compute_facevarying_normals_tri(
+        self, points_vt, faceCounts_vt, faceIndices_vt
+    ):
         """
-        Compute per-vertex normals by averaging face normals.
-        Required for IndeX renderer compatibility.
+        Vectorized face-varying normals for a triangulated mesh.
+
+        points_vt: Vt.Vec3fArray
+        faceCounts_vt: Vt.IntArray (all must be 3)
+        faceIndices_vt: Vt.IntArray (len == 3 * numFaces)
+
+        Returns: Vt.Vec3fArray of length len(faceIndices_vt), one normal per corner.
         """
-        num_vertices = len(points)
-        vertex_normals = np.zeros((num_vertices, 3), dtype=np.float32)
 
-        # Iterate through faces and compute face normals
-        idx = 0
-        for count in face_vertex_counts:
-            # Get vertex indices for this face
-            face_verts = [face_vertex_indices[idx + i] for i in range(count)]
+        # Convert Vt arrays to NumPy
+        points = np.array(points_vt).astype(np.float32)  # (N, 3)
+        counts = np.array(faceCounts_vt).astype(np.int32)  # (F,)
+        indices = np.array(faceIndices_vt).astype(np.int32)  # (3F,)
 
-            # Get vertex positions
-            v0 = np.array(points[face_verts[0]])
-            v1 = np.array(points[face_verts[1]])
-            v2 = np.array(points[face_verts[2]])
+        # Sanity: assume triangulated mesh
+        if not np.all(counts == 3):
+            raise ValueError(
+                "Mesh must be fully triangulated (all faceVertexCounts == 3)"
+            )
 
-            # Compute face normal using cross product
-            edge1 = v1 - v0
-            edge2 = v2 - v0
-            face_normal = np.cross(edge1, edge2)
+        # Reshape indices into (F, 3)
+        faces = indices.reshape(-1, 3)  # (F, 3)
 
-            # Normalize (handle zero-length normals)
-            length = np.linalg.norm(face_normal)
-            if length > 1e-10:
-                face_normal = face_normal / length
+        # Gather per-face vertex positions (F, 3, 3)
+        tris = points[faces]  # (F, 3, 3)
 
-            # Add face normal to all vertices of this face
-            for vert_idx in face_verts:
-                vertex_normals[vert_idx] += face_normal
+        # Compute normals via vectorized cross product
+        v1 = tris[:, 1] - tris[:, 0]  # (F, 3)
+        v2 = tris[:, 2] - tris[:, 0]  # (F, 3)
+        v1 = cp.array(v1)
+        v2 = cp.array(v2)
+        n = cp.cross(v1, v2)  # (F, 3)
 
-            idx += count
+        # Normalize
+        lengths = cp.linalg.norm(n, axis=1, keepdims=True)  # (F, 1)
+        mask = lengths[:, 0] > 0
+        n[mask] /= lengths[mask]
 
-        # Normalize vertex normals
-        for i in range(num_vertices):
-            length = np.linalg.norm(vertex_normals[i])
-            if length > 1e-10:
-                vertex_normals[i] = vertex_normals[i] / length
-            else:
-                # Default to (0, 1, 0) if normal is zero
-                vertex_normals[i] = np.array([0.0, 1.0, 0.0])
+        # Broadcast each face normal to 3 corners -> (F, 3, 3), then flatten
+        n_fv = cp.repeat(n[:, cp.newaxis, :], 3, axis=1).reshape(-1, 3)  # (3F, 3)
 
-        return vertex_normals.tolist()
+        # Convert back to Vt.Vec3fArray
+        fv_vt = Vt.Vec3fArray.FromNumpy(n_fv.get())
+
+        return fv_vt
 
     # Abstract methods that subclasses must implement
 
@@ -465,7 +485,9 @@ class ConvertVTK4DToUSDBase(ABC):
         """
         pass
 
-    def convert(self, output_usd_file, convert_to_surface=None) -> Usd.Stage:
+    def convert(
+        self, output_usd_file, convert_to_surface=None, compute_normals=None
+    ) -> Usd.Stage:
         """
         Convert VTK meshes to USD format.
 
@@ -482,6 +504,9 @@ class ConvertVTK4DToUSDBase(ABC):
         if convert_to_surface is not None:
             self.convert_to_surface = convert_to_surface
 
+        if compute_normals is not None:
+            self.compute_normals = compute_normals
+
         # Remove existing file if it exists to avoid USD layer conflicts
         if os.path.exists(output_usd_file):
             os.remove(output_usd_file)
@@ -497,7 +522,7 @@ class ConvertVTK4DToUSDBase(ABC):
         UsdGeom.Xform.Define(self.stage, root_path)
 
         basename = os.path.basename(output_usd_file).split(".")[0]
-        print(f"Converting {basename}")
+        self.log_info("Converting %s", basename)
         root_path = f"{root_path}/Transform_{basename}"
         UsdGeom.Xform.Define(self.stage, root_path)
 
@@ -506,38 +531,49 @@ class ConvertVTK4DToUSDBase(ABC):
 
         # Collect the label data from each time point
         polydata_time_data = {}
-        for fnum in range(len(self.input_polydata)):
-            polydata_time_data[fnum] = self._process_mesh_data(self.input_polydata[fnum])
-            print("Processed time point", fnum)
+        for fnum, mesh_data in enumerate(self.input_polydata):
+            self.log_progress(
+                fnum + 1, len(self.input_polydata), prefix="Processing time point"
+            )
+            polydata_time_data[fnum] = self._process_mesh_data(mesh_data)
 
         # Check for topology changes across time steps
-        print("\nChecking for topology changes...")
         topology_changes = self._check_topology_changes(polydata_time_data)
 
         # Assign a unique color to each label
         label_colors = {}
         for fnum in range(len(polydata_time_data)):
-            for label, data in polydata_time_data[fnum].items():
+            for label, _ in polydata_time_data[fnum].items():
                 if label not in label_colors:
-                    label_colors[label] = self.colors[len(label_colors) % len(self.colors)]
+                    label_colors[label] = self.colors[
+                        len(label_colors) % len(self.colors)
+                    ]
 
         # Process first polydata to get label groups
         first_data = polydata_time_data[0]
 
         # Create a mesh prim for each label group
+        num_labels = len(first_data.items())
         for idx, (label, data) in enumerate(first_data.items()):
-            print(f"Processing {label} {idx}")
             # Create a transform for each mesh
             transform_path = f"{root_path}/Transform_{label}"
-            print(f"Transform path: {transform_path}")
             UsdGeom.Xform.Define(self.stage, transform_path)
 
             # Determine if topology changes for this label
             has_topology_change = topology_changes.get(label, False)
 
             # Call subclass-specific USD mesh creation
+            start_time = time.time()
             self._create_usd_mesh(
-                transform_path, label, polydata_time_data, label_colors, has_topology_change
+                transform_path,
+                label,
+                polydata_time_data,
+                label_colors,
+                has_topology_change,
+            )
+            end_time = time.time()
+            self.log_info(
+                "Time taken to create USD mesh: %s seconds", end_time - start_time
             )
 
         # Set time range for the stage
@@ -546,5 +582,4 @@ class ConvertVTK4DToUSDBase(ABC):
         self.stage.SetTimeCodesPerSecond(1.0)
 
         self.stage.Save()
-
         return self.stage
