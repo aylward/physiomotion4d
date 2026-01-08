@@ -24,18 +24,21 @@ Example:
     >>> fixed_model = pv.read("patient_surface.stl")
     >>>
     >>> # Run affine registration
-    >>> registrar = RegisterModelsICP(
+    >>> registrar = RegisterModelsICP(fixed_model=fixed_model)
+    >>> result = registrar.register(
+    ...     transform_type="Affine",
     ...     moving_model=moving_model,
-    ...     fixed_model=fixed_model
+    ...     max_iterations=200,
     ... )
-    >>> result = registrar.register(mode='affine')
     >>>
     >>> # Access results
-    >>> aligned_model = result['registered_model']
-    >>> forward_point_transform = result['forward_point_transform']  # Moving to fixed transform
+    >>> aligned_model = result["registered_model"]
+    >>> forward_point_transform = result["forward_point_transform"]  # Moving to fixed
+        # transform
 """
 
 import logging
+from typing import Optional
 
 import itk
 import numpy as np
@@ -54,12 +57,13 @@ class RegisterModelsICP(PhysioMotion4DBase):
     centroid alignment for initialization followed by VTK's ICP algorithm.
 
     **Registration Pipelines:**
-        - **Rigid mode**: Centroid alignment → Rigid ICP
-        - **Affine mode**: Centroid alignment → Rigid ICP → Affine ICP
+        - **Rigid transform type**: Centroid alignment → Rigid ICP
+        - **Affine transform type**: Centroid alignment → Rigid ICP → Affine ICP
 
     **Transform Convention:**
         - forward_point_transform: moving → fixed space transformation
-            (This is the inverse of the transform used to wrap the moving image to the fixed image)
+            (This is the inverse of the transform used to wrap the moving image to the
+            fixed image)
         - inverse_point_transform: moving → fixed space transformation
 
     Attributes:
@@ -72,25 +76,29 @@ class RegisterModelsICP(PhysioMotion4DBase):
 
     Example:
         >>> # Initialize with model
-        >>> registrar = RegisterModelsICP(
-        ...     moving_model=model_surface,
-        ...     fixed_model=patient_surface
-        ... )
+        >>> registrar = RegisterModelsICP(fixed_model=patient_surface)
         >>>
         >>> # Run rigid registration
-        >>> result = registrar.register(mode='rigid', max_iterations=2000)
+        >>> result = registrar.register(
+        ...     transform_type="Rigid",
+        ...     max_iterations=200,
+        ...     moving_model=model_surface,
+        ... )
         >>>
         >>> # Or run affine registration
-        >>> result = registrar.register(mode='affine', max_iterations=2000)
+        >>> result = registrar.register(
+        ...     transform_type="Affine",
+        ...     max_iterations=200,
+        ...     moving_model=model_surface,
+        ... )
         >>>
         >>> # Get aligned model and transforms
-        >>> aligned_model = result['registered_model']
-        >>> forward_point_transform = result['forward_point_transform']
+        >>> aligned_model = result["registered_model"]
+        >>> forward_point_transform = result["forward_point_transform"]
     """
 
     def __init__(
         self,
-        moving_model: pv.PolyData,
         fixed_model: pv.PolyData,
         log_level: int | str = logging.INFO,
     ):
@@ -107,55 +115,79 @@ class RegisterModelsICP(PhysioMotion4DBase):
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
-        self.moving_model = moving_model
+        self.moving_model: Optional[pv.PolyData] = None
         self.fixed_model = fixed_model
+        self.transform_type = "Affine"
 
         # Transform utilities
         self.transform_tools = TransformTools()
 
         # Registration results
-        self.forward_point_transform: itk.AffineTransform = None
-        self.inverse_point_transform: itk.AffineTransform = None
-        self.registered_model: pv.PolyData = None
+        self.forward_point_transform: Optional[itk.AffineTransform] = None
+        self.inverse_point_transform: Optional[itk.AffineTransform] = None
+        self.registered_model: Optional[pv.PolyData] = None
 
-    def register(self, mode: str = 'affine', max_iterations: int = 2000) -> dict:
+    def register(
+        self,
+        moving_model: pv.PolyData,
+        transform_type: str = "Affine",
+        max_iterations: int = 2000,
+    ) -> dict:
         """Perform ICP alignment of moving model to fixed model.
 
         This method executes alignment with either rigid or affine transformations:
 
-        **Rigid mode:**
+        **Rigid transform type:**
             1. Centroid alignment: Translate moving model to align mass centers
             2. Rigid ICP: Refine with rigid-body transformation (rotation + translation)
 
-        **Affine mode:**
+        **Affine transform type:**
             1. Centroid alignment: Translate moving model to align mass centers
             2. Rigid ICP: Refine with rigid-body transformation
-            3. Affine ICP: Further refine with affine transformation (includes scaling/shearing)
+            3. Affine ICP: Further refine with affine transformation (includes
+                scaling/shearing)
 
         Args:
-            mode: Registration mode, either 'rigid' or 'affine'. Default: 'affine'
+            moving_model: PyVista surface model to be aligned to fixed model
+            transform_type: Registration transform type, either 'Rigid' or 'Affine'.
+                Default: 'Affine'
             max_iterations: Maximum number of ICP iterations per stage. Default: 2000
 
         Returns:
             Dictionary containing:
                 - 'registered_model': Aligned moving model (PyVista PolyData)
-                - 'forward_point_transform': Moving→fixed transform (ITK AffineTransform)
-                - 'inverse_point_transform': Fixed→moving transform (ITK AffineTransform)
+                - 'forward_point_transform': Moving→fixed transform
+                    (ITK AffineTransform)
+                - 'inverse_point_transform': Fixed→moving transform
+                    (ITK AffineTransform)
 
         Raises:
-            ValueError: If mode is not 'rigid' or 'affine'
+            ValueError: If transform_type is not 'Rigid' or 'Affine'
 
         Example:
             >>> # Rigid registration
-            >>> result = registrar.register(mode='rigid', max_iterations=5000)
+            >>> result = registrar.register(
+            ...     transform_type="Rigid",
+            ...     max_iterations=5000,
+            ...     moving_model=moving_model,
+            ... )
             >>>
             >>> # Affine registration
-            >>> result = registrar.register(mode='affine', max_iterations=2000)
+            >>> result = registrar.register(
+            ...     transform_type="Affine",
+            ...     max_iterations=2000,
+            ...     moving_model=moving_model,
+            ... )
         """
-        if mode not in ['rigid', 'affine']:
-            raise ValueError(f"Invalid mode '{mode}'. Must be 'rigid' or 'affine'.")
+        if transform_type not in ["Rigid", "Affine"]:
+            raise ValueError(
+                f"Invalid transform '{transform_type}'. Must be 'Rigid' or 'Affine'."
+            )
 
-        self.log_section("%s ICP Alignment", mode.upper())
+        self.log_section("%s ICP Alignment", transform_type.upper())
+
+        self.moving_model = moving_model
+        self.transform_type = transform_type
 
         # Step 1: Centroid alignment (common to both modes)
         self.registered_model = self.moving_model.copy(deep=True)
@@ -208,7 +240,7 @@ class RegisterModelsICP(PhysioMotion4DBase):
         self.log_debug("Center after Step 2: %s", self.registered_model.center)
 
         # Step 3: Affine ICP (only if affine mode)
-        if mode == 'affine':
+        if transform_type == "Affine":
             self.log_info(
                 "Step 3: Performing affine ICP (max iterations: %d)...", max_iterations
             )
@@ -240,11 +272,11 @@ class RegisterModelsICP(PhysioMotion4DBase):
         self.forward_point_transform = forward_point_transform
         self.inverse_point_transform = forward_point_transform.GetInverseTransform()
 
-        self.log_info("%s ICP registration complete!", mode.upper())
+        self.log_info("%s ICP registration complete!", transform_type.upper())
 
         # Return results as dictionary
         return {
-            'registered_model': self.registered_model,
-            'forward_point_transform': self.forward_point_transform,
-            'inverse_point_transform': self.inverse_point_transform,
+            "registered_model": self.registered_model,
+            "forward_point_transform": self.forward_point_transform,
+            "inverse_point_transform": self.inverse_point_transform,
         }

@@ -79,7 +79,8 @@ class TransformTools(PhysioMotion4DBase):
         """
         Compose two displacement field transforms.
 
-        Composes two displacement field transforms into a single displacement field transform.
+        Composes two displacement field transforms into a single displacement field
+            transform.
         """
         assert mode in ["add", "compose"], "Invalid mode"
 
@@ -177,9 +178,8 @@ class TransformTools(PhysioMotion4DBase):
 
         Example:
             >>> # Generate deformation field for visualization
-            >>> field = transform_tools.generate_field(
-            ...     registration_transform, reference_ct
-            ... )
+            >>> field = transform_tools.generate_field(registration_transform,
+                reference_ct)
             >>> # Use as mask to limit field to anatomical regions
             >>> masked_field = transform_tools.generate_field(
             ...     transform, reference_ct, use_reference_image_as_mask=True
@@ -191,7 +191,7 @@ class TransformTools(PhysioMotion4DBase):
                 tfm = tfm[0]
             else:
                 raise ValueError(
-                    f"Expected single transform or list with one transform, got list with {len(tfm)} transforms"
+                    f"Expected single transform, got list with {len(tfm)} transforms"
                 )
 
         TfmPrecision = itk.template(tfm)[1][0]
@@ -294,8 +294,7 @@ class TransformTools(PhysioMotion4DBase):
         Example:
             >>> # Transform cardiac contour with deformation tracking
             >>> transformed_heart = transform_tools.transform_pvcontour(
-            ...     heart_contour, cardiac_transform,
-            ...     with_deformation_magnitude=True
+            ...     heart_contour, cardiac_transform, with_deformation_magnitude=True
             ... )
             >>> # Access deformation magnitudes
             >>> deformation = transformed_heart["DeformationMagnitude"]
@@ -310,12 +309,13 @@ class TransformTools(PhysioMotion4DBase):
                 tfm = tfm[0]
             else:
                 raise ValueError(
-                    f"Expected single transform or list with one transform, got list with {len(tfm)} transforms"
+                    f"Expected single transform, got list with {len(tfm)} transforms"
                 )
 
         pnts = np.array(pnts)
         new_pnts = [
-            tfm.TransformPoint((float(p[0]), float(p[1]), float(p[2]))) for p in pnts
+            np.array(tfm.TransformPoint((float(p[0]), float(p[1]), float(p[2]))))
+            for p in pnts
         ]
         new_contour.points = new_pnts
 
@@ -420,9 +420,8 @@ class TransformTools(PhysioMotion4DBase):
 
         Example:
             >>> # Convert VTK transform from mesh processing
-            >>> itk_transform = transform_tools.get_itk_transform_from_vtk_transform(
-            ...     vtk_transform
-            ... )
+            >>> itk_transform = transform_tools.get_itk_transform_from_vtk_transform
+                vtk_transform)
         """
         mat = np.eye(3).astype(np.float64)
         vec = itk.Vector[itk.D, 3]()
@@ -537,8 +536,7 @@ class TransformTools(PhysioMotion4DBase):
         Example:
             >>> # Combine heart and lung transforms
             >>> combined_transform = transform_tools.combine_transforms_with_masks(
-            ...     heart_transform, lung_transform,
-            ...     heart_mask, lung_mask, reference_ct
+            ...     heart_transform, lung_transform, heart_mask, lung_mask, reference_ct
             ... )
         """
         # Generate displacement fields
@@ -556,7 +554,8 @@ class TransformTools(PhysioMotion4DBase):
         field1_arr = itk.array_from_image(field1)
         field2_arr = itk.array_from_image(field2)
 
-        # Expand mask dimensions to match vector field (add dimension for vector components)
+        # Expand mask dimensions to match vector field (add dimension for vector
+        #     components)
         mask1_arr = mask1_arr[..., np.newaxis]
         mask2_arr = mask2_arr[..., np.newaxis]
 
@@ -602,9 +601,7 @@ class TransformTools(PhysioMotion4DBase):
             itk.Image: Scalar image containing Jacobian determinant values
 
         Example:
-            >>> jacobian = transform_tools.compute_jacobian_determinant_from_field(
-            ...     deformation_field
-            ... )
+            >>> jacobian = transform_tools.compute_jacobian_determinant_from_field(deformation_field)
         """
         if "VF" not in str(type(field)):
             field_arr = itk.array_from_image(field)
@@ -794,8 +791,8 @@ class TransformTools(PhysioMotion4DBase):
             ...     "deformation_arrows.usda",
             ...     visualization_type="arrows",
             ...     subsample_factor=8,  # 512x fewer arrows
-            ...     arrow_scale=2.0,     # 2x longer arrows
-            ...     magnitude_threshold=1.0  # Only show displacements > 1mm
+            ...     arrow_scale=2.0,  # 2x longer arrows
+            ...     magnitude_threshold=1.0,  # Only show displacements > 1mm
             ... )
             >>>
             >>> # Create flow line visualization
@@ -804,7 +801,7 @@ class TransformTools(PhysioMotion4DBase):
             ...     reference_ct,
             ...     "deformation_flowlines.usda",
             ...     visualization_type="flowlines",
-            ...     subsample_factor=4
+            ...     subsample_factor=4,
             ... )
 
         Note:
@@ -812,7 +809,7 @@ class TransformTools(PhysioMotion4DBase):
             - Arrows are colored by displacement magnitude (blue=low, red=high)
             - Flowlines show particle paths through the deformation field
             - Subsampling is critical for performance - dense fields can have millions
-              of points, creating too many primitives for interactive visualization
+                of points, creating too many primitives for interactive visualization
         """
         # Generate ITK displacement field from transform
         displacement_field = self.convert_transform_to_displacement_field(
@@ -997,7 +994,7 @@ class TransformTools(PhysioMotion4DBase):
         normalized_mag = min(magnitude / max_expected_displacement, 1.0)
 
         # Blue (low) to red (high) colormap
-        color = Gf.Vec3f(float(normalized_mag), float(0.0), float(1.0 - normalized_mag))
+        color = Gf.Vec3f(float(normalized_mag), 0.0, float(1.0 - normalized_mag))
         cone.GetDisplayColorAttr().Set([color])
 
     def _create_flowline_visualization(
@@ -1010,12 +1007,8 @@ class TransformTools(PhysioMotion4DBase):
         subsample_factor,
         magnitude_threshold,
     ):
-        """Create flow line visualization by tracing streamlines through displacement field."""
-        # Create a scope for all flowlines
-        flowlines_scope = UsdGeom.Scope.Define(
-            stage, "/DeformationVisualization/Flowlines"
-        )
-
+        """Create flow line visualization by tracing streamlines through displacement
+        field."""
         # Seed points - use a sparser grid for flowline seeds
         seed_step = 2  # Every other point in the already-subsampled grid
         flowline_count = 0
@@ -1070,7 +1063,8 @@ class TransformTools(PhysioMotion4DBase):
         max_steps,
         step_size,
     ):
-        """Trace a streamline through the displacement field using forward Euler integration."""
+        """Trace a streamline through the displacement field using forward Euler
+        integration."""
         points = [np.array(seed_pos)]
         current_pos = np.array(seed_pos)
 
