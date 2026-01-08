@@ -16,7 +16,17 @@ repos:
       - id: isort
         args: [--profile=black, --line-length=88]
 
-  # Linting
+  # Ruff - modern linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # Linting (flake8 as backup)
   - repo: https://github.com/pycqa/flake8
     rev: 7.0.0
     hooks:

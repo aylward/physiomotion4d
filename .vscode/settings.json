@@ -24,6 +24,7 @@
   "editor.formatOnPaste": false,
   // Python-specific editor settings
   "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.rulers": [
       88
     ],
@@ -31,8 +32,13 @@
     "editor.insertSpaces": true,
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-      "source.organizeImports": "explicit"
-    }
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
+    },
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 88,
+    "editor.wrappingIndent": "indent",
+    "editor.comments.insertSpace": true
   },
   // isort settings
   "isort.args": [
@@ -48,5 +54,6 @@
   },
   "jupyter.pylanceHandlesNotebooks": true,
   "python.analysis.typeCheckingMode": "basic",
-  "ruff.configuration": ""
+  "ruff.enable": true,
+  "ruff.lint.enable": true,
 }
