@@ -375,7 +375,8 @@ class TransformTools(PhysioMotion4DBase):
                 tfm = tfm[0]
             else:
                 raise ValueError(
-                    f"Expected single transform or list with one transform, got list with {len(tfm)} transforms"
+                    "Expected single transform or list with one transform, got list"
+                    f"with {len(tfm)} transforms"
                 )
 
         interpolator = None
@@ -601,7 +602,9 @@ class TransformTools(PhysioMotion4DBase):
             itk.Image: Scalar image containing Jacobian determinant values
 
         Example:
-            >>> jacobian = transform_tools.compute_jacobian_determinant_from_field(deformation_field)
+            >>> jacobian = transform_tools.compute_jacobian_determinant_from_field(
+                    deformation_field
+                )
         """
         if "VF" not in str(type(field)):
             field_arr = itk.array_from_image(field)
@@ -840,12 +843,11 @@ class TransformTools(PhysioMotion4DBase):
         UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
 
         # Create root xform
-        root_xform = UsdGeom.Xform.Define(stage, "/DeformationVisualization")
+        # root_xform = UsdGeom.Xform.Define(stage, "/DeformationVisualization")
 
         if visualization_type == "arrows":
             self._create_arrow_visualization(
                 stage,
-                root_xform,
                 displacement_array,
                 displacement_field,
                 subsampled_size,
@@ -856,7 +858,6 @@ class TransformTools(PhysioMotion4DBase):
         elif visualization_type == "flowlines":
             self._create_flowline_visualization(
                 stage,
-                root_xform,
                 displacement_array,
                 displacement_field,
                 subsampled_size,
@@ -881,7 +882,6 @@ class TransformTools(PhysioMotion4DBase):
     def _create_arrow_visualization(
         self,
         stage,
-        root_xform,
         displacement_array,
         displacement_field,
         size,
@@ -1000,7 +1000,6 @@ class TransformTools(PhysioMotion4DBase):
     def _create_flowline_visualization(
         self,
         stage,
-        root_xform,
         displacement_array,
         displacement_field,
         size,
