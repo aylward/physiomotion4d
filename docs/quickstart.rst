@@ -250,10 +250,10 @@ Next Steps
 Now that you've completed your first workflow:
 
 * Explore :doc:`examples` for more use cases
-* Read detailed :doc:`tutorials/basic_workflow`
-* Learn about :doc:`user_guide/segmentation` options
-* Understand :doc:`user_guide/registration` methods
-* Check the :doc:`api/core` for advanced usage
+* Read detailed :doc:`cli_scripts/overview`
+* Learn about :doc:`api/segmentation/index` options
+* Understand :doc:`api/registration/index` methods
+* Check the :doc:`api/base` for advanced usage
 
 Common Issues
 =============

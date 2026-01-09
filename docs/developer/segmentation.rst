@@ -1,6 +1,13 @@
 ====================================
-Segmentation Module
+Segmentation Development Guide
 ====================================
+
+This guide covers developing with and extending PhysioMotion4D's segmentation capabilities.
+
+For complete API documentation, see :doc:`../api/segmentation/index`.
+
+Overview
+========
 
 The segmentation module provides AI-powered anatomical structure identification from medical images using state-of-the-art deep learning models.
 
@@ -91,7 +98,7 @@ VISTA-3D
 
 MONAI-based foundation model for medical image segmentation.
 
-.. autoclass:: physiomotion4d.SegmentChestVISTA3D
+.. autoclass:: physiomotion4d.SegmentChestVista3D
    :members:
    :undoc-members:
    :show-inheritance:
@@ -106,10 +113,10 @@ MONAI-based foundation model for medical image segmentation.
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestVISTA3D
+   from physiomotion4d import SegmentChestVista3D
    
    # Initialize with GPU
-   segmentator = SegmentChestVISTA3D(
+   segmentator = SegmentChestVista3D(
        device="cuda:0",
        use_auto_prompts=True,
        verbose=True
@@ -133,7 +140,7 @@ VISTA-3D NIM
 
 NVIDIA Inference Microservice version for cloud deployment.
 
-.. autoclass:: physiomotion4d.SegmentChestVISTA3DNIM
+.. autoclass:: physiomotion4d.SegmentChestVista3DNIM
    :members:
    :undoc-members:
    :show-inheritance:
@@ -148,10 +155,10 @@ NVIDIA Inference Microservice version for cloud deployment.
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestVISTA3DNIM
+   from physiomotion4d import SegmentChestVista3DNIM
    
    # Initialize with API endpoint
-   segmentator = SegmentChestVISTA3DNIM(
+   segmentator = SegmentChestVista3DNIM(
        api_endpoint="https://api.nvidia.com/nim/vista3d",
        api_key="your_api_key",
        verbose=True
@@ -352,7 +359,7 @@ Leverage GPU for faster inference:
        print("Using CPU")
    
    # Initialize with GPU
-   segmentator = SegmentChestVISTA3D(device=device)
+   segmentator = SegmentChestVista3D(device=device)
 
 Batch Processing
 ----------------
@@ -415,7 +422,7 @@ Assess segmentation confidence:
 .. code-block:: python
 
    # For VISTA-3D (supports confidence)
-   segmentator = SegmentChestVISTA3D()
+   segmentator = SegmentChestVista3D()
    
    labelmap, confidence_map = segmentator.segment_with_confidence("ct.nrrd")
    
@@ -457,6 +464,7 @@ Error Handling
 See Also
 ========
 
-* :doc:`workflows` - Using segmentation in workflows
+* :doc:`../api/segmentation/index` - Complete segmentation API
+* :doc:`../api/workflows` - Using segmentation in workflows
 * :doc:`registration_images` - Registering segmented images
 * :doc:`usd_generation` - Converting segmentations to USD

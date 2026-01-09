@@ -1,6 +1,13 @@
 ====================================
-USD Generation
+USD Generation Development Guide
 ====================================
+
+This guide covers developing with USD generation tools.
+
+For complete API documentation, see :doc:`../api/usd/index`.
+
+Overview
+========
 
 The USD generation module converts VTK meshes into Universal Scene Description (USD) format for visualization in NVIDIA Omniverse with anatomically-realistic materials and time-varying geometry.
 
@@ -537,7 +544,7 @@ Animation
 File Organization
 -----------------
 
-.. code-block:: python
+.. code-block:: text
 
    # Recommended structure
    output/

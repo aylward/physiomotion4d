@@ -2,8 +2,8 @@
 Examples
 ========
 
-This page provides quick examples for common PhysioMotion4D use cases. For detailed tutorials,
-see the :doc:`tutorials/basic_workflow` section.
+This page provides quick examples for common PhysioMotion4D use cases. For detailed workflow guides,
+see the :doc:`cli_scripts/overview` section.
 
 Complete Workflow Examples
 ===========================
@@ -595,8 +595,8 @@ Mix and match different components:
 See Also
 ========
 
-* :doc:`tutorials/basic_workflow` - Detailed step-by-step tutorials
-* :doc:`api/core` - Complete API reference
-* :doc:`user_guide/heart_gated_ct` - Heart-gated CT user guide
+* :doc:`cli_scripts/overview` - Detailed command-line workflows
+* :doc:`api/index` - Complete API reference
+* :doc:`cli_scripts/heart_gated_ct` - Heart-gated CT guide
 * :doc:`troubleshooting` - Common issues and solutions
 

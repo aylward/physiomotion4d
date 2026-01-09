@@ -179,7 +179,7 @@ Getting Help
 If you still have issues:
 
 1. Check :doc:`faq`
-2. Search `GitHub Issues <https://github.com/NVIDIA/PhysioMotion4D/issues>`_
+2. Search `GitHub Issues <https://github.com/aylward/PhysioMotion4d/issues>`_
 3. Open a new issue with:
 
    * Python version

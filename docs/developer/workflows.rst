@@ -1,6 +1,13 @@
 ====================================
-Workflows
+Workflow Development Guide
 ====================================
+
+This guide covers developing custom workflows.
+
+For complete API documentation, see :doc:`../api/workflows`.
+
+Overview
+========
 
 Workflow classes orchestrate complete processing pipelines, from raw medical images to final USD outputs. Each workflow corresponds to a CLI script and provides programmatic access to the same functionality.
 
@@ -222,8 +229,8 @@ Workflows select components based on parameters:
    # In WorkflowConvertHeartGatedCTToUSD
    
    if self.registration_method == 'icon':
-       from physiomotion4d import RegisterImagesIcon
-       registrator = RegisterImagesIcon(...)
+       from physiomotion4d import RegisterImagesICON
+       registrator = RegisterImagesICON(...)
    elif self.registration_method == 'ants':
        from physiomotion4d import RegisterImagesANTs
        registrator = RegisterImagesANTs(...)
@@ -243,7 +250,7 @@ Create new workflows by inheriting from :class:`PhysioMotion4DBase`:
 
    from physiomotion4d import PhysioMotion4DBase
    from physiomotion4d import SegmentChestTotalSegmentator
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    from physiomotion4d import ConvertVTK4DToUSD
    
    class MyCustomWorkflow(PhysioMotion4DBase):

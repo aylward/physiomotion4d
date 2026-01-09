@@ -1,6 +1,13 @@
 ====================================
-Utilities
+Utilities Development Guide
 ====================================
+
+This guide covers using utility modules for common operations.
+
+For complete API documentation, see :doc:`../api/utilities/index`.
+
+Overview
+========
 
 The utilities module provides helper functions and tools for image processing, mesh manipulation, coordinate transforms, and USD operations.
 

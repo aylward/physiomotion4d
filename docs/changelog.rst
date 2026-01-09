@@ -18,5 +18,5 @@ Features
 * USD export for Omniverse
 * Comprehensive documentation
 
-For detailed changelog, see `CHANGELOG.md <https://github.com/NVIDIA/PhysioMotion4D/blob/main/CHANGELOG.md>`_.
+For detailed changelog, see `CHANGELOG.md <https://github.com/aylward/PhysioMotion4d/blob/main/CHANGELOG.md>`_.
 

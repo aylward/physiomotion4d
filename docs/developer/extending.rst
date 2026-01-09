@@ -20,9 +20,9 @@ Extension Patterns
 
 All extensions follow common patterns:
 
-1. **Inherit from base classes** (:class:`PhysioMotion4DBase` or specialized bases)
+1. **Inherit from base classes** (:class:`PhysioMotion4DBase` or specialized bases - see :doc:`../api/base`)
 2. **Override specific methods** to customize behavior
-3. **Use existing utilities** for common operations
+3. **Use existing utilities** for common operations (see :doc:`../api/utilities/index`)
 4. **Follow consistent naming and documentation** conventions
 
 Creating Custom Workflows
@@ -37,7 +37,7 @@ Start with this template for new workflows:
 
    from physiomotion4d import PhysioMotion4DBase
    from physiomotion4d import SegmentChestTotalSegmentator
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    from physiomotion4d import ConvertVTK4DToUSDPolyMesh
    
    class MyCustomWorkflow(PhysioMotion4DBase):
@@ -78,7 +78,7 @@ Start with this template for new workflows:
        def _initialize_components(self):
            """Initialize processing components."""
            self.segmentator = SegmentChestTotalSegmentator(verbose=self.verbose)
-           self.registrator = RegisterImagesIcon(device="cuda:0")
+           self.registrator = RegisterImagesICON(device="cuda:0")
            self.usd_converter = ConvertVTK4DToUSDPolyMesh(verbose=self.verbose)
        
        def process(self):

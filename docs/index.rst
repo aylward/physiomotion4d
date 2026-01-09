@@ -17,8 +17,20 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
    :alt: Python Versions
 
 .. image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
-   :target: https://github.com/NVIDIA/PhysioMotion4D/blob/main/LICENSE
+   :target: https://github.com/aylward/PhysioMotion4d/blob/main/LICENSE
    :alt: License
+
+.. image:: https://img.shields.io/github/actions/workflow/status/aylward/PhysioMotion4d/ci.yml?branch=main&label=CI%20Tests
+   :target: https://github.com/aylward/PhysioMotion4d/actions/workflows/ci.yml
+   :alt: CI Tests
+
+.. image:: https://img.shields.io/badge/tests-Windows%20%7C%20Linux%20%7C%20Python%203.10--3.12-blue
+   :target: https://github.com/aylward/PhysioMotion4d/actions/workflows/ci.yml
+   :alt: Test Matrix: Windows, Linux, Python 3.10-3.12
+
+.. image:: https://codecov.io/gh/aylward/PhysioMotion4d/branch/main/graph/badge.svg
+   :target: https://codecov.io/gh/aylward/PhysioMotion4d
+   :alt: Test Coverage
 
 🚀 Key Features
 ===============
@@ -62,17 +74,30 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developer & API Reference
+   :caption: API Reference
+
+   api/index
+   api/base
+   api/workflows
+   api/segmentation/index
+   api/registration/index
+   api/model_registration/index
+   api/usd/index
+   api/utilities/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer Guides
 
    developer/architecture
-   developer/core
+   developer/extending
    developer/workflows
+   developer/core
    developer/segmentation
    developer/registration_images
    developer/registration_models
    developer/usd_generation
    developer/utilities
-   developer/extending
 
 .. toctree::
    :maxdepth: 1

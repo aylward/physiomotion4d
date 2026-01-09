@@ -68,22 +68,37 @@ html_static_path = ['_static']
 html_theme_options = {
     'logo_only': False,
     # 'display_version': True,  # Deprecated in sphinx_rtd_theme >= 1.0
-    'prev_next_buttons_location': 'bottom',
+    'prev_next_buttons_location': 'both',  # Show navigation at top and bottom
     'style_external_links': False,
     'vcs_pageview_mode': '',
     'style_nav_header_background': '#2980B9',
-    # Toc options
-    'collapse_navigation': False,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
+    # Toc options - optimized for module browsing
+    'collapse_navigation': False,  # Keep sidebar expanded
+    'sticky_navigation': True,  # Sidebar follows scroll
+    'navigation_depth': 5,  # Increased depth for module pages
     'includehidden': True,
-    'titles_only': False
+    'titles_only': False  # Show full TOC hierarchy
 }
+
+# Enable search language features
+html_search_language = 'en'
+html_search_options = {
+    'type': 'default'
+}
+
+# Show page source link
+html_show_sourcelink = True
+html_copy_source = True
+
+# Add breadcrumbs and navigation
+html_use_index = True
+html_split_index = True
+html_show_sphinx = True
 
 html_context = {
     "display_github": True,
-    "github_user": "NVIDIA",
-    "github_repo": "PhysioMotion4D",
+    "github_user": "aylward",
+    "github_repo": "PhysioMotion4d",
     "github_version": "main",
     "conf_py_path": "/docs/",
 }

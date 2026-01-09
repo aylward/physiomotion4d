@@ -52,5 +52,5 @@ Design Principles
 * **Type Safety**: Type hints throughout
 * **Error Handling**: Graceful degradation
 
-For implementation details, see the source code and :doc:`api/core`.
+For implementation details, see the source code and :doc:`api/base`.
 

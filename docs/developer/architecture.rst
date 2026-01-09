@@ -90,7 +90,7 @@ Base Class Pattern
 
 Most PhysioMotion4D classes inherit from :class:`PhysioMotion4DBase`:
 
-.. code-block:: python
+.. code-block:: text
 
    PhysioMotion4DBase
    ├── Workflow Classes
@@ -99,12 +99,12 @@ Most PhysioMotion4D classes inherit from :class:`PhysioMotion4DBase`:
    ├── Segmentation Classes
    │   ├── SegmentChestBase
    │   │   ├── SegmentChestTotalSegmentator
-   │   │   ├── SegmentChestVISTA3D
+   │   │   ├── SegmentChestVista3D
    │   │   └── SegmentChestEnsemble
    ├── Registration Classes
    │   ├── RegisterImagesBase
    │   │   ├── RegisterImagesANTs
-   │   │   └── RegisterImagesIcon
+   │   │   └── RegisterImagesICON
    │   └── (Model registration classes)
    └── Conversion Classes
        └── ConvertVTK4DToUSDBase

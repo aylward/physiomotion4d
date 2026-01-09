@@ -2,6 +2,21 @@
 
 This directory contains the source files for PhysioMotion4D's documentation, which is built using [Sphinx](https://www.sphinx-doc.org/) and hosted on [ReadTheDocs](https://readthedocs.org/).
 
+## 🎉 Recently Updated!
+
+The documentation has been restructured with:
+- ✅ Modern table-of-contents sidebar with search
+- ✅ Separate pages for each module (33 new API files)
+- ✅ Navigation widgets (prev/next/up) on all pages
+- ✅ Comprehensive API reference organized by functionality
+- ✅ Enhanced search capabilities
+
+**See these files for details:**
+- [DOCUMENTATION_UPDATE_SUMMARY.md](DOCUMENTATION_UPDATE_SUMMARY.md) - Complete update summary
+- [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Quick lookup guide
+- [DOCUMENTATION_STRUCTURE.md](DOCUMENTATION_STRUCTURE.md) - Detailed structure explanation
+- [DOCUMENTATION_TREE.txt](DOCUMENTATION_TREE.txt) - Visual structure tree
+
 ## Building Documentation Locally
 
 ### Prerequisites
@@ -51,22 +66,47 @@ start _build/html/index.html
 
 ```
 docs/
-├── index.rst              # Main entry point
-├── installation.rst       # Installation guide
-├── quickstart.rst         # Quick start guide
-├── examples.rst           # Code examples
-├── api/                   # API reference
-│   ├── core.rst
-│   ├── segmentation.rst
-│   ├── registration.rst
-│   └── utilities.rst
-├── tutorials/             # Detailed tutorials
-├── user_guide/            # User guides
-├── contributing.rst       # Contribution guidelines
-├── architecture.rst       # System architecture
-├── testing.rst            # Testing guide
+├── index.rst                    # Main entry point
+├── installation.rst             # Installation guide
+├── quickstart.rst               # Quick start guide
+├── examples.rst                 # Code examples
+│
+├── api/                         # 📚 API Reference (NEW STRUCTURE!)
+│   ├── index.rst               # Main API hub
+│   ├── base.rst                # Core base class
+│   ├── workflows.rst           # Workflow classes
+│   ├── segmentation/           # Segmentation (6 files)
+│   │   ├── index.rst
+│   │   ├── base.rst
+│   │   ├── totalsegmentator.rst
+│   │   ├── vista3d.rst
+│   │   ├── vista3d_nim.rst
+│   │   └── ensemble.rst
+│   ├── registration/           # Image registration (5 files)
+│   │   ├── index.rst
+│   │   ├── base.rst
+│   │   ├── ants.rst
+│   │   ├── icon.rst
+│   │   └── time_series.rst
+│   ├── model_registration/     # Model registration (5 files)
+│   ├── usd/                    # USD generation (6 files)
+│   └── utilities/              # Utilities (5 files)
+│
+├── developer/                   # 👨‍💻 Developer guides
+│   ├── architecture.rst
+│   ├── extending.rst
+│   ├── workflows.rst
+│   └── core.rst
+│
+├── cli_scripts/                 # 🔧 CLI documentation
+├── contributing.rst
+├── testing.rst
 └── ...
 ```
+
+**Total: 33 new API documentation files!**
+
+See [DOCUMENTATION_TREE.txt](DOCUMENTATION_TREE.txt) for complete structure.
 
 ## Building Other Formats
 

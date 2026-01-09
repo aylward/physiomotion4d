@@ -63,7 +63,7 @@ Which segmentation method should I use?
 * **VISTA-3D**: Best quality, requires more GPU memory
 * **Ensemble**: Best quality, slowest
 
-See :doc:`api/segmentation` for comparison.
+See :doc:`api/segmentation/index` for comparison.
 
 Which registration method should I use?
 ----------------------------------------
@@ -71,7 +71,7 @@ Which registration method should I use?
 * **ICON**: Recommended for cardiac/lung (fast, GPU)
 * **ANTs**: Best for brain imaging and general purpose
 
-See :doc:`api/registration` for comparison.
+See :doc:`api/registration/index` for comparison.
 
 Troubleshooting
 ===============
@@ -81,7 +81,7 @@ See :doc:`troubleshooting` for common issues and solutions.
 More Questions?
 ===============
 
-* Check the :doc:`user_guide/heart_gated_ct`
+* Check the :doc:`cli_scripts/heart_gated_ct`
 * Browse :doc:`examples`
-* Open an issue on `GitHub <https://github.com/NVIDIA/PhysioMotion4D/issues>`_
+* Open an issue on `GitHub <https://github.com/aylward/PhysioMotion4d/issues>`_
 

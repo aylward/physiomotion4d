@@ -1,6 +1,13 @@
 ====================================
-Image Registration
+Image Registration Development Guide
 ====================================
+
+This guide covers developing with image registration methods.
+
+For complete API documentation, see :doc:`../api/registration/index`.
+
+Overview
+========
 
 The image registration module provides deformable and rigid registration methods for aligning medical images across time or between subjects.
 
@@ -43,7 +50,7 @@ ICON Registration
 
 Deep learning-based deformable registration with mass preservation.
 
-.. autoclass:: physiomotion4d.RegisterImagesIcon
+.. autoclass:: physiomotion4d.RegisterImagesICON
    :members:
    :undoc-members:
    :show-inheritance:
@@ -59,10 +66,10 @@ Deep learning-based deformable registration with mass preservation.
 
 .. code-block:: python
 
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    
    # Initialize ICON registrator
-   registrator = RegisterImagesIcon(
+   registrator = RegisterImagesICON(
        device="cuda:0",
        network_weights="path/to/weights.trch",
        iterations=1,
@@ -215,10 +222,10 @@ Simple pairwise registration:
 
 .. code-block:: python
 
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    
    # Initialize
-   registrator = RegisterImagesIcon(device="cuda:0")
+   registrator = RegisterImagesICON(device="cuda:0")
    
    # Register
    transform = registrator.register(
@@ -269,7 +276,7 @@ Register using region of interest masks:
 .. code-block:: python
 
    # Register only within heart region
-   registrator = RegisterImagesIcon(device="cuda:0")
+   registrator = RegisterImagesICON(device="cuda:0")
    
    transform = registrator.register(
        fixed_image_path="fixed.mha",
@@ -318,7 +325,7 @@ Refine registration iteratively:
 
 .. code-block:: python
 
-   registrator = RegisterImagesIcon(device="cuda:0")
+   registrator = RegisterImagesICON(device="cuda:0")
    
    # Initial registration
    transform = registrator.register(fixed, moving)
@@ -345,10 +352,10 @@ Define custom similarity metrics:
 
 .. code-block:: python
 
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    import torch
    
-   class CustomIconRegistrator(RegisterImagesIcon):
+   class CustomIconRegistrator(RegisterImagesICON):
        """ICON with custom loss function."""
        
        def custom_similarity_loss(self, fixed, moving):
@@ -374,7 +381,7 @@ Add constraints to deformations:
 
 .. code-block:: python
 
-   class ConstrainedRegistrator(RegisterImagesIcon):
+   class ConstrainedRegistrator(RegisterImagesICON):
        """Registration with deformation constraints."""
        
        def __init__(self, max_deformation=10.0, **kwargs):
@@ -418,7 +425,7 @@ Optimize GPU usage for ICON:
            batch_size = 4
    
    # Initialize with optimal settings
-   registrator = RegisterImagesIcon(
+   registrator = RegisterImagesICON(
        device="cuda:0",
        batch_size=batch_size,
        mixed_precision=True  # Use FP16 for speed
@@ -432,11 +439,11 @@ Register multiple pairs in parallel:
 .. code-block:: python
 
    from concurrent.futures import ThreadPoolExecutor
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    
    def register_pair(fixed_file, moving_file, output_dir):
        """Register a single pair."""
-       registrator = RegisterImagesIcon(device="cuda:0")
+       registrator = RegisterImagesICON(device="cuda:0")
        transform = registrator.register(fixed_file, moving_file)
        registrator.save_transform(transform, f"{output_dir}/transform.hdf5")
        return transform

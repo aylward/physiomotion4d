@@ -136,5 +136,3 @@ Tests run automatically on:
 
 See the `.github/workflows/` directory for CI configuration.
 
-For more details, see :doc:`tests/TESTING_GUIDE`.
-

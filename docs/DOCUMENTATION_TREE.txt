@@ -1,0 +1,216 @@
+PhysioMotion4D Documentation Structure
+======================================
+
+ROOT (index.rst)
+│
+├── 📘 GETTING STARTED
+│   ├── installation.rst
+│   ├── quickstart.rst
+│   └── examples.rst
+│
+├── 🔧 CLI & SCRIPTS GUIDE
+│   ├── cli_scripts/overview.rst
+│   ├── cli_scripts/heart_gated_ct.rst
+│   ├── cli_scripts/heart_model_to_patient.rst
+│   ├── cli_scripts/lung_gated_ct.rst
+│   ├── cli_scripts/4dct_reconstruction.rst
+│   ├── cli_scripts/vtk_to_usd.rst
+│   ├── cli_scripts/brain_vessel_modeling.rst
+│   └── cli_scripts/best_practices.rst
+│
+├── 📚 API REFERENCE ⭐ NEW STRUCTURE ⭐
+│   ├── api/index.rst ........................... Main API hub
+│   │
+│   ├── 🔹 CORE
+│   │   ├── api/base.rst ....................... PhysioMotion4DBase
+│   │   └── api/workflows.rst .................. Workflow classes
+│   │
+│   ├── 🔹 SEGMENTATION
+│   │   ├── api/segmentation/index.rst ......... Overview + comparison table
+│   │   ├── api/segmentation/base.rst .......... SegmentChestBase
+│   │   ├── api/segmentation/totalsegmentator.rst
+│   │   ├── api/segmentation/vista3d.rst
+│   │   ├── api/segmentation/vista3d_nim.rst
+│   │   └── api/segmentation/ensemble.rst
+│   │
+│   ├── 🔹 IMAGE REGISTRATION
+│   │   ├── api/registration/index.rst ......... Overview + comparison table
+│   │   ├── api/registration/base.rst .......... RegisterImagesBase
+│   │   ├── api/registration/ants.rst .......... ANTs registration
+│   │   ├── api/registration/icon.rst .......... Icon deep learning
+│   │   └── api/registration/time_series.rst ... 4D sequences
+│   │
+│   ├── 🔹 MODEL REGISTRATION
+│   │   ├── api/model_registration/index.rst ... Overview
+│   │   ├── api/model_registration/icp.rst ..... ICP (Python)
+│   │   ├── api/model_registration/icp_itk.rst . ICP (ITK)
+│   │   ├── api/model_registration/distance_maps.rst
+│   │   └── api/model_registration/pca.rst ..... PCA-based
+│   │
+│   ├── 🔹 USD GENERATION
+│   │   ├── api/usd/index.rst .................. Overview
+│   │   ├── api/usd/tools.rst .................. Core USD tools
+│   │   ├── api/usd/anatomy_tools.rst .......... Anatomy tools
+│   │   ├── api/usd/vtk_conversion.rst ......... VTK conversion
+│   │   ├── api/usd/polymesh.rst ............... Surface meshes
+│   │   └── api/usd/tetmesh.rst ................ Tetrahedral meshes
+│   │
+│   └── 🔹 UTILITIES
+│       ├── api/utilities/index.rst ............ Overview
+│       ├── api/utilities/image_tools.rst ...... Image I/O & processing
+│       ├── api/utilities/transform_tools.rst .. Transforms
+│       ├── api/utilities/contour_tools.rst .... Contour processing
+│       └── api/utilities/nrrd_conversion.rst .. NRRD utilities
+│
+├── 👨‍💻 DEVELOPER GUIDES
+│   ├── developer/architecture.rst ............. System architecture
+│   ├── developer/extending.rst ................ Extending PhysioMotion4D
+│   ├── developer/workflows.rst ................ Workflow development
+│   └── developer/core.rst ..................... Core development
+│
+├── 🤝 CONTRIBUTING
+│   ├── contributing.rst
+│   └── testing.rst
+│
+└── 📖 ADDITIONAL RESOURCES
+    ├── faq.rst
+    ├── troubleshooting.rst
+    ├── references.rst
+    └── changelog.rst
+
+
+NAVIGATION FEATURES
+===================
+
+🔍 Search Box (Top of Sidebar)
+   └── Full-text search across all documentation
+
+📑 Table of Contents (Left Sidebar)
+   ├── Hierarchical structure (5 levels deep)
+   ├── Expandable/collapsible sections
+   ├── Sticky navigation (follows scroll)
+   └── Current page highlighted
+
+⬅️➡️ Navigation Widgets (Every Page)
+   ├── Previous page button (top & bottom)
+   ├── Next page button (top & bottom)
+   └── Up to index link (bottom)
+
+🔗 Cross-References
+   ├── See Also sections
+   ├── Related modules links
+   └── Quick links in index pages
+
+📊 Index Pages (Module Overviews)
+   ├── Comparison tables
+   ├── Quick start examples
+   ├── Quick links to all classes
+   └── Navigation to related modules
+
+
+KEY IMPROVEMENTS
+================
+
+✅ Modular Organization
+   - Modules split into separate pages
+   - Clear hierarchy by functionality
+   - Easy to find specific classes
+
+✅ Enhanced Navigation
+   - TOC panel with full hierarchy
+   - Previous/Next buttons on all pages
+   - Breadcrumbs show current location
+   - Quick links in index pages
+
+✅ Better Search
+   - Full-text search enabled
+   - Module index for classes
+   - General index for terms
+   - Quick jump to documentation
+
+✅ Rich Content
+   - Comparison tables
+   - Code examples on every page
+   - Best practices sections
+   - Performance tips
+   - Common patterns
+
+✅ Consistent Structure
+   - All modules follow same pattern
+   - Standard section headers
+   - Predictable file locations
+   - Easy to maintain and extend
+
+
+FILE COUNTS
+===========
+
+API Reference:
+  - Core: 2 files
+  - Segmentation: 6 files
+  - Registration: 5 files
+  - Model Registration: 5 files
+  - USD: 6 files
+  - Utilities: 5 files
+  - Index: 1 file
+  Total: 30 files
+
+Developer Guides: 8 files
+CLI Scripts: 8 files
+Getting Started: 3 files
+Contributing: 2 files
+Resources: 4 files
+Support Docs: 3 files
+
+TOTAL: 58 documentation files
+
+
+NAVIGATION EXAMPLE
+==================
+
+User wants to learn about segmentation:
+
+1. Start at index.rst
+   └── Click "API Reference" in sidebar
+
+2. Go to api/index.rst
+   └── See "Segmentation" section with quick links
+   └── Click "Segmentation Overview"
+
+3. Go to api/segmentation/index.rst
+   └── See comparison table of methods
+   └── See quick start examples
+   └── Click "TotalSegmentator"
+
+4. Go to api/segmentation/totalsegmentator.rst
+   └── Read complete documentation
+   └── See code examples
+   └── Use "Next" button to go to vista3d.rst
+
+5. Navigate using:
+   - Sidebar TOC (jump anywhere)
+   - Previous/Next buttons (sequential)
+   - See Also links (related topics)
+   - Search box (find specific info)
+
+
+BUILDING & VIEWING
+==================
+
+Build:
+  cd docs
+  sphinx-build -b html . _build/html
+
+View:
+  Open _build/html/index.html in browser
+
+Features to test:
+  ✓ Sidebar navigation
+  ✓ Search functionality
+  ✓ Previous/Next buttons
+  ✓ Breadcrumbs
+  ✓ Cross-references
+  ✓ Code examples
+  ✓ Tables
+  ✓ Module index
+  ✓ General index

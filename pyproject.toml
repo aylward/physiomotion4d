@@ -123,16 +123,20 @@ dev = [
     "ruff>=0.1.0",
 ]
 docs = [
+    # Sphinx core and theme
+    "sphinx>=8.0.0",
+    "sphinx-rtd-theme>=3.0.0",
+    
+    # Sphinx extensions
+    "sphinx-autodoc-typehints>=3.0.0",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-tabs>=3.4.7",
+    "myst-parser>=4.0.0",
+    
+    # Additional dependencies
     "linkify-it-py>=2.0.0",
     "uc-micro-py>=1.0.1",
-    "sphinx>=7.0.0",
-    "sphinx-rtd-theme>=2.0.0",
-    "sphinx-autodoc-typehints>=1.25.0",
-    "myst-parser>=2.0.0",
-    "sphinx-copybutton>=0.5.2",
-    "sphinx-tabs>=3.4.1",
-    "sphinxcontrib-napoleon>=0.7",
-    "sphinx-autoapi>=3.0.0",
+    "markdown-it-py>=3.0.0",
 ]
 test = [
     "pytest>=7.0.0",
@@ -143,11 +147,11 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://gitlab-master.nvidia.com/MedTech-AI-Labs/PhysioMotion4D"
-Documentation = "https://gitlab-master.nvidia.com/MedTech-AI-Labs/PhysioMotion4D/-/blob/main/README.md"
-Repository = "https://gitlab-master.nvidia.com/MedTech-AI-Labs/PhysioMotion4D.git"
-"Bug Tracker" = "https://gitlab-master.nvidia.com/MedTech-AI-Labs/PhysioMotion4D/-/issues"
-Changelog = "https://gitlab-master.nvidia.com/MedTech-AI-Labs/PhysioMotion4D/-/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/aylward/PhysioMotion4d"
+Documentation = "https://github.com/aylward/PhysioMotion4d/blob/main/README.md"
+Repository = "https://github.com/aylward/PhysioMotion4d.git"
+"Bug Tracker" = "https://github.com/aylward/PhysioMotion4d/issues"
+Changelog = "https://github.com/aylward/PhysioMotion4d/blob/main/CHANGELOG.md"
 "Author LinkedIn" = "https://www.linkedin.com/in/stephenaylward"
 "Author Google Scholar" = "https://scholar.google.com/citations?user=u1UdL4oAAAAJ&hl"
 

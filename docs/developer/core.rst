@@ -1,6 +1,13 @@
 ====================================
-Core Base Class
+Core Development Guide
 ====================================
+
+This guide covers developing with the core PhysioMotion4D base class and understanding the overall architecture.
+
+For complete API documentation, see :doc:`../api/base`.
+
+Overview
+========
 
 The :class:`PhysioMotion4DBase` class provides foundational functionality for all PhysioMotion4D components, including logging, parameter management, and common utilities.
 
@@ -366,6 +373,7 @@ Validate all user-provided parameters:
 See Also
 ========
 
-* :doc:`workflows` - Workflow classes building on base class
+* :doc:`../api/base` - Complete API documentation
+* :doc:`../api/workflows` - Workflow classes building on base class
 * :doc:`extending` - Creating new classes from base
 * :doc:`architecture` - Overall system architecture

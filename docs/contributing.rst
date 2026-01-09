@@ -334,5 +334,5 @@ See Also
 
 * :doc:`architecture` - System architecture
 * :doc:`testing` - Testing guide
-* `GitHub Repository <https://github.com/NVIDIA/PhysioMotion4D>`_
+* `GitHub Repository <https://github.com/aylward/PhysioMotion4d>`_
 

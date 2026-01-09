@@ -16,7 +16,7 @@ If you use PhysioMotion4D in your research, please cite:
      title = {PhysioMotion4D: Medical Imaging to Omniverse},
      year = {2025},
      publisher = {GitHub},
-     url = {https://github.com/NVIDIA/PhysioMotion4D}
+     url = {https://github.com/aylward/PhysioMotion4d}
    }
 
 Related Publications

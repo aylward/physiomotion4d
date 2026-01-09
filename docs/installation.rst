@@ -54,7 +54,7 @@ For development or to get the latest features:
 
 .. code-block:: bash
 
-   git clone https://github.com/NVIDIA/PhysioMotion4D.git
+   git clone https://github.com/aylward/PhysioMotion4d.git
    cd PhysioMotion4D
 
 **Step 2: Create virtual environment**
@@ -239,7 +239,7 @@ Getting Help
 If you encounter issues:
 
 1. Check the :doc:`troubleshooting` guide
-2. Search `GitHub Issues <https://github.com/NVIDIA/PhysioMotion4D/issues>`_
+2. Search `GitHub Issues <https://github.com/aylward/PhysioMotion4d/issues>`_
 3. Open a new issue with:
 
    * Python version
@@ -252,5 +252,5 @@ Next Steps
 
 * Continue to :doc:`quickstart` for your first PhysioMotion4D workflow
 * Explore :doc:`examples` for common use cases
-* Read :doc:`tutorials/basic_workflow` for detailed tutorials
+* Read :doc:`cli_scripts/overview` for detailed command-line workflows
 

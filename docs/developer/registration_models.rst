@@ -1,6 +1,13 @@
 ====================================
-Model Registration
+Model Registration Development Guide
 ====================================
+
+This guide covers developing with 3D model registration methods.
+
+For complete API documentation, see :doc:`../api/model_registration/index`.
+
+Overview
+========
 
 The model registration module provides methods for aligning 3D mesh models, including surface-based and point-based registration approaches.
 
@@ -253,7 +260,7 @@ Register mesh model to medical image:
 .. code-block:: python
 
    from physiomotion4d import RegisterModelsDistanceMaps
-   from physiomotion4d import RegisterImagesIcon
+   from physiomotion4d import RegisterImagesICON
    
    # Step 1: Convert mesh to distance map image
    dist_reg = RegisterModelsDistanceMaps()
@@ -268,7 +275,7 @@ Register mesh model to medical image:
    )
    
    # Step 3: Register distance images
-   image_reg = RegisterImagesIcon(device="cuda:0")
+   image_reg = RegisterImagesICON(device="cuda:0")
    transform = image_reg.register(
        fixed_image_path=patient_distance_image,
        moving_image_path=model_distance_image
