@@ -49,49 +49,37 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide
+   :caption: CLI & Scripts Guide
 
-   user_guide/heart_gated_ct
-   user_guide/lung_4dct
-   user_guide/segmentation
-   user_guide/registration
-   user_guide/usd_conversion
-   user_guide/visualization
-   user_guide/logging
+   cli_scripts/overview
+   cli_scripts/heart_gated_ct
+   cli_scripts/heart_model_to_patient
+   cli_scripts/lung_gated_ct
+   cli_scripts/4dct_reconstruction
+   cli_scripts/vtk_to_usd
+   cli_scripts/brain_vessel_modeling
+   cli_scripts/best_practices
 
 .. toctree::
    :maxdepth: 2
-   :caption: Tutorials
+   :caption: Developer & API Reference
 
-   tutorials/basic_workflow
-   tutorials/custom_segmentation
-   tutorials/image_registration
-   tutorials/vtk_to_usd
-   tutorials/colormap_rendering
-   tutorials/model_to_image_registration
-   ants_initial_transform_guide
-
-.. toctree::
-   :maxdepth: 3
-   :caption: API Reference
-
-   api/core
-   api/segmentation
-   api/registration
-   api/utilities
+   developer/architecture
+   developer/core
+   developer/workflows
+   developer/segmentation
+   developer/registration_images
+   developer/registration_models
+   developer/usd_generation
+   developer/utilities
+   developer/extending
 
 .. toctree::
    :maxdepth: 1
-   :caption: Developer Guide
+   :caption: Contributing
 
    contributing
-   architecture
    testing
-   changelog
-   README
-   DOCUMENTATION_SETUP
-   LOGGING_API_REFERENCE
-   PYPI_RELEASE_GUIDE
 
 .. toctree::
    :maxdepth: 1
@@ -100,6 +88,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
    faq
    troubleshooting
    references
+   changelog
 
 Indices and tables
 ==================
@@ -107,4 +96,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

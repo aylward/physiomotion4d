@@ -1,8 +1,11 @@
 """
-PhysioMotion4D - Medical imaging package for generating anatomic models with physiological motion.
+PhysioMotion4D - Medical imaging package for generating anatomic models with
+    physiological motion.
 
-This package converts 4D CT scans (particularly heart and lung gated CT data) into dynamic 3D models
-for visualization in NVIDIA Omniverse. It provides comprehensive tools for image processing,
+This package converts 4D CT scans (particularly heart and lung gated CT data) into
+    dynamic 3D models
+for visualization in NVIDIA Omniverse. It provides comprehensive tools for image
+    processing,
 segmentation, registration, and USD file generation.
 
 Main Components:
@@ -24,10 +27,6 @@ from .convert_vtk_4d_to_usd import ConvertVTK4DToUSD
 from .convert_vtk_4d_to_usd_base import ConvertVTK4DToUSDBase
 from .convert_vtk_4d_to_usd_polymesh import ConvertVTK4DToUSDPolyMesh
 from .convert_vtk_4d_to_usd_tetmesh import ConvertVTK4DToUSDTetMesh
-
-# Core workflow processor
-from .heart_gated_ct_to_usd_workflow import HeartGatedCTToUSDWorkflow
-from .heart_model_to_patient_workflow import HeartModelToPatientWorkflow
 
 # Utility classes
 from .image_tools import ImageTools
@@ -55,10 +54,16 @@ from .transform_tools import TransformTools
 from .usd_anatomy_tools import USDAnatomyTools
 from .usd_tools import USDTools
 
+# Core workflow processor
+from .workflow_convert_heart_gated_ct_to_usd import WorkflowConvertHeartGatedCTToUSD
+from .workflow_register_heart_model_to_patient import (
+    WorkflowRegisterHeartModelToPatient,
+)
+
 __all__ = [
     # Workflow classes
-    "HeartGatedCTToUSDWorkflow",
-    "HeartModelToPatientWorkflow",
+    "WorkflowConvertHeartGatedCTToUSD",
+    "WorkflowRegisterHeartModelToPatient",
     # Segmentation classes
     "SegmentChestBase",
     "SegmentChestEnsemble",

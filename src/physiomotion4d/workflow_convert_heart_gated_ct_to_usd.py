@@ -25,7 +25,7 @@ from physiomotion4d.transform_tools import TransformTools
 from physiomotion4d.usd_anatomy_tools import USDAnatomyTools
 
 
-class HeartGatedCTToUSDWorkflow(PhysioMotion4DBase):
+class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
     """
     Complete workflow for Heart-gated CT images to dynamic USD models.
 
@@ -499,7 +499,7 @@ Examples:
 
     # Initialize processor
     print("Initializing Heart-gated CT processor...")
-    processor = HeartGatedCTToUSDWorkflow(
+    processor = WorkflowConvertHeartGatedCTToUSD(
         input_filenames=args.input_files,
         contrast_enhanced=args.contrast,
         output_directory=args.output_dir,

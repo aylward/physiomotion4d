@@ -15,7 +15,7 @@ PhysioMotion4DBase.set_log_level(logging.INFO)
 PhysioMotion4DBase.set_log_level('DEBUG')  # Can use string too
 
 # Filter to show only specific classes
-PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA", "HeartModelToPatientWorkflow"])
+PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA", "WorkflowRegisterHeartModelToPatient"])
 
 # Show all classes (disable filtering)
 PhysioMotion4DBase.set_log_all_classes()
@@ -109,7 +109,7 @@ def process_items(self, items):
 ```python
 # Create multiple objects
 pca_reg = RegisterModelsPCA(..., log_level=logging.INFO)
-workflow = HeartModelToPatientWorkflow(..., log_level=logging.INFO)
+workflow = WorkflowRegisterHeartModelToPatient(..., log_level=logging.INFO)
 
 # Change log level for both at once
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
@@ -133,7 +133,7 @@ workflow.log_info("This is hidden")
 # Show both classes
 PhysioMotion4DBase.set_log_classes([
     "RegisterModelsPCA",
-    "HeartModelToPatientWorkflow"
+    "WorkflowRegisterHeartModelToPatient"
 ])
 
 # Show all classes
@@ -181,7 +181,7 @@ TIMESTAMP - PhysioMotion4D - LEVEL - [ClassName] Message
 Example:
 ```
 2025-12-13 11:35:27 - PhysioMotion4D - INFO - [RegisterModelsPCA] Converting mean shape points...
-2025-12-13 11:35:27 - PhysioMotion4D - DEBUG - [HeartModelToPatientWorkflow] Auto-generating masks...
+2025-12-13 11:35:27 - PhysioMotion4D - DEBUG - [WorkflowRegisterHeartModelToPatient] Auto-generating masks...
 2025-12-13 11:35:27 - PhysioMotion4D - WARNING - [RegisterModelsPCA] No points found within threshold
 ```
 
@@ -189,7 +189,7 @@ Example:
 
 Current PhysioMotion4D classes with logging support:
 - `RegisterModelsPCA` - PCA-based model-to-image registration
-- `HeartModelToPatientWorkflow` - Multi-stage heart model registration
+- `WorkflowRegisterHeartModelToPatient` - Multi-stage heart model registration
 - (More classes will be added as they are converted)
 
 ## Common Use Cases
@@ -215,7 +215,7 @@ result = registrar.register(...)
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
 PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
 
-workflow = HeartModelToPatientWorkflow(...)
+workflow = WorkflowRegisterHeartModelToPatient(...)
 # Only PCA component will show debug messages
 workflow.run_workflow()
 ```

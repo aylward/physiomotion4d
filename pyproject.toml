@@ -153,7 +153,7 @@ Changelog = "https://gitlab-master.nvidia.com/MedTech-AI-Labs/PhysioMotion4D/-/b
 
 [project.scripts]
 physiomotion4d = "physiomotion4d.__main__:main"
-physiomotion4d-heart-gated-ct = "physiomotion4d.heart_gated_ct_to_usd_workflow:main"
+physiomotion4d-heart-gated-ct = "physiomotion4d.workflow_convert_heart_gated_ct_to_usd:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

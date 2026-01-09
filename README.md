@@ -84,8 +84,8 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 ### Core Components
 
 - **Workflow Classes**: Complete end-to-end pipeline processors
-  - `HeartGatedCTToUSDWorkflow`: Heart-gated CT to USD processing workflow
-  - `HeartModelToPatientWorkflow`: Model-to-patient registration workflow
+  - `WorkflowConvertHeartGatedCTToUSD`: Heart-gated CT to USD processing workflow
+  - `WorkflowRegisterHeartModelToPatient`: Model-to-patient registration workflow
 - **Segmentation Classes**: Multiple AI-based chest segmentation implementations
   - `SegmentChestTotalSegmentator`: TotalSegmentator-based segmentation
   - `SegmentChestVista3D`: VISTA-3D model-based segmentation
@@ -144,10 +144,10 @@ See the [scripts](scripts/) directory for more CLI usage examples.
 ### Python API - Basic Heart-Gated CT Processing
 
 ```python
-from physiomotion4d import HeartGatedCTToUSDWorkflow
+from physiomotion4d import WorkflowConvertHeartGatedCTToUSD
 
 # Initialize processor
-processor = HeartGatedCTToUSDWorkflow(
+processor = WorkflowConvertHeartGatedCTToUSD(
     input_filenames=["path/to/cardiac_4d_ct.nrrd"],
     contrast_enhanced=True,
     output_directory="./results",
@@ -162,7 +162,7 @@ final_usd = processor.process()
 ### Python API - Model to Patient Registration
 
 ```python
-from physiomotion4d import HeartModelToPatientWorkflow
+from physiomotion4d import WorkflowRegisterHeartModelToPatient
 import pyvista as pv
 import itk
 
@@ -172,7 +172,7 @@ patient_surfaces = [pv.read("lv.stl"), pv.read("rv.stl")]
 reference_image = itk.imread("patient_ct.nii.gz")
 
 # Initialize and run workflow
-workflow = HeartModelToPatientWorkflow(
+workflow = WorkflowRegisterHeartModelToPatient(
     moving_mesh=model_mesh,
     fixed_meshes=patient_surfaces,
     fixed_image=reference_image
@@ -237,13 +237,13 @@ PhysioMotion4D provides standardized logging through the `PhysioMotion4DBase` cl
 
 ```python
 import logging
-from physiomotion4d import HeartModelToPatientWorkflow, PhysioMotion4DBase
+from physiomotion4d import WorkflowRegisterHeartModelToPatient, PhysioMotion4DBase
 
 # Control logging level globally for all classes
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
 
 # Or filter to show logs from specific classes only
-PhysioMotion4DBase.set_log_classes(["HeartModelToPatientWorkflow", "RegisterModelsPCA"])
+PhysioMotion4DBase.set_log_classes(["WorkflowRegisterHeartModelToPatient", "RegisterModelsPCA"])
 
 # Show all classes again
 PhysioMotion4DBase.set_log_all_classes()
@@ -308,7 +308,7 @@ Advanced registration between generic anatomical models and patient-specific dat
 - **`heart_model_to_patient.ipynb`**: Complete model-to-patient registration workflow
 - **`heart_model_to_model_registration_pca.ipynb`**: PCA-based statistical shape model registration
 
-Uses the `HeartModelToPatientWorkflow` class for three-stage registration:
+Uses the `WorkflowRegisterHeartModelToPatient` class for three-stage registration:
 1. ICP-based rough alignment
 2. Mask-to-mask deformable registration
 3. Optional mask-to-image refinement

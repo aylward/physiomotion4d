@@ -1,6 +1,6 @@
 """Model-to-image and model-to-model registration for anatomical models.
 
-This module provides the ModelToPatientWorkflow class for registering generic
+This module provides the WorkflowRegisterHeartModelToPatient class for registering generic
 anatomical models to patient-specific imaging data and surface models.
 The workflow includes:
 1. Rough alignment using ICP (RegisterModelsICP)
@@ -40,7 +40,7 @@ from physiomotion4d.register_models_pca import RegisterModelsPCA
 from physiomotion4d.transform_tools import TransformTools
 
 
-class HeartModelToPatientWorkflow(PhysioMotion4DBase):
+class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
     """Register anatomical models using multi-stage ICP, mask-based, and image-based
         registration.
 
@@ -102,7 +102,7 @@ class HeartModelToPatientWorkflow(PhysioMotion4DBase):
 
     Example:
         >>> # Initialize with minimal parameters
-        >>> registrar = HeartModelToPatientWorkflow(
+        >>> registrar = WorkflowRegisterHeartModelToPatient(
         ...     template_model=heart_model,
         ...     patient_models=[lv_model, mc_model, rv_model],
         ...     patient_image=patient_ct,
@@ -144,7 +144,7 @@ class HeartModelToPatientWorkflow(PhysioMotion4DBase):
                 Default: logging.INFO
         """
         # Initialize base class with logging
-        super().__init__(class_name="HeartModelToPatientWorkflow", log_level=log_level)
+        super().__init__(class_name="WorkflowRegisterHeartModelToPatient", log_level=log_level)
 
         self.template_model = template_model
         self.template_model_surface = template_model.extract_surface()
