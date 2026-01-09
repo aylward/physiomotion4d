@@ -12,9 +12,7 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pages: write
-      id-token: write
+      contents: read
     
     steps:
     - name: Checkout code
@@ -73,18 +71,44 @@ jobs:
         cd docs
         make html SPHINXOPTS="--keep-going"
       continue-on-error: true
+    
+    - name: Disable Jekyll processing
+      run: touch docs/_build/html/.nojekyll
         
     - name: Upload documentation artifacts
       uses: actions/upload-artifact@v4
       with:
         name: documentation
         path: docs/_build/html/
-        
-    - name: Deploy to GitHub Pages (main branch only)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: peaceiris/actions-gh-pages@v3
+        retention-days: 7
+  
+  deploy:
+    needs: build-docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Download documentation artifacts
+      uses: actions/download-artifact@v4
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/_build/html
-        cname: physiomotion4d.readthedocs.io  # Optional: if using custom domain
+        name: documentation
+        path: ./docs-html
+        
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact for Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./docs-html
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
 
