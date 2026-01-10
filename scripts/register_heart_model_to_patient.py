@@ -1,0 +1,313 @@
+#!/usr/bin/env python
+"""
+Command-line interface for Heart Model to Patient Registration workflow.
+
+This script provides a CLI to register a generic heart model to patient-specific
+imaging data and surface models using multi-stage registration (ICP, PCA, mask-based,
+and optional image-based refinement).
+"""
+
+import argparse
+import os
+import sys
+import traceback
+
+import itk
+import pyvista as pv
+
+from physiomotion4d import WorkflowRegisterHeartModelToPatient
+
+
+def main():
+    """Command-line interface for heart model to patient registration."""
+    parser = argparse.ArgumentParser(
+        description="Register generic heart model to patient-specific data",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic registration with required inputs
+  %(prog)s \\
+    --template-model heart_model.vtu \\
+    --template-labelmap heart_labelmap.nii.gz \\
+    --patient-models lv.vtp rv.vtp myo.vtp \\
+    --patient-image patient_ct.nii.gz \\
+    --output-dir ./results
+
+  # Registration with PCA shape fitting
+  %(prog)s \\
+    --template-model heart_model.vtu \\
+    --template-labelmap heart_labelmap.nii.gz \\
+    --patient-models lv.vtp rv.vtp myo.vtp \\
+    --patient-image patient_ct.nii.gz \\
+    --pca-json pca_model.json \\
+    --pca-number-of-modes 10 \\
+    --output-dir ./results
+
+  # Registration with custom label IDs
+  %(prog)s \\
+    --template-model heart_model.vtu \\
+    --template-labelmap heart_labelmap.nii.gz \\
+    --patient-models lv.vtp rv.vtp \\
+    --patient-image patient_ct.nii.gz \\
+    --template-labelmap-muscle-ids 1 2 3 \\
+    --template-labelmap-chamber-ids 4 5 6 \\
+    --template-labelmap-background-ids 0 \\
+    --output-dir ./results
+
+  # Registration with ICON refinement
+  %(prog)s \\
+    --template-model heart_model.vtu \\
+    --template-labelmap heart_labelmap.nii.gz \\
+    --patient-models lv.vtp rv.vtp \\
+    --patient-image patient_ct.nii.gz \\
+    --use-icon-refinement \\
+    --output-dir ./results
+        """,
+    )
+
+    # Required arguments
+    parser.add_argument(
+        "--template-model",
+        required=True,
+        help="Path to template/generic heart model (.vtu, .vtk, .stl)",
+    )
+    parser.add_argument(
+        "--template-labelmap",
+        required=True,
+        help="Path to template labelmap image (.nii.gz, .nrrd, .mha)",
+    )
+    parser.add_argument(
+        "--patient-models",
+        nargs='+',
+        required=True,
+        help="Paths to patient-specific surface models (e.g., lv.vtp rv.vtp myo.vtp)",
+    )
+    parser.add_argument(
+        "--patient-image",
+        required=True,
+        help="Path to patient CT/MRI image (.nii.gz, .nrrd, .mha)",
+    )
+    parser.add_argument(
+        "--output-dir", required=True, help="Output directory for results"
+    )
+
+    # Template labelmap configuration
+    parser.add_argument(
+        "--template-labelmap-muscle-ids",
+        nargs='+',
+        type=int,
+        default=[1],
+        help="Label IDs for heart muscle in template labelmap (default: 1)",
+    )
+    parser.add_argument(
+        "--template-labelmap-chamber-ids",
+        nargs='+',
+        type=int,
+        default=[2],
+        help="Label IDs for heart chambers in template labelmap (default: 2)",
+    )
+    parser.add_argument(
+        "--template-labelmap-background-ids",
+        nargs='+',
+        type=int,
+        default=[0],
+        help="Label IDs for background in template labelmap (default: 0)",
+    )
+
+    # PCA registration options
+    parser.add_argument(
+        "--pca-json",
+        help="Path to PCA JSON file for shape-based registration (optional)",
+    )
+    parser.add_argument(
+        "--pca-group-key",
+        default="All",
+        help="PCA group key in JSON file (default: All)",
+    )
+    parser.add_argument(
+        "--pca-number-of-modes",
+        type=int,
+        default=0,
+        help="Number of PCA modes to use (default: 0, uses all if PCA enabled)",
+    )
+
+    # Registration configuration
+    parser.add_argument(
+        "--no-mask-to-mask",
+        dest="use_mask_to_mask",
+        action="store_false",
+        default=True,
+        help="Disable mask-to-mask deformable registration",
+    )
+    parser.add_argument(
+        "--no-mask-to-image",
+        dest="use_mask_to_image",
+        action="store_false",
+        default=True,
+        help="Disable mask-to-image refinement registration",
+    )
+    parser.add_argument(
+        "--use-icon-refinement",
+        action="store_true",
+        default=False,
+        help="Enable ICON registration refinement (default: disabled)",
+    )
+
+    # Output options
+    parser.add_argument(
+        "--output-prefix",
+        default="registered",
+        help="Prefix for output files (default: registered)",
+    )
+
+    args = parser.parse_args()
+
+    # Validate input files
+    print("Validating input files...")
+    if not os.path.exists(args.template_model):
+        print(f"Error: Template model not found: {args.template_model}")
+        return 1
+
+    if not os.path.exists(args.template_labelmap):
+        print(f"Error: Template labelmap not found: {args.template_labelmap}")
+        return 1
+
+    for patient_model in args.patient_models:
+        if not os.path.exists(patient_model):
+            print(f"Error: Patient model not found: {patient_model}")
+            return 1
+
+    if not os.path.exists(args.patient_image):
+        print(f"Error: Patient image not found: {args.patient_image}")
+        return 1
+
+    if args.pca_json and not os.path.exists(args.pca_json):
+        print(f"Error: PCA JSON file not found: {args.pca_json}")
+        return 1
+
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # Load input data
+    print("\nLoading input data...")
+    try:
+        print(f"  Loading template model: {args.template_model}")
+        template_model = pv.read(args.template_model)
+
+        print(f"  Loading template labelmap: {args.template_labelmap}")
+        template_labelmap = itk.imread(args.template_labelmap)
+
+        print("  Loading patient models:")
+        patient_models = []
+        for patient_model_file in args.patient_models:
+            print(f"    - {patient_model_file}")
+            patient_models.append(pv.read(patient_model_file))
+
+        print(f"  Loading patient image: {args.patient_image}")
+        patient_image = itk.imread(args.patient_image)
+
+    except (FileNotFoundError, OSError, RuntimeError) as e:
+        print(f"Error loading input data: {e}")
+        traceback.print_exc()
+        return 1
+
+    # Initialize workflow
+    print("\nInitializing heart model to patient registration workflow...")
+    try:
+        workflow = WorkflowRegisterHeartModelToPatient(
+            template_model=template_model,
+            template_labelmap=template_labelmap,
+            template_labelmap_heart_muscle_ids=args.template_labelmap_muscle_ids,
+            template_labelmap_chamber_ids=args.template_labelmap_chamber_ids,
+            template_labelmap_background_ids=args.template_labelmap_background_ids,
+            patient_models=patient_models,
+            patient_image=patient_image,
+            pca_json_filename=args.pca_json,
+            pca_group_key=args.pca_group_key,
+            pca_number_of_modes=args.pca_number_of_modes,
+        )
+    except (ValueError, RuntimeError, OSError) as e:
+        print(f"Error initializing workflow: {e}")
+        traceback.print_exc()
+        return 1
+
+    try:
+        # Execute registration workflow
+        print("\nStarting registration pipeline...")
+        print("=" * 70)
+        result = workflow.run_workflow(
+            use_mask_to_mask_registration=args.use_mask_to_mask,
+            use_mask_to_image_registration=args.use_mask_to_image,
+            use_icon_registration_refinement=args.use_icon_refinement,
+        )
+
+        # Save results
+        print("\n" + "=" * 70)
+        print("Saving results...")
+
+        # Save registered model
+        registered_model = result["registered_template_model"]
+        output_model_file = os.path.join(
+            args.output_dir, f"{args.output_prefix}_model.vtu"
+        )
+        registered_model.save(output_model_file)
+        print(f"  Registered model: {output_model_file}")
+
+        # Save registered model surface
+        registered_surface = result["registered_template_model_surface"]
+        output_surface_file = os.path.join(
+            args.output_dir, f"{args.output_prefix}_model_surface.vtp"
+        )
+        registered_surface.save(output_surface_file)
+        print(f"  Registered surface: {output_surface_file}")
+
+        # Save registered labelmap if available
+        if workflow.m2i_template_labelmap is not None:
+            output_labelmap_file = os.path.join(
+                args.output_dir, f"{args.output_prefix}_labelmap.nii.gz"
+            )
+            itk.imwrite(workflow.m2i_template_labelmap, output_labelmap_file)
+            print(f"  Registered labelmap: {output_labelmap_file}")
+        elif workflow.m2m_template_labelmap is not None:
+            output_labelmap_file = os.path.join(
+                args.output_dir, f"{args.output_prefix}_labelmap.nii.gz"
+            )
+            itk.imwrite(workflow.m2m_template_labelmap, output_labelmap_file)
+            print(f"  Registered labelmap: {output_labelmap_file}")
+
+        # Save intermediate results if available
+        if workflow.icp_template_model_surface is not None:
+            output_icp_file = os.path.join(
+                args.output_dir, f"{args.output_prefix}_icp_surface.vtp"
+            )
+            workflow.icp_template_model_surface.save(output_icp_file)
+            print(f"  ICP result: {output_icp_file}")
+
+        if workflow.pca_template_model_surface is not None:
+            output_pca_file = os.path.join(
+                args.output_dir, f"{args.output_prefix}_pca_surface.vtp"
+            )
+            workflow.pca_template_model_surface.save(output_pca_file)
+            print(f"  PCA result: {output_pca_file}")
+
+        if workflow.m2m_template_model_surface is not None:
+            output_m2m_file = os.path.join(
+                args.output_dir, f"{args.output_prefix}_m2m_surface.vtp"
+            )
+            workflow.m2m_template_model_surface.save(output_m2m_file)
+            print(f"  Mask-to-mask result: {output_m2m_file}")
+
+        print("\n" + "=" * 70)
+        print("Registration completed successfully!")
+        print(f"\nAll output files saved to: {args.output_dir}")
+
+        return 0
+
+    except (RuntimeError, ValueError, OSError) as e:
+        print(f"\nError during registration: {e}")
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

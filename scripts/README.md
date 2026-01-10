@@ -20,9 +20,13 @@ pip install -e .
 
 ## Example Scripts
 
-### process_heart_gated_ct_example.py
+### convert_heart_gated_ct_to_usd.py
 
 Processes cardiac gated CT images through the complete workflow from input images to painted USD files.
+
+### register_heart_model_to_patient.py
+
+Registers a generic heart model to patient-specific imaging data and surface models using multi-stage registration (ICP, PCA, mask-based, and optional image-based refinement).
 
 ### example_colormap_usage.py
 
@@ -63,6 +67,89 @@ pytest tests/ -m "not slow and not requires_data"
 **Note:** Some tests require experimental data. See individual test files for details.
 
 ## Command-Line Interface
+
+### Heart Model to Patient Registration
+
+#### Basic Usage
+
+Register a generic heart model to patient-specific data:
+
+```bash
+python scripts/register_heart_model_to_patient.py \
+  --template-model heart_model.vtu \
+  --template-labelmap heart_labelmap.nii.gz \
+  --patient-models lv.vtp rv.vtp myo.vtp \
+  --patient-image patient_ct.nii.gz \
+  --output-dir ./results
+```
+
+#### With PCA Shape Fitting
+
+```bash
+python scripts/register_heart_model_to_patient.py \
+  --template-model heart_model.vtu \
+  --template-labelmap heart_labelmap.nii.gz \
+  --patient-models lv.vtp rv.vtp myo.vtp \
+  --patient-image patient_ct.nii.gz \
+  --pca-json pca_model.json \
+  --pca-number-of-modes 10 \
+  --output-dir ./results
+```
+
+#### With ICON Refinement
+
+```bash
+python scripts/register_heart_model_to_patient.py \
+  --template-model heart_model.vtu \
+  --template-labelmap heart_labelmap.nii.gz \
+  --patient-models lv.vtp rv.vtp \
+  --patient-image patient_ct.nii.gz \
+  --use-icon-refinement \
+  --output-dir ./results
+```
+
+#### Command-Line Arguments
+
+**Required:**
+- `--template-model PATH` - Path to template/generic heart model (.vtu, .vtk, .stl)
+- `--template-labelmap PATH` - Path to template labelmap image (.nii.gz, .nrrd, .mha)
+- `--patient-models PATH [PATH ...]` - Paths to patient-specific surface models (e.g., lv.vtp rv.vtp myo.vtp)
+- `--patient-image PATH` - Path to patient CT/MRI image (.nii.gz, .nrrd, .mha)
+- `--output-dir DIR` - Output directory for results
+
+**Template Labelmap Configuration:**
+- `--template-labelmap-muscle-ids ID [ID ...]` - Label IDs for heart muscle (default: 1)
+- `--template-labelmap-chamber-ids ID [ID ...]` - Label IDs for heart chambers (default: 2)
+- `--template-labelmap-background-ids ID [ID ...]` - Label IDs for background (default: 0)
+
+**PCA Registration Options:**
+- `--pca-json PATH` - Path to PCA JSON file for shape-based registration (optional)
+- `--pca-group-key KEY` - PCA group key in JSON file (default: All)
+- `--pca-number-of-modes NUM` - Number of PCA modes to use (default: 0, uses all if PCA enabled)
+
+**Registration Configuration:**
+- `--use-mask-to-mask` / `--no-mask-to-mask` - Enable/disable mask-to-mask deformable registration (default: enabled)
+- `--use-mask-to-image` / `--no-mask-to-image` - Enable/disable mask-to-image refinement (default: enabled)
+- `--use-icon-refinement` - Enable ICON registration refinement (default: disabled)
+
+**Output Options:**
+- `--output-prefix PREFIX` - Prefix for output files (default: registered)
+
+#### Output Files
+
+The registration workflow produces the following output files in the specified output directory:
+
+**Final Results:**
+- `{prefix}_model.vtu` - Final registered volumetric model
+- `{prefix}_model_surface.vtp` - Final registered surface model
+- `{prefix}_labelmap.nii.gz` - Final registered labelmap
+
+**Intermediate Results (if generated):**
+- `{prefix}_icp_surface.vtp` - Result after ICP alignment
+- `{prefix}_pca_surface.vtp` - Result after PCA shape fitting (if PCA used)
+- `{prefix}_m2m_surface.vtp` - Result after mask-to-mask deformable registration
+
+### Heart Gated CT to USD Conversion
 
 #### Basic Usage
 

@@ -158,6 +158,7 @@ Changelog = "https://github.com/aylward/PhysioMotion4d/blob/main/CHANGELOG.md"
 [project.scripts]
 physiomotion4d = "physiomotion4d.__main__:main"
 physiomotion4d-heart-gated-ct = "physiomotion4d.workflow_convert_heart_gated_ct_to_usd:main"
+physiomotion4d-register-heart-model = "physiomotion4d.workflow_register_heart_model_to_patient:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

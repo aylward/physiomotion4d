@@ -122,7 +122,11 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 
 ### Command-Line Interface
 
-After installation, PhysioMotion4D provides a command-line tool for heart-gated CT processing:
+After installation, PhysioMotion4D provides command-line tools for various workflows:
+
+#### Heart-Gated CT to USD
+
+Process 4D cardiac CT images into dynamic USD models:
 
 ```bash
 # Process a single 4D cardiac CT file
@@ -137,6 +141,30 @@ physiomotion4d-heart-gated-ct cardiac.nrrd \
     --reference-image ref.mha \
     --registration-iterations 50 \
     --output-dir ./output
+```
+
+#### Heart Model to Patient Registration
+
+Register a generic heart model to patient-specific data:
+
+```bash
+# Basic registration
+physiomotion4d-register-heart-model \
+    --template-model heart_model.vtu \
+    --template-labelmap heart_labelmap.nii.gz \
+    --patient-models lv.vtp rv.vtp myo.vtp \
+    --patient-image patient_ct.nii.gz \
+    --output-dir ./results
+
+# With PCA shape fitting
+physiomotion4d-register-heart-model \
+    --template-model heart_model.vtu \
+    --template-labelmap heart_labelmap.nii.gz \
+    --patient-models lv.vtp rv.vtp myo.vtp \
+    --patient-image patient_ct.nii.gz \
+    --pca-json pca_model.json \
+    --pca-number-of-modes 10 \
+    --output-dir ./results
 ```
 
 See the [scripts](scripts/) directory for more CLI usage examples.

@@ -2,61 +2,186 @@
 Heart Model to Patient Registration
 ====================================
 
-.. note::
-   This script is planned for a future release. Documentation will be updated when available.
-
 Overview
 ========
 
-The ``physiomotion4d-heart-model-to-patient`` script will register population-based statistical heart models to patient-specific cardiac images, enabling:
+The ``physiomotion4d-register-heart-model`` command-line tool registers generic anatomical heart models to patient-specific imaging data and surface models. This workflow enables:
 
-* Patient-specific anatomical modeling
-* Transfer of population knowledge to individual cases
-* Shape analysis and abnormality detection
-* Constrained segmentation using model priors
+* Patient-specific anatomical modeling from generic templates
+* Multi-stage registration combining ICP, PCA, and deformable methods
+* Transfer of model attributes to patient-specific geometry
+* Model-based segmentation refinement using shape priors
 
-Planned Features
-================
+The registration pipeline consists of four stages:
 
-Input Data
-----------
+1. **ICP Alignment**: Rigid/affine alignment using surface matching
+2. **PCA Registration** (optional): Statistical shape model fitting
+3. **Mask-to-Mask Registration**: Deformable registration using distance maps
+4. **Mask-to-Image Refinement** (optional): Final intensity-based refinement
 
-* **Population Model**: Statistical shape model (PCA-based)
-* **Patient Image**: 3D cardiac CT or MRI
-* **Optional**: Initial landmarks or segmentation masks
+Installation
+============
 
-Processing Steps
-----------------
+The script is included with PhysioMotion4D installation:
 
-1. Initial alignment using landmarks or image features
-2. Coarse rigid/affine registration
-3. Deformable model-to-image registration
-4. Point correspondence mapping
-5. Model parameter extraction
+.. code-block:: bash
 
-Expected Outputs
-----------------
+   pip install physiomotion4d
 
-* Registered model mesh fitted to patient anatomy
-* Transform parameters and displacement fields
-* Patient-specific shape parameters
-* Quality metrics and visualization
+Quick Start
+===========
 
-Use Cases
-=========
+Basic Usage
+-----------
 
-* **Clinical**: Patient-specific heart modeling for surgical planning
-* **Research**: Population analysis and shape statistics
-* **Education**: Demonstration of anatomical variations
-* **Validation**: Comparison of manual vs model-based segmentation
+Register a generic heart model to patient data:
 
-Workflow Class
-==============
+.. code-block:: bash
 
-For Python API access, see :class:`physiomotion4d.WorkflowRegisterHeartModelToPatient` in :doc:`../developer/workflows`.
+   physiomotion4d-register-heart-model \
+       --template-model heart_model.vtu \
+       --template-labelmap heart_labelmap.nii.gz \
+       --patient-models lv.vtp rv.vtp myo.vtp \
+       --patient-image patient_ct.nii.gz \
+       --output-dir ./results
+
+With PCA Shape Fitting
+----------------------
+
+Include statistical shape model fitting:
+
+.. code-block:: bash
+
+   physiomotion4d-register-heart-model \
+       --template-model heart_model.vtu \
+       --template-labelmap heart_labelmap.nii.gz \
+       --patient-models lv.vtp rv.vtp myo.vtp \
+       --patient-image patient_ct.nii.gz \
+       --pca-json pca_model.json \
+       --pca-number-of-modes 10 \
+       --output-dir ./results
+
+Command-Line Arguments
+======================
+
+Required Arguments
+------------------
+
+``--template-model PATH``
+   Path to template/generic heart model file (.vtu, .vtk, .stl)
+
+``--template-labelmap PATH``
+   Path to template labelmap image (.nii.gz, .nrrd, .mha)
+
+``--patient-models PATH [PATH ...]``
+   Paths to patient-specific surface models (e.g., lv.vtp rv.vtp myo.vtp)
+
+``--patient-image PATH``
+   Path to patient CT/MRI image (.nii.gz, .nrrd, .mha)
+
+``--output-dir DIR``
+   Output directory for results
+
+See :class:`physiomotion4d.WorkflowRegisterHeartModelToPatient` for API documentation.
+
+Template Labelmap Configuration
+--------------------------------
+
+``--template-labelmap-muscle-ids ID [ID ...]``
+   Label IDs for heart muscle in template labelmap (default: 1)
+
+``--template-labelmap-chamber-ids ID [ID ...]``
+   Label IDs for heart chambers in template labelmap (default: 2)
+
+``--template-labelmap-background-ids ID [ID ...]``
+   Label IDs for background in template labelmap (default: 0)
+
+PCA Registration Options
+-------------------------
+
+``--pca-json PATH``
+   Path to PCA JSON file for shape-based registration (optional)
+
+``--pca-group-key KEY``
+   PCA group key in JSON file (default: All)
+
+``--pca-number-of-modes NUM``
+   Number of PCA modes to use (default: 0, uses all if PCA enabled)
+
+Registration Configuration
+---------------------------
+
+``--no-mask-to-mask``
+   Disable mask-to-mask deformable registration (default: enabled)
+
+``--no-mask-to-image``
+   Disable mask-to-image refinement registration (default: enabled)
+
+``--use-icon-refinement``
+   Enable ICON deep learning registration refinement (default: disabled)
+
+Output Options
+--------------
+
+``--output-prefix PREFIX``
+   Prefix for output files (default: registered)
 
 Related Scripts
 ===============
 
 * :doc:`heart_gated_ct` - Process cardiac gated CT data
 * :doc:`vtk_to_usd` - Convert model meshes to USD format
+* :doc:`lung_gated_ct` - Process lung gated CT data
+
+Examples
+========
+
+Example 1: Basic Registration
+------------------------------
+
+.. code-block:: bash
+
+   physiomotion4d-register-heart-model \
+       --template-model heart_model.vtu \
+       --template-labelmap heart_labelmap.nii.gz \
+       --patient-models lv.vtp rv.vtp myo.vtp \
+       --patient-image patient_ct.nii.gz \
+       --output-dir results/basic
+
+Example 2: PCA-Based Registration
+----------------------------------
+
+.. code-block:: bash
+
+   physiomotion4d-register-heart-model \
+       --template-model heart_model.vtu \
+       --template-labelmap heart_labelmap.nii.gz \
+       --patient-models lv.vtp rv.vtp \
+       --patient-image patient_ct.nii.gz \
+       --pca-json pca_model.json \
+       --pca-number-of-modes 10 \
+       --output-dir results/pca
+
+Output Files
+============
+
+Final Results
+-------------
+
+* ``{prefix}_model.vtu`` - Final registered volumetric model
+* ``{prefix}_model_surface.vtp`` - Final registered surface mesh
+* ``{prefix}_labelmap.nii.gz`` - Final registered labelmap
+
+Intermediate Results
+--------------------
+
+* ``{prefix}_icp_surface.vtp`` - Result after ICP alignment
+* ``{prefix}_pca_surface.vtp`` - Result after PCA fitting (if used)
+* ``{prefix}_m2m_surface.vtp`` - Result after mask-to-mask registration
+
+See Also
+========
+
+* :doc:`../api/workflows` - Workflow class API reference
+* :doc:`heart_gated_ct` - Process cardiac gated CT data
+* :doc:`overview` - CLI scripts overview

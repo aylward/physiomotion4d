@@ -30,6 +30,8 @@ Current Scripts
      - Description
    * - :doc:`heart_gated_ct`
      - Process cardiac gated CT to animated heart models with physiological motion
+   * - :doc:`heart_model_to_patient`
+     - Register generic heart models to patient-specific imaging data and surface models
 
 Upcoming Scripts
 ----------------
@@ -42,8 +44,6 @@ The following scripts are planned for future releases:
 
    * - Script
      - Description
-   * - :doc:`heart_model_to_patient`
-     - Register population heart models to patient-specific images
    * - :doc:`lung_gated_ct`
      - Process respiratory-gated CT to animated lung models
    * - :doc:`4dct_reconstruction`
