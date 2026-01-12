@@ -6,7 +6,7 @@ PhysioMotion4D Documentation
 
 **Generate anatomic models in Omniverse with physiological motion derived from 4D medical images.**
 
-PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT scans (particularly heart and lung gated CT data) into dynamic 3D models for visualization in NVIDIA Omniverse. The package provides state-of-the-art deep learning-based image processing, segmentation, registration, and USD file generation capabilities.
+PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4D medical scans (particularly heart and lung gated CT data) into dynamic 3D models for visualization in NVIDIA Omniverse. The package provides state-of-the-art deep learning-based image processing, segmentation, registration, and USD file generation capabilities.
 
 .. image:: https://img.shields.io/pypi/v/physiomotion4d.svg
    :target: https://pypi.org/project/physiomotion4d/
@@ -35,7 +35,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 🚀 Key Features
 ===============
 
-* **Complete 4D Medical Imaging Pipeline**: End-to-end processing from 4D CT data to animated USD models
+* **Complete 4D Medical Imaging Pipeline**: End-to-end processing from 4D CT/MR data to animated USD models
 * **Multiple AI Segmentation Methods**: TotalSegmentator, VISTA-3D, and ensemble approaches
 * **Deep Learning Registration**: GPU-accelerated image registration using Icon algorithm
 * **NVIDIA Omniverse Integration**: Direct USD file export for medical visualization
@@ -45,8 +45,8 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 📋 Supported Applications
 ==========================
 
-* **Cardiac Imaging**: Heart-gated CT processing with cardiac motion analysis
-* **Pulmonary Imaging**: Lung 4D-CT processing with respiratory motion tracking
+* **Cardiac Imaging**: Heart-gated CT/MR processing with cardiac motion analysis
+* **Pulmonary Imaging**: Lung 4D-CT/MR processing with respiratory motion tracking
 * **Medical Education**: Interactive 3D anatomical models with physiological motion
 * **Research Visualization**: Advanced medical imaging research in Omniverse
 * **Clinical Planning**: Dynamic anatomical models for treatment planning
