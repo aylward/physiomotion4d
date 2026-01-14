@@ -192,6 +192,30 @@ Documentation Style
 * Include code examples with proper syntax highlighting
 * Add docstrings to all public classes and methods
 
+Contributing Scripts vs Experiments
+------------------------------------
+
+When contributing new workflows or examples:
+
+**Production Code (scripts/ directory):**
+
+* ✅ **DO contribute here** for production-ready implementations
+* Must include proper error handling and validation
+* Should follow all code style and testing requirements
+* Serves as definitive usage examples for users
+* Will be referenced in documentation
+
+**Research Code (experiments/ directory):**
+
+* 💡 **May contribute here** for exploratory research and design experiments
+* Can have hardcoded paths and minimal error handling
+* Should document what was learned and how it informed production code
+* Helps others understand adaptation possibilities for new domains
+* Should reference corresponding production implementation in ``scripts/``
+
+**Key Principle:** If users might copy your code for production use, it belongs in ``scripts/``.
+If it's a proof-of-concept demonstrating what's possible, it belongs in ``experiments/``.
+
 Docstring Format
 ----------------
 

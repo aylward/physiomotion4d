@@ -51,6 +51,16 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 * **Research Visualization**: Advanced medical imaging research in Omniverse
 * **Clinical Planning**: Dynamic anatomical models for treatment planning
 
+.. tip::
+   
+   **Getting Started with Code Examples:**
+   
+   This documentation uses examples from the ``scripts/`` directory, which contains
+   production-ready workflows and proper library usage patterns. The repository also includes
+   an ``experiments/`` directory with research prototypes that can inspire adaptations to
+   new digital twin models and anatomical regions—see the experiments README for details on
+   how to adapt these conceptual patterns to your own applications.
+
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started

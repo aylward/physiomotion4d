@@ -255,6 +255,17 @@ Now that you've completed your first workflow:
 * Understand :doc:`api/registration/index` methods
 * Check the :doc:`api/base` for advanced usage
 
+.. important::
+   
+   **About the Scripts and Experiments Directories:**
+   
+   * **scripts/** ⭐ **PRIMARY RESOURCE** - Production-ready workflows, proper class usage, and
+     definitive examples of library capabilities. Always refer to scripts for production implementations.
+   
+   * **experiments/** - Research prototypes and design explorations. These demonstrate conceptual
+     approaches for adapting workflows to new anatomical regions and digital twin applications,
+     but may contain outdated APIs and should not be copied directly into production code.
+
 Common Issues
 =============
 

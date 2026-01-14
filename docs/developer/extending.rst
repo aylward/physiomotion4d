@@ -15,6 +15,21 @@ PhysioMotion4D is designed for extension. You can:
 * Integrate with external tools and pipelines
 * Contribute improvements back to the project
 
+.. important::
+   
+   **Using Scripts and Experiments as References:**
+   
+   When extending PhysioMotion4D, use these repository resources appropriately:
+   
+   * **scripts/** ⭐ **START HERE** - Production-quality implementations showing proper class usage,
+     error handling, and parameter specifications. Use these as templates for your extensions.
+   
+   * **experiments/** - Research prototypes demonstrating conceptual workflows that can inform
+     adaptation to new digital twin models, anatomical regions, and imaging modalities. Study these
+     for architectural inspiration, but always refer to ``scripts/`` for proper API usage.
+     
+   **Key Principle:** Experiments show *what is possible*, scripts show *how to do it correctly*.
+
 Extension Patterns
 ==================
 

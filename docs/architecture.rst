@@ -4,6 +4,13 @@ Architecture
 
 Overview of PhysioMotion4D's system architecture and design principles.
 
+.. note::
+   
+   **Implementation References:**
+   
+   * **scripts/** - See production implementations of the architectural patterns described here
+   * **experiments/** - See research prototypes showing evolution of these design principles
+
 System Overview
 ===============
 

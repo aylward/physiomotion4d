@@ -5,6 +5,16 @@ Examples
 This page provides quick examples for common PhysioMotion4D use cases. For detailed workflow guides,
 see the :doc:`cli_scripts/overview` section.
 
+.. note::
+   
+   **For Production Workflows:** The examples on this page and in the ``scripts/`` directory are the
+   definitive source for proper library usage, class instantiation, and best practices.
+   
+   The ``experiments/`` directory contains research prototypes that informed development but should
+   **not** be used as usage examples. They may contain outdated APIs, hardcoded paths, and minimal
+   error handling. Consult these experiments only as **conceptual references** when adapting
+   workflows to new anatomical regions or digital twin applications.
+
 Complete Workflow Examples
 ===========================
 
