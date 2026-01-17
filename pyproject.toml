@@ -132,6 +132,10 @@ docs = [
     "sphinx-copybutton>=0.5.2",
     "sphinx-tabs>=3.4.7",
     "myst-parser>=4.0.0",
+
+    # Docutils 0.22 removed some node attributes (e.g. "backrefs") that
+    # sphinx-tabs expects, causing a KeyError during builds.
+    "docutils<0.22",
     
     # Additional dependencies
     "linkify-it-py>=2.0.0",
