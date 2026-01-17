@@ -1,13 +1,10 @@
 name: Slow Tests
 
-# NOTE: This workflow requires a self-hosted GPU runner to be available.
-# It will wait indefinitely in the queue if no runner is available.
-# Only scheduled runs and manual triggers are enabled.
+# DISABLED: This workflow requires a self-hosted GPU runner to be available.
+# Currently disabled because no GPU-enabled runners are available.
+# Can be manually triggered via workflow_dispatch if a GPU runner becomes available.
 
 on:
-  schedule:
-    # Run nightly at 2 AM UTC (only if runner is available)
-    - cron: '0 2 * * *'
   workflow_dispatch:
 
 jobs:
