@@ -6,12 +6,10 @@ This test depends on test_contour_tools and uses the extracted contours
 to test USD conversion functionality.
 """
 
-from pathlib import Path
-
 import itk
 import pytest
 import pyvista as pv
-from pxr import Usd, UsdGeom
+from pxr import UsdGeom
 
 from physiomotion4d.convert_vtk_4d_to_usd_polymesh import ConvertVTK4DToUSDPolyMesh
 
@@ -47,14 +45,13 @@ class TestConvertVTK4DToUSDPolyMesh:
                 contours.save(str(output_file))
 
             return meshes
-        else:
-            # Load existing contours
-            print("\nLoading existing contour files...")
-            meshes = [
-                pv.read(str(contour_output_dir / "heart_contours_slice000.vtp")),
-                pv.read(str(contour_output_dir / "heart_contours_slice001.vtp")),
-            ]
-            return meshes
+        # Load existing contours
+        print("\nLoading existing contour files...")
+        meshes = [
+            pv.read(str(contour_output_dir / "heart_contours_slice000.vtp")),
+            pv.read(str(contour_output_dir / "heart_contours_slice001.vtp")),
+        ]
+        return meshes
 
     def test_converter_initialization(self):
         """Test that ConvertVTK4DToUSDPolyMesh initializes correctly."""
@@ -105,9 +102,9 @@ class TestConvertVTK4DToUSDPolyMesh:
 
         # Verify stage contents (actual path includes /World prefix)
         prim = stage.GetPrimAtPath("/World/HeartSingle")
-        assert prim.IsValid(), f"Root prim not found at /World/HeartSingle"
+        assert prim.IsValid(), "Root prim not found at /World/HeartSingle"
 
-        print(f"Single time point converted to USD")
+        print("Single time point converted to USD")
         print(f"  Output: {output_file}")
         print(f"  File size: {output_file.stat().st_size / 1024:.2f} KB")
 
@@ -133,14 +130,14 @@ class TestConvertVTK4DToUSDPolyMesh:
 
         # Verify time samples (actual path includes /World prefix)
         prim = stage.GetPrimAtPath("/World/HeartMulti")
-        assert prim.IsValid(), f"Root prim not found at /World/HeartMulti"
+        assert prim.IsValid(), "Root prim not found at /World/HeartMulti"
 
         # Check that mesh exists (checking the Transform group)
         transform_path = "/World/HeartMulti/Transform_heart_multi_time"
         transform_prim = stage.GetPrimAtPath(transform_path)
         assert transform_prim.IsValid(), f"Transform not found at {transform_path}"
 
-        print(f"Multiple time points converted to USD")
+        print("Multiple time points converted to USD")
         print(f"  Output: {output_file}")
         print(f"  File size: {output_file.stat().st_size / 1024:.2f} KB")
 
@@ -179,7 +176,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         transform_prim = stage.GetPrimAtPath(transform_path)
         assert transform_prim.IsValid(), f"Transform not found at {transform_path}"
 
-        print(f"Mesh with deformation converted to USD")
+        print("Mesh with deformation converted to USD")
         print(f"  Output: {output_file}")
 
     def test_convert_with_colormap(self, contour_meshes, test_directories):
@@ -215,8 +212,8 @@ class TestConvertVTK4DToUSDPolyMesh:
         transform_prim = stage.GetPrimAtPath(transform_path)
         assert transform_prim.IsValid(), f"Transform not found at {transform_path}"
 
-        print(f"Mesh with colormap converted to USD")
-        print(f"  Colormap: plasma")
+        print("Mesh with colormap converted to USD")
+        print("  Colormap: plasma")
         print(f"  Output: {output_file}")
 
     def test_convert_unstructured_grid_to_surface(self, test_directories):
@@ -262,7 +259,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         assert stage is not None, "USD stage not created"
         assert output_file.exists(), "USD file not created"
 
-        print(f"UnstructuredGrid converted to surface USD")
+        print("UnstructuredGrid converted to surface USD")
         print(f"  Output: {output_file}")
 
     def test_usd_file_structure(self, contour_meshes, test_directories):
@@ -284,18 +281,18 @@ class TestConvertVTK4DToUSDPolyMesh:
 
         # Check root prim (actual path includes /World prefix)
         root_prim = stage.GetPrimAtPath("/World/HeartStructure")
-        assert root_prim.IsValid(), f"Root prim not found at /World/HeartStructure"
+        assert root_prim.IsValid(), "Root prim not found at /World/HeartStructure"
         assert UsdGeom.Xform(root_prim), "Root should be an Xform"
 
         # Check transform/mesh structure
         transform_prim = stage.GetPrimAtPath(
             "/World/HeartStructure/Transform_heart_structure_test"
         )
-        assert (
-            transform_prim.IsValid()
-        ), f"Transform prim not found at /World/HeartStructure/Transform_heart_structure_test"
+        assert transform_prim.IsValid(), (
+            "Transform prim not found at /World/HeartStructure/Transform_heart_structure_test"
+        )
 
-        print(f"USD file structure verified")
+        print("USD file structure verified")
         print(f"  Root: {root_prim.GetPath()}")
         print(f"  Transform: {transform_prim.GetPath()}")
 
@@ -333,7 +330,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         # Should have child meshes for each time step
         children = parent_prim.GetChildren() if parent_prim.IsValid() else []
 
-        print(f"Time-varying topology handled")
+        print("Time-varying topology handled")
         print(f"  Parent prim: {parent_path}")
         print(f"  Child prims: {len(children)}")
         print(f"  Output: {output_file}")
@@ -379,7 +376,7 @@ class TestConvertVTK4DToUSDPolyMesh:
 
                 print(f"  {anatomy}: {output_file}")
 
-            print(f"Batch conversion complete")
+            print("Batch conversion complete")
         else:
             pytest.skip("Not enough anatomies with sufficient voxels")
 

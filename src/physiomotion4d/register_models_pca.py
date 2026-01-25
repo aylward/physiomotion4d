@@ -1,12 +1,10 @@
 import json
 import logging
 from pathlib import Path
+
 from typing import Optional
 
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
+from typing_extensions import Self
 
 import itk
 import numpy as np
@@ -51,8 +49,8 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
     Example:
         >>> # Load PCA model data
-        >>> pca_template_model = pv.read("pca_All_mean.vtk")
-        >>> with open("pca.json", 'r') as f:
+        >>> pca_template_model = pv.read('pca_All_mean.vtk')
+        >>> with open('pca.json', 'r') as f:
         ...     pca_data = json.load(f)
         >>> pca_group_data = pca_data['All']
         >>> pca_std_deviations = np.sqrt(np.array(pca_group_data['eigenvalues']))
@@ -66,16 +64,14 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         ... )
         >>>
         >>> # Run full registration pipeline
-        >>> result = registrar.register(
-        ...     pca_number_of_modes=10
-        ... )
+        >>> result = registrar.register(pca_number_of_modes=10)
         >>>
         >>> # Save registered model
-        >>> result['registered_model'].save("registered_heart.vtk")
+        >>> result['registered_model'].save('registered_heart.vtk')
         >>>
         >>> # Print optimization results
-        >>> print(f"Final mean distance: {result['mean_distance']:.2f}")
-        >>> print(f"PCA coefficients: {result['pca_coefficients']}")
+        >>> print(f'Final mean distance: {result["mean_distance"]:.2f}')
+        >>> print(f'PCA coefficients: {result["pca_coefficients"]}')
     """
 
     def __init__(
@@ -161,16 +157,23 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self.pca_template_model_point_subsample = pca_template_model_point_subsample
 
         # outputs
-        self.registered_model_pca_coefficients: np.ndarray | None = None
-        self.registered_model: pv.UnstructuredGrid | None = None
+        self.registered_model_pca_coefficients: Optional[np.ndarray] = None
+        self.registered_model: Optional[pv.UnstructuredGrid] = None
         self.registered_model_mean_distance: float = 0.0
-        self.forward_point_transform: itk.DisplacementFieldTransform | None = None
-        self.inverse_point_transform: itk.DisplacementFieldTransform | None = None
+        self.register_model_pca_deformation: Optional[np.ndarray] = None
+        self.forward_point_transform: Optional[itk.DisplacementFieldTransform] = None
+        self.inverse_point_transform: Optional[itk.DisplacementFieldTransform] = None
 
-        self._template_model_pca_deformation_field_image: itk.Image | None = None
-        self._deformation_field_interpolator_x = None
-        self._deformation_field_interpolator_y = None
-        self._deformation_field_interpolator_z = None
+        self._template_model_pca_deformation_field_image: Optional[itk.Image] = None
+        self._deformation_field_interpolator_x: Optional[
+            itk.LinearInterpolateImageFunction
+        ] = None
+        self._deformation_field_interpolator_y: Optional[
+            itk.LinearInterpolateImageFunction
+        ] = None
+        self._deformation_field_interpolator_z: Optional[
+            itk.LinearInterpolateImageFunction
+        ] = None
 
         # Image interpolator (created when needed)
         self._interpolator: Optional[itk.LinearInterpolateImageFunction] = None
@@ -187,7 +190,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         cls,
         pca_template_model: pv.UnstructuredGrid,
         pca_json_filename: str,
-        pca_group_key: str = 'All',
+        pca_group_key: str = "All",
         pca_number_of_modes: int = 0,
         pca_template_model_point_subsample: int = 4,
         post_pca_transform: Optional[itk.Transform] = None,
@@ -231,7 +234,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             ...     pca_json_filename='path/to/pca.json',
             ...     pca_group_key='All',
             ...     fixed_model=fixed_model,
-            ...     reference_image=reference_image
+            ...     reference_image=reference_image,
             ... )
         """
         # Create a logger for the classmethod since superclassclasss hasn'tt
@@ -242,7 +245,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
         # Check if JSON file exists
         if not json_path.exists():
-            self.log_error(f"PCA JSON file not found: {pca_json_filename}")
+            logger.error(f"PCA JSON file not found: {pca_json_filename}")
             raise FileNotFoundError(f"PCA JSON file not found: {pca_json_filename}")
 
         logger.info("Loading PCA data from SlicerSALT format...")
@@ -251,7 +254,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
         # Load PCA data from JSON
         logger.info("Reading JSON file...")
-        with open(json_path, 'r', encoding='utf-8') as f:
+        with open(json_path, encoding="utf-8") as f:
             pca_data = json.load(f)
 
         # Extract PCA group data
@@ -265,19 +268,19 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         pca_group_data = pca_data[pca_group_key]
 
         # Extract data_projection_std
-        if 'data_projection_std' not in pca_group_data:
+        if "data_projection_std" not in pca_group_data:
             raise ValueError(
                 f"'data_projection_std' field not found in group '{pca_group_key}' data"
             )
-        pca_std_deviations = np.array(pca_group_data['data_projection_std'])
+        pca_std_deviations = np.array(pca_group_data["data_projection_std"])
         logger.info("  Loaded %d standard deviations", len(pca_std_deviations))
 
         # Extract pca_eigenvector components
-        if 'components' not in pca_group_data:
+        if "components" not in pca_group_data:
             raise ValueError(
                 f"'components' field not found in group '{pca_group_key}' data"
             )
-        pca_eigenvectors = np.array(pca_group_data['components'], dtype=np.float64)
+        pca_eigenvectors = np.array(pca_group_data["components"], dtype=np.float64)
         logger.info(f"  Loaded pca_eigenvectors with shape {pca_eigenvectors.shape}")
 
         expected_pca_eigenvector_size = pca_template_model.n_points * 3
@@ -326,7 +329,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         )
 
     def set_fixed_model(
-        self, fixed_model: pv.UnstructuredGrid, reference_image: itk.Image
+        self, fixed_model: pv.UnstructuredGrid, reference_image: Optional[itk.Image]
     ) -> None:
         """Set the fixed model for registration.
 
@@ -343,7 +346,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         )
         self._interpolator = None
 
-    def set_fixed_distance_map(self, fixed_distance_map: itk.Image) -> None:
+    def set_fixed_distance_map(self, fixed_distance_map: Optional[itk.Image]) -> None:
         """Set the reference image for registration.
 
         If this is set, the fixed model will be set to None.
@@ -409,6 +412,10 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         total_distance = 0.0
         center = np.zeros(3)
         point = itk.Point[itk.D, 3]()
+        assert self.fixed_distance_map is not None, "fixed_distance_map must be set"
+        assert self._pca_template_model_points_itk is not None, (
+            "ITK points must be initialized"
+        )
         image_size = self.fixed_distance_map.GetBufferedRegion().GetSize()
         for i, base_point in enumerate(self._pca_template_model_points_itk):
             if i % self.pca_template_model_point_subsample != 0:
@@ -451,7 +458,12 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         mean_distance = total_distance / n_valid_points
         center /= n_valid_points
 
-        if self.log_level <= logging.DEBUG or self._metric_call_count % 100 == 0:
+        log_level_int = (
+            self.log_level
+            if isinstance(self.log_level, int)
+            else logging.getLevelName(self.log_level)
+        )
+        if log_level_int <= logging.DEBUG or self._metric_call_count % 100 == 0:
             self.log_info(
                 "   Metric %d: %s -> %f",
                 (self._metric_call_count + 1),
@@ -500,7 +512,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self,
         pca_number_of_modes: int = 0,
         pca_coefficient_bounds: float = 3.0,
-        method: str = 'L-BFGS-B',
+        method: str = "L-BFGS-B",
         max_iterations: int = 50,
     ) -> tuple[np.ndarray, float]:
         """Optimize PCA coefficients
@@ -545,15 +557,20 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         for _ in range(pca_number_of_modes):
             bounds.append((-pca_coefficient_bounds, pca_coefficient_bounds))
 
-        disp = self.log_level <= logging.INFO
+        log_level_int = (
+            self.log_level
+            if isinstance(self.log_level, int)
+            else logging.getLevelName(self.log_level)
+        )
+        disp = log_level_int <= logging.INFO
 
         self.log_info("Running optimization...")
-        result_pca = minimize(
+        result_pca = minimize(  # type: ignore[call-overload]
             lambda params: self._mean_distance_metric(params),
             np.zeros(self.pca_number_of_modes),
             method=method,
             bounds=bounds,
-            options={'maxiter': max_iterations, 'disp': disp},
+            options={"maxiter": max_iterations, "disp": disp},
         )
 
         optimized_pca_coefficients = result_pca.x
@@ -681,12 +698,22 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             ].New()
             self._deformation_field_interpolator_z.SetInputImage(field_z_image)
 
+        assert self._template_model_pca_deformation_field_image is not None, (
+            "Deformation field image must be set"
+        )
+        assert self._deformation_field_interpolator_x is not None, (
+            "Interpolator x must be initialized"
+        )
+        assert self._deformation_field_interpolator_y is not None, (
+            "Interpolator y must be initialized"
+        )
+        assert self._deformation_field_interpolator_z is not None, (
+            "Interpolator z must be initialized"
+        )
         cindx = self._template_model_pca_deformation_field_image.TransformPhysicalPointToContinuousIndex(
             point
         )
-        size = (
-            self._template_model_pca_deformation_field_image.GetLargestPossibleRegion().GetSize()
-        )
+        size = self._template_model_pca_deformation_field_image.GetLargestPossibleRegion().GetSize()
         if (
             cindx[0] < 0
             or cindx[0] >= size[0]
@@ -714,6 +741,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         transformed_point[2] = float(point[2] + deformation_z)
 
         if include_post_pca_transform:
+            assert self.post_pca_transform is not None, "post_pca_transform must be set"
             transformed_point = self.post_pca_transform.TransformPoint(
                 transformed_point
             )
@@ -728,6 +756,9 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 - 'forward_point_transform': Forward displacement field transform
                 - 'inverse_point_transform': Inverse displacement field transform
         """
+        assert self.register_model_pca_deformation is not None, (
+            "PCA deformation must be computed"
+        )
         self._template_model_pca_deformation_field_image = (
             self._contour_tools.create_deformation_field(
                 np.array(self.pca_template_model.points),
@@ -750,15 +781,15 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             )
         )
         return {
-            'forward_point_transform': self.forward_point_transform,
-            'inverse_point_transform': self.inverse_point_transform,
+            "forward_point_transform": self.forward_point_transform,
+            "inverse_point_transform": self.inverse_point_transform,
         }
 
     def register(
         self,
         pca_number_of_modes: int = 0,
         pca_coefficient_bounds: float = 3.0,
-        method: str = 'L-BFGS-B',
+        method: str = "L-BFGS-B",
         max_iterations: int = 50,
     ) -> dict:
         """Optimize PCA coefficients to deform the model to better match
@@ -782,10 +813,8 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             ValueError: If reference image is not set
 
         Example:
-            >>> result = registrar.register(
-            ...     pca_number_of_modes=10
-            ... )
-            >>> result['registered_model'].save("registered_heart.vtk")
+            >>> result = registrar.register(pca_number_of_modes=10)
+            >>> result['registered_model'].save('registered_heart.vtk')
         """
         if self.fixed_distance_map is None:
             raise ValueError("Reference image must be set before registration")
@@ -812,7 +841,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
         # Return results as dictionary
         return {
-            'registered_model': self.registered_model,
-            'pca_coefficients': self.registered_model_pca_coefficients,
-            'mean_distance': self.registered_model_mean_distance,
+            "registered_model": self.registered_model,
+            "pca_coefficients": self.registered_model_pca_coefficients,
+            "mean_distance": self.registered_model_mean_distance,
         }

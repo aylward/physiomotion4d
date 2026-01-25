@@ -3,9 +3,8 @@ This module contains the USDAnatomyTools class, which is used to enhance
 the anatomy meshes in a USD file.
 """
 
-import argparse
 import logging
-import os
+from typing import Any, Mapping
 
 from pxr import Sdf, Usd, UsdGeom, UsdShade
 
@@ -18,7 +17,7 @@ class USDAnatomyTools(PhysioMotion4DBase):
     file.
     """
 
-    def __init__(self, stage, log_level: int | str = logging.INFO):
+    def __init__(self, stage: Any, log_level: int | str = logging.INFO) -> None:
         """Initialize USDAnatomyTools.
 
         Args:
@@ -179,7 +178,9 @@ class USDAnatomyTools(PhysioMotion4DBase):
             "coat_weight": 0.1,
         }
 
-    def _apply_surgical_materials(self, prim, material_params):
+    def _apply_surgical_materials(
+        self, prim: Any, material_params: Mapping[str, Any]
+    ) -> None:
         """Corrected material application with Omniverse-specific fixes"""
 
         # 1. Unique material path using prim's full path hierarchy
@@ -248,7 +249,7 @@ class USDAnatomyTools(PhysioMotion4DBase):
         binding_api = UsdShade.MaterialBindingAPI.Apply(prim)
         binding_api.Bind(material)
 
-    def enhance_meshes(self, segmentator):
+    def enhance_meshes(self, segmentator: Any) -> None:
         """Find and enhance all heart meshes"""
 
         heart_mask_ids = list(segmentator.heart_mask_ids.values())
@@ -311,6 +312,7 @@ class USDAnatomyTools(PhysioMotion4DBase):
                     break
 
             if anatomy_prim_found:
+                assert anatomy_params is not None
                 mesh_prim = UsdGeom.Mesh(prim)
                 transform_prim = UsdGeom.Xform(prim)
                 if transform_prim and not mesh_prim:
@@ -358,26 +360,7 @@ class USDAnatomyTools(PhysioMotion4DBase):
                     break
 
             if anatomy_prim_found:
+                assert anatomy_params is not None
                 mesh_prim = UsdGeom.Mesh(prim)
                 if mesh_prim:
                     self._apply_surgical_materials(prim, anatomy_params)
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Paint anatomy meshes in a USD file")
-    parser.add_argument("usd_file_path", type=str, help="Path to the USD file")
-    parser.add_argument(
-        "mask_ids", type=int, nargs="+", help="IDs of the heart meshes to paint"
-    )
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-
-    stage = Usd.Stage.Open(args.usd_file_path)
-    painter = USDAnatomyTools(stage)
-    painter.enhance_meshes(seg)
-    filename = os.path.basename(args.usd_file_path).split(".")[0]
-    stage.GetRootLayer().Save(f"{filename}_painted.usda")
-

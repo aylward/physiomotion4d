@@ -1,11 +1,14 @@
 """Unified facade for VTK to USD conversion supporting both PolyData and UnstructuredGrid."""
 
 import logging
+from collections.abc import Sequence
+from typing import Optional
 
 import pyvista as pv
 import vtk
 from pxr import Usd
 
+from .convert_vtk_4d_to_usd_base import ConvertVTK4DToUSDBase
 from .convert_vtk_4d_to_usd_polymesh import ConvertVTK4DToUSDPolyMesh
 from .convert_vtk_4d_to_usd_tetmesh import ConvertVTK4DToUSDTetMesh
 from .physiomotion4d_base import PhysioMotion4DBase
@@ -37,9 +40,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
     Example Usage:
         >>> # Create converter with meshes
         >>> converter = ConvertVTK4DToUSDAll(
-        ...     data_basename="CardiacModel",
-        ...     input_polydata=meshes,
-        ...     mask_ids=None
+        ...     data_basename='CardiacModel', input_polydata=meshes, mask_ids=None
         ... )
         >>>
         >>> # List available point data arrays
@@ -48,24 +49,24 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         >>>
         >>> # Configure colormap
         >>> converter.set_colormap(
-        ...     color_by_array="transmembrane_potential",
-        ...     colormap="rainbow",
-        ...     intensity_range=(-80.0, 20.0)
+        ...     color_by_array='transmembrane_potential',
+        ...     colormap='rainbow',
+        ...     intensity_range=(-80.0, 20.0),
         ... )
         >>>
         >>> # Convert to USD (automatically handles topology changes)
-        >>> stage = converter.convert("output.usd")
+        >>> stage = converter.convert('output.usd')
     """
 
     def __init__(
         self,
-        data_basename,
-        input_polydata,
-        mask_ids=None,
-        compute_normals=False,
-        convert_to_surface=False,
+        data_basename: str,
+        input_polydata: Sequence[pv.DataSet | vtk.vtkDataSet],
+        mask_ids: Optional[dict[int, str]] = None,
+        compute_normals: bool = False,
+        convert_to_surface: bool = False,
         log_level: int | str = logging.INFO,
-    ):
+    ) -> None:
         """
         Initialize converter and store parameters for later routing.
 
@@ -89,14 +90,11 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         self.convert_to_surface = convert_to_surface
 
         # Colormap settings (will be applied to specialized converter)
-        self.color_by_array = None
-        self.colormap = 'plasma'
-        self.intensity_range = None
+        self.color_by_array: Optional[str] = None
+        self.colormap: str = "plasma"
+        self.intensity_range: Optional[tuple[float, float]] = None
 
-        # Flag for surface conversion
-        self.convert_to_surface = False
-
-    def list_available_arrays(self):
+    def list_available_arrays(self) -> dict:
         """
         List all point data arrays available for coloring across all time steps.
 
@@ -114,8 +112,11 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         return temp_converter.list_available_arrays()
 
     def set_colormap(
-        self, color_by_array=None, colormap='plasma', intensity_range=None
-    ):
+        self,
+        color_by_array: Optional[str] = None,
+        colormap: str = "plasma",
+        intensity_range: Optional[tuple[float, float]] = None,
+    ) -> "ConvertVTK4DToUSD":
         """
         Configure colormap settings for vertex coloring.
 
@@ -143,7 +144,10 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         return self
 
     def convert(
-        self, output_usd_file, convert_to_surface=None, compute_normals=None
+        self,
+        output_usd_file: str,
+        convert_to_surface: Optional[bool] = None,
+        compute_normals: Optional[bool] = None,
     ) -> Usd.Stage:
         """
         Convert meshes to USD, automatically routing by mesh type.
@@ -189,7 +193,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         # Case 1: Only PolyData (or surface-converted UGrid)
         if has_polydata and not has_ugrid:
             self.log_info("Routing to PolyMesh converter (surface meshes)")
-            converter = ConvertVTK4DToUSDPolyMesh(
+            poly_converter = ConvertVTK4DToUSDPolyMesh(
                 self.data_basename,
                 self.input_polydata,
                 self.mask_ids,
@@ -197,15 +201,15 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
                 compute_normals=self.compute_normals,
                 log_level=self.log_level,
             )
-            converter.set_colormap(
+            poly_converter.set_colormap(
                 self.color_by_array, self.colormap, self.intensity_range
             )
-            return converter.convert(output_usd_file)
+            return poly_converter.convert(output_usd_file)
 
         # Case 2: Only UnstructuredGrid (tetmesh)
-        elif has_ugrid and not has_polydata:
+        if has_ugrid and not has_polydata:
             self.log_info("Routing to TetMesh converter (volumetric meshes)")
-            converter = ConvertVTK4DToUSDTetMesh(
+            tet_converter: ConvertVTK4DToUSDBase = ConvertVTK4DToUSDTetMesh(
                 self.data_basename,
                 self.input_polydata,
                 self.mask_ids,
@@ -213,13 +217,13 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
                 compute_normals=self.compute_normals,
                 log_level=self.log_level,
             )
-            converter.set_colormap(
+            tet_converter.set_colormap(
                 self.color_by_array, self.colormap, self.intensity_range
             )
-            return converter.convert(output_usd_file)
+            return tet_converter.convert(output_usd_file)
 
         # Case 3: Mixed - need custom handling
-        elif has_polydata and has_ugrid:
+        if has_polydata and has_ugrid:
             raise NotImplementedError(
                 "Mixed PolyData and UnstructuredGrid not yet supported in "
                 "refactored version. Please use one of the following solutions:\n"
@@ -230,5 +234,4 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
             )
 
         # Case 4: No valid meshes
-        else:
-            raise ValueError("No valid mesh data found in input_polydata")
+        raise ValueError("No valid mesh data found in input_polydata")

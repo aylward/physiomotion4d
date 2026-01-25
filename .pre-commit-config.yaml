@@ -1,53 +1,38 @@
-# Example pre-commit configuration for PhysioMotion4D
-# Copy to .pre-commit-config.yaml to enable pre-commit hooks
+# Pre-commit configuration for PhysioMotion4D
+# Simplified to use Ruff for all linting and formatting
 
 repos:
-  # Code formatting
-  - repo: https://github.com/psf/black
-    rev: 24.1.1
-    hooks:
-      - id: black
-        args: [--line-length=88]
-
-  # Import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: [--profile=black, --line-length=88]
-
-  # Ruff - modern linter and formatter
+  # Ruff - fast linter and formatter (replaces black, isort, flake8)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.14.14
     hooks:
-      # Run the linter
+      # Run the linter with auto-fixes
       - id: ruff
         args: [--fix]
       # Run the formatter
       - id: ruff-format
 
-  # Linting (flake8 as backup)
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
     hooks:
-      - id: flake8
-        args: [--max-line-length=88]
+      - id: mypy
+        # With pass_filenames: false, we must provide an explicit target for mypy.
+        # Otherwise mypy exits with: "Missing target module, package, files, or command."
+        args: [--config-file=pyproject.toml, src]
+        additional_dependencies:
+          - types-setuptools
+          - scipy-stubs
+          - types-requests
+        pass_filenames: false
+        files: ^src/
 
-  # Local tests
+  # Local tests (optional - can be disabled if too slow)
   - repo: local
     hooks:
-      - id: test-heart-ct-cli
-        name: Test Heart CT CLI Pipeline
-        entry: pytest tests/test_process_heart_gated_ct_cli.py -v
-        language: system
-        pass_filenames: false
-        always_run: false
-        files: ^(src/physiomotion4d/|cli/process_heart_gated_ct.py)
-        stages: [pre-commit]
-
       - id: fast-unit-tests
         name: Run Fast Unit Tests
-        entry: pytest tests/ -m "not slow" -v
+        entry: pytest tests/ -m "not slow" -v --maxfail=3
         language: system
         pass_filenames: false
         always_run: false

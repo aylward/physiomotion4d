@@ -4,15 +4,23 @@ import logging
 import os
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Optional, TypeAlias
+from collections.abc import Mapping, Sequence
+
+from typing_extensions import Self
 
 import cupy as cp
-import matplotlib.cm as cm
 import numpy as np
+from numpy.typing import NDArray
 import pyvista as pv
 import vtk
+from matplotlib import cm
+from matplotlib.colors import Colormap
 from pxr import Gf, Usd, UsdGeom, Vt
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+
 
 # VTK Cell Type Constants
 VTK_TRIANGLE = 5
@@ -21,6 +29,23 @@ VTK_TETRA = 10
 VTK_HEXAHEDRON = 12
 VTK_WEDGE = 13
 VTK_PYRAMID = 14
+
+
+@dataclass
+class ArrayMeta:
+    n_components: int
+    dtype: str
+    range: tuple[float, float]
+    present_in_steps: list[int]
+
+
+FloatArray: TypeAlias = NDArray[np.float32] | NDArray[np.float64]
+RgbColor: TypeAlias = tuple[float, float, float]
+MeshValue: TypeAlias = (
+    str | list[Gf.Vec3f] | list[int] | list[float] | dict[int, int] | None
+)
+MeshLabelData: TypeAlias = dict[str, MeshValue]
+MeshTimeData: TypeAlias = dict[int, dict[str, MeshLabelData]]
 
 
 class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
@@ -34,20 +59,20 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
 
     def __init__(
         self,
-        data_basename,
-        input_polydata,
-        mask_ids=None,
-        convert_to_surface=False,
-        compute_normals=False,
+        data_basename: str,
+        input_polydata: Sequence[pv.DataSet | vtk.vtkDataSet],
+        mask_ids: Optional[dict[int, str]] = None,
+        convert_to_surface: bool = False,
+        compute_normals: bool = False,
         log_level: int | str = logging.INFO,
-    ):
+    ) -> None:
         """
         Initialize VTK to USD converter.
 
         Args:
             data_basename (str): Base name for the USD data
-            input_polydata (list): List of PyVista PolyData or UnstructuredGrid meshes,
-                                   one per time step.
+            input_polydata (Sequence): Sequence of PyVista PolyData or UnstructuredGrid meshes,
+                                       one per time step.
             mask_ids (dict or None): Optional mapping of label IDs to label names for
                                      organizing meshes by anatomical regions.
                                      Default: None
@@ -58,21 +83,21 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
-        self.data_basename = data_basename
-        self.input_polydata = input_polydata
-        self.mask_ids = mask_ids
+        self.data_basename: str = data_basename
+        self.input_polydata: list[pv.DataSet | vtk.vtkDataSet] = list(input_polydata)
+        self.mask_ids: Optional[dict[int, str]] = mask_ids
 
-        self.convert_to_surface = convert_to_surface
+        self.convert_to_surface: bool = convert_to_surface
 
-        self.compute_normals = compute_normals
+        self.compute_normals: bool = compute_normals
 
         # Colormap settings (set via set_colormap())
-        self.color_by_array = None
-        self.colormap = 'plasma'
-        self.intensity_range = None
+        self.color_by_array: Optional[str] = None
+        self.colormap: str = "plasma"
+        self.intensity_range: Optional[tuple[float, float]] = None
 
-        self.times = list(range(len(input_polydata)))
-        self.stage = None
+        self.times: list[int] = list(range(len(input_polydata)))
+        self.stage: Optional[Usd.Stage] = None
 
         # Define a set of distinct colors for different objects
         self.colors = [
@@ -88,7 +113,7 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
             (0.5, 0.5, 0.3),  # Olive
         ]
 
-    def list_available_arrays(self):
+    def list_available_arrays(self) -> dict[str, ArrayMeta]:
         """
         List all point data arrays available for coloring across all time steps.
 
@@ -96,40 +121,44 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
             dict: Dictionary with array names as keys and dict of metadata as values.
                   Metadata includes: 'n_components', 'dtype', 'range', 'present_in_steps'
         """
-        available_arrays = {}
+        available_arrays: dict[str, ArrayMeta] = {}
 
         for time_idx, mesh in enumerate(self.input_polydata):
             # Convert to PyVista if needed
             if isinstance(mesh, (vtk.vtkPolyData, vtk.vtkUnstructuredGrid)):
                 mesh = pv.wrap(mesh)
+            assert hasattr(mesh, "point_data")
 
             # Get point data array names
             for array_name in mesh.point_data.keys():
                 if array_name not in available_arrays:
                     array_data = mesh.point_data[array_name]
-                    available_arrays[array_name] = {
-                        'n_components': (
+                    available_arrays[array_name] = ArrayMeta(
+                        n_components=(
                             array_data.shape[1] if len(array_data.shape) > 1 else 1
                         ),
-                        'dtype': str(array_data.dtype),
-                        'range': (float(np.min(array_data)), float(np.max(array_data))),
-                        'present_in_steps': [time_idx],
-                    }
+                        dtype=str(array_data.dtype),
+                        range=(float(np.min(array_data)), float(np.max(array_data))),
+                        present_in_steps=[time_idx],
+                    )
                 else:
                     # Update range and track presence
                     array_data = mesh.point_data[array_name]
-                    current_min, current_max = available_arrays[array_name]['range']
-                    available_arrays[array_name]['range'] = (
+                    current_min, current_max = available_arrays[array_name].range
+                    available_arrays[array_name].range = (
                         min(current_min, float(np.min(array_data))),
                         max(current_max, float(np.max(array_data))),
                     )
-                    available_arrays[array_name]['present_in_steps'].append(time_idx)
+                    available_arrays[array_name].present_in_steps.append(time_idx)
 
         return available_arrays
 
     def set_colormap(
-        self, color_by_array=None, colormap='plasma', intensity_range=None
-    ):
+        self,
+        color_by_array: Optional[str] = None,
+        colormap: str = "plasma",
+        intensity_range: Optional[tuple[float, float]] = None,
+    ) -> Self:
         """
         Configure colormap settings for vertex coloring.
 
@@ -154,13 +183,13 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
 
         """Validate that the chosen colormap is supported"""
         supported_colormaps = [
-            'plasma',
-            'viridis',
-            'rainbow',
-            'heat',
-            'coolwarm',
-            'grayscale',
-            'random',
+            "plasma",
+            "viridis",
+            "rainbow",
+            "heat",
+            "coolwarm",
+            "grayscale",
+            "random",
         ]
         if self.colormap not in supported_colormaps:
             raise ValueError(
@@ -169,16 +198,16 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
             )
 
         # Initialize random seed for reproducible random colormap
-        if self.colormap == 'random':
+        if self.colormap == "random":
             np.random.seed(42)
 
         return self
 
-    def _ras_to_usd(self, point):
+    def _ras_to_usd(self, point: Sequence[float]) -> Gf.Vec3f:
         """Convert RAS coordinates to USD's right-handed Y-up system"""
         return Gf.Vec3f(float(point[0]), float(point[2]), float(-point[1]))
 
-    def _get_matplotlib_colormap(self, colormap_name):
+    def _get_matplotlib_colormap(self, colormap_name: str) -> Optional[Colormap]:
         """
         Get matplotlib colormap object, with custom implementations for special cases.
 
@@ -189,22 +218,33 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
             matplotlib colormap object
         """
         colormap_mapping = {
-            'plasma': 'plasma',
-            'viridis': 'viridis',
-            'rainbow': 'rainbow',
-            'heat': 'hot',
-            'coolwarm': 'coolwarm',
-            'grayscale': 'gray',
+            "plasma": "plasma",
+            "viridis": "viridis",
+            "rainbow": "rainbow",
+            "heat": "hot",
+            "coolwarm": "coolwarm",
+            "grayscale": "gray",
         }
 
-        if colormap_name == 'random':
+        if colormap_name == "random":
             # Random colormap will be handled separately
             return None
 
         mpl_name = colormap_mapping.get(colormap_name, colormap_name)
         return cm.get_cmap(mpl_name)
 
-    def _map_scalar_to_color(self, scalar_value, vmin, vmax, colormap='plasma'):
+    def _map_scalar_to_color(
+        self,
+        scalar_value: float
+        | int
+        | Sequence[float]
+        | FloatArray
+        | Mapping[int, float]
+        | Mapping[str, float],
+        vmin: float,
+        vmax: float,
+        colormap: str = "plasma",
+    ) -> Gf.Vec3f:
         """
         Map a scalar value to RGB color using a colormap.
 
@@ -217,39 +257,41 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         Returns:
             Gf.Vec3f: RGB color value
         """
-        if type(scalar_value) is list:
-            scalar_value = np.linalg.norm(np.array(scalar_value))
-        elif type(scalar_value) is np.ndarray:
-            scalar_value = np.linalg.norm(scalar_value)
-        elif type(scalar_value) is tuple:
-            scalar_value = np.linalg.norm(np.array(scalar_value))
-        elif type(scalar_value) is dict:
-            scalar_value = np.linalg.norm(np.array(scalar_value.values()))
-        elif type(scalar_value) is str:
-            scalar_value = np.linalg.norm(np.array(scalar_value))
+        # Coerce all supported inputs to a single float scalar.
+        if isinstance(scalar_value, Mapping):
+            scalar = float(
+                np.linalg.norm(np.asarray(list(scalar_value.values()), dtype=float))
+            )
+        elif isinstance(scalar_value, (Sequence, np.ndarray)):
+            scalar = float(np.linalg.norm(np.asarray(scalar_value, dtype=float)))
+        else:
+            scalar = float(scalar_value)
 
         # Handle random colormap specially
-        if colormap == 'random':
+        if colormap == "random":
             # Use hash of value to get consistent random color
-            hash_val = hash(float(scalar_value))
+            hash_val = hash(scalar)
             np.random.seed(hash_val % (2**32))
             rgb = np.random.rand(3)
             return Gf.Vec3f(float(rgb[0]), float(rgb[1]), float(rgb[2]))
 
         # Normalize value to [0, 1]
         if vmax > vmin:
-            normalized = (float(scalar_value) - vmin) / (vmax - vmin)
+            normalized = (scalar - vmin) / (vmax - vmin)
             normalized = np.clip(normalized, 0.0, 1.0)
         else:
             normalized = 0.5
 
         # Get colormap
         cmap = self._get_matplotlib_colormap(colormap)
+        assert cmap is not None
         rgba = cmap(normalized)
 
         return Gf.Vec3f(float(rgba[0]), float(rgba[1]), float(rgba[2]))
 
-    def _compute_intensity_range(self, mesh_time_data, label):
+    def _compute_intensity_range(
+        self, mesh_time_data: MeshTimeData, label: str
+    ) -> tuple[float, float]:
         """
         Compute the intensity range for colormap mapping.
 
@@ -265,23 +307,22 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
             return self.intensity_range
 
         # Compute automatic range from data
-        all_values = []
+        all_values: list[float] = []
         for time_idx in range(len(self.times)):
             time_data = mesh_time_data[time_idx][label]
-            if time_data.get('color_array') is not None:
-                color_values = time_data['color_array']
-                if isinstance(color_values, np.ndarray):
-                    all_values.extend(color_values.flatten())
-                else:
+            if time_data.get("color_array") is not None:
+                color_values = time_data["color_array"]
+                if isinstance(color_values, list):
                     all_values.extend(color_values)
 
         if len(all_values) > 0:
             return (float(np.min(all_values)), float(np.max(all_values)))
-        else:
-            # Fallback
-            return (0.0, 1.0)
+        # Fallback
+        return (0.0, 1.0)
 
-    def _extract_color_array(self, mesh):
+    def _extract_color_array(
+        self, mesh: pv.DataSet | vtk.vtkDataSet
+    ) -> Optional[FloatArray]:
         """
         Extract color array data from mesh point data.
 
@@ -315,12 +356,11 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
                 else:
                     scalar_value = float(scalar_value)
                 color_values.append(scalar_value)
-            return np.array(color_values)
-        else:
-            self.log_warning("Array '%s' not found in point data", self.color_by_array)
-            return None
+            return np.asarray(color_values, dtype=float)
+        self.log_warning("Array '%s' not found in point data", self.color_by_array)
+        return None
 
-    def _check_topology_changes(self, mesh_time_data):
+    def _check_topology_changes(self, mesh_time_data: MeshTimeData) -> dict[str, bool]:
         """
         Check if mesh topology changes across time steps.
 
@@ -339,15 +379,23 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         for label in labels:
             has_change = False
             first_data = mesh_time_data[0][label]
-            mesh_type = first_data.get('mesh_type', 'polymesh')
+            mesh_type = first_data.get("mesh_type", "polymesh")
 
             # Get reference topology from first timestep
-            if mesh_type == 'polymesh':
-                ref_num_points = len(first_data['points'])
-                ref_num_faces = len(first_data['face_vertex_counts'])
-            elif mesh_type == 'tetmesh':
-                ref_num_points = len(first_data['points'])
-                ref_num_tets = len(first_data['tet_indices'])
+            if mesh_type == "polymesh":
+                ref_points = first_data["points"]
+                ref_face_counts = first_data["face_vertex_counts"]
+                assert isinstance(ref_points, list)
+                assert isinstance(ref_face_counts, list)
+                ref_num_points = len(ref_points)
+                ref_num_faces = len(ref_face_counts)
+            elif mesh_type == "tetmesh":
+                ref_points = first_data["points"]
+                ref_tets = first_data["tet_indices"]
+                assert isinstance(ref_points, list)
+                assert isinstance(ref_tets, list)
+                ref_num_points = len(ref_points)
+                ref_num_tets = len(ref_tets)
             else:
                 # Unknown mesh type, assume no change
                 topology_changes[label] = False
@@ -362,18 +410,26 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
 
                 curr_data = mesh_time_data[time_idx][label]
 
-                if mesh_type == 'polymesh':
-                    curr_num_points = len(curr_data['points'])
-                    curr_num_faces = len(curr_data['face_vertex_counts'])
+                if mesh_type == "polymesh":
+                    curr_points = curr_data["points"]
+                    curr_face_counts = curr_data["face_vertex_counts"]
+                    assert isinstance(curr_points, list)
+                    assert isinstance(curr_face_counts, list)
+                    curr_num_points = len(curr_points)
+                    curr_num_faces = len(curr_face_counts)
                     if (
                         curr_num_points != ref_num_points
                         or curr_num_faces != ref_num_faces
                     ):
                         has_change = True
                         break
-                elif mesh_type == 'tetmesh':
-                    curr_num_points = len(curr_data['points'])
-                    curr_num_tets = len(curr_data['tet_indices'])
+                elif mesh_type == "tetmesh":
+                    curr_points = curr_data["points"]
+                    curr_tets = curr_data["tet_indices"]
+                    assert isinstance(curr_points, list)
+                    assert isinstance(curr_tets, list)
+                    curr_num_points = len(curr_points)
+                    curr_num_tets = len(curr_tets)
                     if (
                         curr_num_points != ref_num_points
                         or curr_num_tets != ref_num_tets
@@ -392,8 +448,11 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         return topology_changes
 
     def _compute_facevarying_normals_tri(
-        self, points_vt, faceCounts_vt, faceIndices_vt
-    ):
+        self,
+        points_vt: Vt.Vec3fArray,
+        faceCounts_vt: Vt.IntArray,
+        faceIndices_vt: Vt.IntArray,
+    ) -> Vt.Vec3fArray:
         """
         Vectorized face-varying normals for a triangulated mesh.
 
@@ -444,7 +503,7 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
     # Abstract methods that subclasses must implement
 
     @abstractmethod
-    def supports_mesh_type(self, mesh) -> bool:
+    def supports_mesh_type(self, mesh: pv.DataSet | vtk.vtkDataSet) -> bool:
         """
         Check if this converter supports the given mesh type.
 
@@ -454,10 +513,11 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         Returns:
             bool: True if this converter can process the mesh
         """
-        pass
 
     @abstractmethod
-    def _process_mesh_data(self, mesh) -> dict:
+    def _process_mesh_data(
+        self, mesh: pv.DataSet | vtk.vtkDataSet
+    ) -> dict[str, MeshLabelData]:
         """
         Process mesh and extract geometry data.
 
@@ -467,12 +527,16 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         Returns:
             dict: Processed mesh data organized by labels or mesh type
         """
-        pass
 
     @abstractmethod
     def _create_usd_mesh(
-        self, transform_path, label, mesh_time_data, label_colors, has_topology_change
-    ):
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+        has_topology_change: bool,
+    ) -> None:
         """
         Create USD mesh prim(s) for this label.
 
@@ -483,10 +547,12 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
             label_colors: Color assignments for labels
             has_topology_change: Whether topology varies over time
         """
-        pass
 
     def convert(
-        self, output_usd_file, convert_to_surface=None, compute_normals=None
+        self,
+        output_usd_file: str,
+        convert_to_surface: Optional[bool] = None,
+        compute_normals: Optional[bool] = None,
     ) -> Usd.Stage:
         """
         Convert VTK meshes to USD format.
@@ -530,7 +596,7 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         self.stage.SetDefaultPrim(root_scope.GetPrim())
 
         # Collect the label data from each time point
-        polydata_time_data = {}
+        polydata_time_data: MeshTimeData = {}
         for fnum, mesh_data in enumerate(self.input_polydata):
             self.log_progress(
                 fnum + 1, len(self.input_polydata), prefix="Processing time point"
@@ -541,7 +607,7 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         topology_changes = self._check_topology_changes(polydata_time_data)
 
         # Assign a unique color to each label
-        label_colors = {}
+        label_colors: dict[str, RgbColor] = {}
         for fnum in range(len(polydata_time_data)):
             for label, _ in polydata_time_data[fnum].items():
                 if label not in label_colors:
@@ -553,7 +619,6 @@ class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
         first_data = polydata_time_data[0]
 
         # Create a mesh prim for each label group
-        num_labels = len(first_data.items())
         for idx, (label, data) in enumerate(first_data.items()):
             # Create a transform for each mesh
             transform_path = f"{root_path}/Transform_{label}"

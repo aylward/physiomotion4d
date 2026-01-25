@@ -13,7 +13,7 @@ import sys
 from physiomotion4d import WorkflowConvertHeartGatedCTToUSD
 
 
-def main():
+def main() -> int:
     """Command-line interface for Heart-gated CT processing."""
     parser = argparse.ArgumentParser(
         description="Process 4D cardiac CT images to dynamic USD models for Omniverse",
@@ -35,40 +35,36 @@ Examples:
     )
 
     parser.add_argument(
-        "input_files",
-        nargs='+',
-        help="Path to 4D NRRD file or list of 3D NRRD files"
+        "input_files", nargs="+", help="Path to 4D NRRD file or list of 3D NRRD files"
     )
     parser.add_argument(
         "--output-dir",
         default="./results",
-        help="Output directory for results (default: ./results)"
+        help="Output directory for results (default: ./results)",
     )
     parser.add_argument(
         "--project-name",
         default="cardiac_model",
-        help="Project name for USD organization (default: cardiac_model)"
+        help="Project name for USD organization (default: cardiac_model)",
     )
     parser.add_argument(
-        "--contrast",
-        action="store_true",
-        help="Indicate if study is contrast enhanced"
+        "--contrast", action="store_true", help="Indicate if study is contrast enhanced"
     )
     parser.add_argument(
         "--reference-image",
-        help="Path to reference image file (default: uses 70%% time point)"
+        help="Path to reference image file (default: uses 70%% time point)",
     )
     parser.add_argument(
         "--registration-iterations",
         type=int,
         default=1,
-        help="Number of registration iterations (default: 1)"
+        help="Number of registration iterations (default: 1)",
     )
     parser.add_argument(
         "--registration-method",
-        choices=['ants', 'icon'],
-        default='icon',
-        help="Registration method to use: ants or icon (default: icon)"
+        choices=["ants", "icon"],
+        default="icon",
+        help="Registration method to use: ants or icon (default: icon)",
     )
 
     args = parser.parse_args()
@@ -99,7 +95,7 @@ Examples:
         # Execute complete workflow
         print("\nStarting Heart-gated CT processing pipeline...")
         print("=" * 60)
-        final_usd = processor.process()
+        processor.process()
 
         print("\n" + "=" * 60)
         print("Processing completed successfully!")
@@ -114,6 +110,7 @@ Examples:
     except Exception as e:
         print(f"\nError during processing: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

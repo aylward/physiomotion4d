@@ -7,15 +7,16 @@
 #      --shm-size=8G -p 8000:8000
 #      -v /tmp/data:/home/aylward/tmp/data nvcr.io/nim/nvidia/vista3d:latest
 
-import argparse
 import io
+import json
 import logging
 import os
 import tempfile
 import zipfile
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 import itk
-import requests
 
 from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 
@@ -26,7 +27,7 @@ class SegmentChestVista3DNIM(SegmentChestVista3D):
     segmentation method using VISTA3D.
     """
 
-    def __init__(self, log_level: int | str = logging.INFO):
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
         """Initialize the vista3d class.
 
         Args:
@@ -56,17 +57,28 @@ class SegmentChestVista3DNIM(SegmentChestVista3D):
 
         payload = {"image": self.docker_tmp_file, "prompts": {}}
 
-        # Call the API
-        session = requests.Session()
-        response = session.post(self.invoke_url, json=payload)
-
-        # Check the response
-        response.raise_for_status()
+        # Call the API (stdlib HTTP client; avoids needing requests stubs)
+        payload_bytes = json.dumps(payload).encode("utf-8")
+        req = Request(
+            self.invoke_url,
+            data=payload_bytes,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(req) as resp:
+                response_content = resp.read()
+        except HTTPError as e:
+            raise RuntimeError(
+                f"VISTA3D NIM request failed: HTTP {e.code} {e.reason}"
+            ) from e
+        except URLError as e:
+            raise RuntimeError(f"VISTA3D NIM request failed: {e.reason}") from e
 
         # Get the result
         labelmap_image = None
         with tempfile.TemporaryDirectory() as temp_dir:
-            z = zipfile.ZipFile(io.BytesIO(response.content))
+            z = zipfile.ZipFile(io.BytesIO(response_content))
             z.extractall(temp_dir)
             file_list = os.listdir(temp_dir)
             for filename in file_list:
@@ -87,19 +99,3 @@ class SegmentChestVista3DNIM(SegmentChestVista3D):
         labelmap_image = self.segment_soft_tissue(preprocessed_image, labelmap_image)
 
         return labelmap_image
-
-
-def parse_args():
-    """
-    Parse command line arguments for Vista3D.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_image", type=str, required=True)
-    parser.add_argument("--output_image", type=str, required=True)
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    result = SegmentChestVista3DNIM().segment(itk.imread(args.fixed_image))
-    itk.imwrite(result["labelmap"], args.output_image, compression=True)

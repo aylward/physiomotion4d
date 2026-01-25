@@ -3,12 +3,17 @@
 import itertools
 import time
 
-import numpy as np
 import pyvista as pv
 import vtk
-from pxr import Sdf, UsdGeom
+from pxr import Gf, Sdf, UsdGeom
+from typing import cast
 
-from .convert_vtk_4d_to_usd_base import ConvertVTK4DToUSDBase
+from .convert_vtk_4d_to_usd_base import (
+    ConvertVTK4DToUSDBase,
+    MeshLabelData,
+    MeshTimeData,
+    RgbColor,
+)
 
 
 class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
@@ -23,15 +28,13 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
 
     Example Usage:
         >>> converter = ConvertVTK4DToUSDPolyMesh(
-        ...     data_basename="SurfaceModel",
-        ...     input_polydata=meshes,
-        ...     mask_ids=None
+        ...     data_basename='SurfaceModel', input_polydata=meshes, mask_ids=None
         ... )
-        >>> converter.set_colormap(color_by_array="pressure", colormap="rainbow")
-        >>> stage = converter.convert("output.usd")
+        >>> converter.set_colormap(color_by_array='pressure', colormap='rainbow')
+        >>> stage = converter.convert('output.usd')
     """
 
-    def supports_mesh_type(self, mesh) -> bool:
+    def supports_mesh_type(self, mesh: pv.DataSet | vtk.vtkDataSet) -> bool:
         """
         Check if this converter supports the given mesh type.
 
@@ -54,7 +57,9 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             return True
         return False
 
-    def _process_mesh_data(self, mesh) -> dict:
+    def _process_mesh_data(
+        self, mesh: pv.DataSet | vtk.vtkDataSet
+    ) -> dict[str, MeshLabelData]:
         """
         Process mesh and extract geometry data.
 
@@ -69,19 +74,22 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                 # Convert UnstructuredGrid to surface PolyData first
                 surface_mesh = self._convert_ugrid_to_surface(mesh)
                 return self._process_polydata(surface_mesh)
-            else:
-                raise TypeError(
-                    "UnstructuredGrid not supported by PolyMesh converter. "
-                    "Use convert_to_surface=True or TetMesh converter."
-                )
-        elif isinstance(mesh, (pv.PolyData, vtk.vtkPolyData)):
+            raise TypeError(
+                "UnstructuredGrid not supported by PolyMesh converter. "
+                "Use convert_to_surface=True or TetMesh converter."
+            )
+        if isinstance(mesh, (pv.PolyData, vtk.vtkPolyData)):
             return self._process_polydata(mesh)
-        else:
-            raise TypeError(f"Unsupported mesh type: {type(mesh)}")
+        raise TypeError(f"Unsupported mesh type: {type(mesh)}")
 
     def _create_usd_mesh(
-        self, transform_path, label, mesh_time_data, label_colors, has_topology_change
-    ):
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+        has_topology_change: bool,
+    ) -> None:
         """
         Create USD mesh prim(s) for this label.
 
@@ -110,7 +118,9 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                 transform_path, label, mesh_time_data, label_colors
             )
 
-    def _convert_ugrid_to_surface(self, ugrid) -> pv.PolyData:
+    def _convert_ugrid_to_surface(
+        self, ugrid: pv.UnstructuredGrid | vtk.vtkUnstructuredGrid
+    ) -> pv.PolyData:
         """
         Extract surface from UnstructuredGrid and convert to PolyData.
 
@@ -125,14 +135,16 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             ugrid = pv.wrap(ugrid)
 
         # Extract surface using PyVista's built-in method
-        surface = ugrid.extract_surface()
+        surface = cast(pv.PolyData, ugrid.extract_surface())
 
         # Preserve point and cell data arrays
         # Point data is automatically preserved by extract_surface
 
         return surface
 
-    def _process_polydata(self, polydata) -> dict:
+    def _process_polydata(
+        self, polydata: pv.PolyData | vtk.vtkPolyData
+    ) -> dict[str, MeshLabelData]:
         """
         Process PolyData and extract geometry, labels, and attributes.
 
@@ -198,21 +210,22 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
 
         # Create objects for each cell based on its labels
         if boundary_labels:
+            assert self.mask_ids is not None
             # Create a dictionary to store objects for each label
-            label_objects = {}
+            label_objects: dict[str, MeshLabelData] = {}
 
             # Initialize objects for each unique label
             for label_id in boundary_labels:
                 if int(label_id) != 0:
                     label = self.mask_ids[int(label_id)]
                     label_objects[label] = {
-                        'mesh_type': 'polymesh',
-                        'points': [],
-                        'face_vertex_counts': [],
-                        'face_vertex_indices': [],
-                        'deformation_magnitude': [] if def_mag else None,
-                        'color_array': [] if color_array is not None else None,
-                        'point_mapping': {},
+                        "mesh_type": "polymesh",
+                        "points": [],
+                        "face_vertex_counts": [],
+                        "face_vertex_indices": [],
+                        "deformation_magnitude": [] if def_mag else None,
+                        "color_array": [] if color_array is not None else None,
+                        "point_mapping": {},
                     }
 
             label_array = None
@@ -253,21 +266,31 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                     # For each label of this cell, create a copy of the cell
                     for label_str in cell_labels:
                         obj = label_objects[label_str]
+                        point_mapping = cast(dict[int, int], obj["point_mapping"])
+                        obj_points = cast(list[Gf.Vec3f], obj["points"])
+                        obj_face_counts = cast(list[int], obj["face_vertex_counts"])
+                        obj_face_indices = cast(list[int], obj["face_vertex_indices"])
                         cell_point_indices = []
                         for pnt_num, pnt_id in enumerate(point_ids):
-                            indx = obj['point_mapping'].get(pnt_id, None)
+                            indx = point_mapping.get(pnt_id, None)
                             if indx is None:
-                                indx = len(obj['points'])
-                                obj['points'].append(usd_points[pnt_num])
-                                obj['point_mapping'][pnt_id] = indx
-                                if def_mag:
-                                    obj['deformation_magnitude'].append(def_mag[pnt_id])
+                                indx = len(obj_points)
+                                obj_points.append(usd_points[pnt_num])
+                                point_mapping[pnt_id] = indx
+                                if def_mag is not None:
+                                    obj_def_mag = cast(
+                                        list[float], obj["deformation_magnitude"]
+                                    )
+                                    obj_def_mag.append(def_mag[pnt_id])
                                 if color_array is not None:
-                                    obj['color_array'].append(color_array[pnt_id])
+                                    obj_color_array = cast(
+                                        list[float], obj["color_array"]
+                                    )
+                                    obj_color_array.append(float(color_array[pnt_id]))
                             cell_point_indices.append(indx)
 
-                        obj['face_vertex_counts'].append(len(cell_point_indices))
-                        obj['face_vertex_indices'].extend(cell_point_indices)
+                        obj_face_counts.append(len(cell_point_indices))
+                        obj_face_indices.extend(cell_point_indices)
 
             end_time = time.time()
             self.log_info(
@@ -282,25 +305,28 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             # obj['color_array'] = np.array(obj['color_array'])
 
             return label_objects
-        else:
-            # If no boundary labels, return single group with all points and faces
-            points_data = [
-                self._ras_to_usd(points.GetPoint(i)) for i in range(num_points)
-            ]
-            return {
-                'default': {
-                    'mesh_type': 'polymesh',
-                    'points': points_data,
-                    'face_vertex_counts': face_vertex_counts,
-                    'face_vertex_indices': face_vertex_indices,
-                    'deformation_magnitude': def_mag,
-                    'color_array': (
-                        color_array.tolist() if color_array is not None else None
-                    ),
-                }
+        # If no boundary labels, return single group with all points and faces
+        points_data = [self._ras_to_usd(points.GetPoint(i)) for i in range(num_points)]
+        return {
+            "default": {
+                "mesh_type": "polymesh",
+                "points": points_data,
+                "face_vertex_counts": face_vertex_counts,
+                "face_vertex_indices": face_vertex_indices,
+                "deformation_magnitude": def_mag,
+                "color_array": (
+                    color_array.tolist() if color_array is not None else None
+                ),
             }
+        }
 
-    def _create_usd_polymesh(self, transform_path, label, mesh_time_data, label_colors):
+    def _create_usd_polymesh(
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+    ) -> None:
         """
         Create UsdGeomMesh for polygon surface data with constant topology.
 
@@ -312,6 +338,7 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             mesh_time_data: Time-series mesh data
             label_colors: Color assignments for labels
         """
+        assert self.stage is not None
         data = mesh_time_data[0][label]
 
         # Create mesh prim under the transform
@@ -319,9 +346,9 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         mesh = UsdGeom.Mesh.Define(self.stage, mesh_path)
 
         # Set topology (assuming consistent topology across timesteps)
-        mesh.CreateFaceVertexCountsAttr(data['face_vertex_counts'])
+        mesh.CreateFaceVertexCountsAttr(data["face_vertex_counts"])
         mesh.CreatePointsAttr()
-        mesh.CreateFaceVertexIndicesAttr(data['face_vertex_indices'])
+        mesh.CreateFaceVertexIndicesAttr(data["face_vertex_indices"])
 
         # Set mesh attributes for Index renderer compatibility
         mesh.CreateSubdivisionSchemeAttr("none")  # Prevent unwanted subdivision
@@ -331,11 +358,11 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
         # Normals will be computed per timestep since mesh deforms
         if self.compute_normals:
             normals_attr = mesh.CreateNormalsAttr()
-            normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
+            normals_attr.SetMetadata("interpolation", UsdGeom.Tokens.vertex)
 
         # Set display color - either per-vertex from color array or fixed label color
         use_color_array = self.color_by_array is not None and any(
-            mesh_time_data[t][label].get('color_array') is not None
+            mesh_time_data[t][label].get("color_array") is not None
             for t in range(len(self.times))
         )
 
@@ -377,8 +404,8 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             global_vmin = vmin
             global_vmax = vmax
         else:
-            global_vmin = float('inf')
-            global_vmax = float('-inf')
+            global_vmin = float("inf")
+            global_vmax = float("-inf")
 
         num_times = len(self.times)
         for time_idx, time_code in enumerate(self.times):
@@ -392,68 +419,66 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
 
             if self.compute_normals:
                 vertex_normals = self._compute_facevarying_normals_tri(
-                    time_data['points'],
-                    time_data['face_vertex_counts'],
-                    time_data['face_vertex_indices'],
+                    time_data["points"],
+                    time_data["face_vertex_counts"],
+                    time_data["face_vertex_indices"],
                 )
 
             # Set points first
             time_samples[time_code] = {
-                'points': time_data['points'],
-                'extent': UsdGeom.Mesh.ComputeExtent(time_data['points']),
+                "points": time_data["points"],
+                "extent": UsdGeom.Mesh.ComputeExtent(time_data["points"]),
             }
             if self.compute_normals:
-                time_samples[time_code]['normals'] = vertex_normals
+                time_samples[time_code]["normals"] = vertex_normals
 
             # Compute per-vertex colors if using color array
-            if use_color_array and time_data.get('color_array') is not None:
-                color_values = time_data['color_array']
+            if use_color_array and time_data.get("color_array") is not None:
+                color_values = cast(list[float], time_data["color_array"])
 
                 # **USE CONFIGURED COLORMAP with consistent intensity range**
                 vertex_colors = [
-                    self._map_scalar_to_color(v, vmin, vmax, self.colormap)
+                    self._map_scalar_to_color(float(v), vmin, vmax, self.colormap)
                     for v in color_values
                 ]
-                time_samples[time_code]['vertex_colors'] = vertex_colors
-                time_samples[time_code]['scalar_values'] = color_values
-                time_samples[time_code]['vmin'] = vmin
-                time_samples[time_code]['vmax'] = vmax
+                time_samples[time_code]["vertex_colors"] = vertex_colors
+                time_samples[time_code]["scalar_values"] = color_values
+                time_samples[time_code]["vmin"] = vmin
+                time_samples[time_code]["vmax"] = vmax
 
         # Set points, extents, and normals with explicit time codes
         for t_code, time_data_dict in time_samples.items():
-            points_attr.Set(time_data_dict['points'], t_code)
-            extent_attr.Set(time_data_dict['extent'], t_code)
+            points_attr.Set(time_data_dict["points"], t_code)
+            extent_attr.Set(time_data_dict["extent"], t_code)
             if self.compute_normals:
-                normals_attr.Set(time_data_dict['normals'], t_code)
-            if use_color_array and 'vertex_colors' in time_data_dict:
-                display_color_primvar.Set(time_data_dict['vertex_colors'], t_code)
+                normals_attr.Set(time_data_dict["normals"], t_code)
+            if use_color_array and "vertex_colors" in time_data_dict:
+                assert display_color_primvar is not None
+                assert scalar_primvar is not None
+                assert display_opacity_primvar is not None
+                display_color_primvar.Set(time_data_dict["vertex_colors"], t_code)
                 # Set raw scalar values for colormap control
-                scalar_values = time_data_dict['scalar_values']
-                scalar_list = (
-                    scalar_values.tolist()
-                    if hasattr(scalar_values, 'tolist')
-                    else list(scalar_values)
-                )
-                scalar_primvar.Set(scalar_list, t_code)
+                scalar_values = cast(list[float], time_data_dict["scalar_values"])
+                scalar_primvar.Set(scalar_values, t_code)
                 # Set opacity (full opacity by default)
                 num_vertices = len(scalar_values)
                 opacity_values = [1.0] * num_vertices
                 display_opacity_primvar.Set(opacity_values, t_code)
 
         # Set initial values (non-timewarped)
-        points_attr.Set(time_samples[self.times[0]]['points'])
-        extent_attr.Set(time_samples[self.times[0]]['extent'])
+        points_attr.Set(time_samples[self.times[0]]["points"])
+        extent_attr.Set(time_samples[self.times[0]]["extent"])
         if self.compute_normals:
-            normals_attr.Set(time_samples[self.times[0]]['normals'])
-        if use_color_array and 'vertex_colors' in time_samples[self.times[0]]:
-            display_color_primvar.Set(time_samples[self.times[0]]['vertex_colors'])
-            scalar_values_0 = time_samples[self.times[0]]['scalar_values']
-            scalar_list_0 = (
-                scalar_values_0.tolist()
-                if hasattr(scalar_values_0, 'tolist')
-                else list(scalar_values_0)
+            normals_attr.Set(time_samples[self.times[0]]["normals"])
+        if use_color_array and "vertex_colors" in time_samples[self.times[0]]:
+            assert display_color_primvar is not None
+            assert scalar_primvar is not None
+            assert display_opacity_primvar is not None
+            display_color_primvar.Set(time_samples[self.times[0]]["vertex_colors"])
+            scalar_values_0 = cast(
+                list[float], time_samples[self.times[0]]["scalar_values"]
             )
-            scalar_primvar.Set(scalar_list_0)
+            scalar_primvar.Set(scalar_values_0)
             num_vertices = len(scalar_values_0)
             display_opacity_primvar.Set([1.0] * num_vertices)
 
@@ -467,22 +492,25 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
 
         # Set deformation magnitude if it exists
         if any(
-            mesh_time_data[time_idx][label]['deformation_magnitude'] is not None
+            mesh_time_data[time_idx][label]["deformation_magnitude"] is not None
             for time_idx in range(len(self.times))
         ):
-
             def_mag_attr = mesh.GetPrim().CreateAttribute(
                 "deformationMagnitude", Sdf.ValueTypeNames.FloatArray
             )
 
             for time_idx, t_code in enumerate(self.times):
-                def_mag = mesh_time_data[time_idx][label]['deformation_magnitude']
+                def_mag = mesh_time_data[time_idx][label]["deformation_magnitude"]
                 if def_mag is not None:
                     def_mag_attr.Set(def_mag, t_code)
 
     def _create_usd_polymesh_varying(
-        self, transform_path, label, mesh_time_data, label_colors
-    ):
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+    ) -> None:
         """
         Create separate UsdGeomMesh prims for each timestep with visibility control.
 
@@ -494,9 +522,10 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             mesh_time_data: Time-series mesh data
             label_colors: Color assignments for labels
         """
+        assert self.stage is not None
         # Determine if using color array
         use_color_array = self.color_by_array is not None and any(
-            mesh_time_data[t][label].get('color_array') is not None
+            mesh_time_data[t][label].get("color_array") is not None
             for t in range(len(self.times))
         )
 
@@ -526,9 +555,9 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
             mesh = UsdGeom.Mesh.Define(self.stage, mesh_path)
 
             # Set topology (unique for this timestep)
-            mesh.CreateFaceVertexCountsAttr(time_data['face_vertex_counts'])
-            mesh.CreateFaceVertexIndicesAttr(time_data['face_vertex_indices'])
-            mesh.CreatePointsAttr(time_data['points'])
+            mesh.CreateFaceVertexCountsAttr(time_data["face_vertex_counts"])
+            mesh.CreateFaceVertexIndicesAttr(time_data["face_vertex_indices"])
+            mesh.CreatePointsAttr(time_data["points"])
 
             # Set mesh attributes for Index renderer compatibility
             mesh.CreateSubdivisionSchemeAttr("none")
@@ -536,26 +565,26 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
 
             # Compute and set normals
             if self.compute_normals:
-                vertex_normals = self.compute_facevarying_normals_tri(
-                    time_data['points'],
-                    time_data['face_vertex_counts'],
-                    time_data['face_vertex_indices'],
+                vertex_normals = self._compute_facevarying_normals_tri(
+                    time_data["points"],
+                    time_data["face_vertex_counts"],
+                    time_data["face_vertex_indices"],
                 )
                 normals_attr = mesh.CreateNormalsAttr()
-                normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
+                normals_attr.SetMetadata("interpolation", UsdGeom.Tokens.vertex)
                 normals_attr.Set(vertex_normals)
 
             # Set extent
             extent_attr = mesh.CreateExtentAttr()
-            extent_attr.Set(UsdGeom.Mesh.ComputeExtent(time_data['points']))
+            extent_attr.Set(UsdGeom.Mesh.ComputeExtent(time_data["points"]))
 
             # Set display color
-            if use_color_array and time_data.get('color_array') is not None:
-                color_values = time_data['color_array']
+            if use_color_array and time_data.get("color_array") is not None:
+                color_values = cast(list[float], time_data["color_array"])
 
                 # Map scalars to colors
                 vertex_colors = [
-                    self._map_scalar_to_color(v, vmin, vmax, self.colormap)
+                    self._map_scalar_to_color(float(v), vmin, vmax, self.colormap)
                     for v in color_values
                 ]
                 display_color_primvar = mesh.CreateDisplayColorPrimvar(
@@ -577,7 +606,7 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                 )
                 scalar_list = (
                     color_values.tolist()
-                    if hasattr(color_values, 'tolist')
+                    if hasattr(color_values, "tolist")
                     else list(color_values)
                 )
                 scalar_primvar.Set(scalar_list)
@@ -599,11 +628,11 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                 display_color_primvar.Set([display_color])
 
             # Set deformation magnitude if exists
-            if time_data.get('deformation_magnitude') is not None:
+            if time_data.get("deformation_magnitude") is not None:
                 def_mag_attr = mesh.GetPrim().CreateAttribute(
                     "deformationMagnitude", Sdf.ValueTypeNames.FloatArray
                 )
-                def_mag_attr.Set(time_data['deformation_magnitude'])
+                def_mag_attr.Set(time_data["deformation_magnitude"])
 
             # Set visibility based on time code
             # Mesh is visible only at its specific time code

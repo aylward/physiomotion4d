@@ -6,6 +6,7 @@ preprocessing, postprocessing, and anatomical structure organization tasks.
 """
 
 import logging
+from typing import Any
 
 import itk
 import numpy as np
@@ -30,7 +31,7 @@ class SegmentChestBase(PhysioMotion4DBase):
     Attributes:
         target_spacing (float): Target isotropic spacing for resampling (default 1.5mm)
         rescale_intensity_range (bool): Whether to rescale intensity values
-        contrast_threshold (float): Threshold for contrast agent detection (default 700)
+        contrast_threshold (int): Threshold for contrast agent detection (default 700)
         all_mask_ids (dict): Dictionary mapping all anatomical structure IDs to names
         heart_mask_ids (dict): Dictionary of cardiac structure IDs
         lung_mask_ids (dict): Dictionary of pulmonary structure IDs
@@ -53,28 +54,28 @@ class SegmentChestBase(PhysioMotion4DBase):
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
-        self.target_spacing = 0
+        self.target_spacing: float = 0.0
 
-        self.rescale_intensity_range = False
-        self.input_intensity_scale_range = [0, 4096]
-        self.output_intensity_scale_range = [-1024, 3071]
-        self.output_intensity_clip_range = [-1024, 3071]
+        self.rescale_intensity_range: bool = False
+        self.input_intensity_scale_range: list[int] = [0, 4096]
+        self.output_intensity_scale_range: list[int] = [-1024, 3071]
+        self.output_intensity_clip_range: list[int] = [-1024, 3071]
 
-        self.contrast_threshold = 700
+        self.contrast_threshold: int = 700
 
-        self.all_mask_ids = {}
-        self.heart_mask_ids = {}
-        self.major_vessels_mask_ids = {}
-        self.lung_mask_ids = {}
-        self.bone_mask_ids = {}
-        self.contrast_mask_ids = {135: "contrast"}
-        self.soft_tissue_mask_ids = {133: "soft_tissue"}
-        self.other_mask_ids = {}
+        self.all_mask_ids: dict[int, str] = {}
+        self.heart_mask_ids: dict[int, str] = {}
+        self.major_vessels_mask_ids: dict[int, str] = {}
+        self.lung_mask_ids: dict[int, str] = {}
+        self.bone_mask_ids: dict[int, str] = {}
+        self.contrast_mask_ids: dict[int, str] = {135: "contrast"}
+        self.soft_tissue_mask_ids: dict[int, str] = {133: "soft_tissue"}
+        self.other_mask_ids: dict[int, str] = {}
 
         # Subclasses should call this function to complete the mask ID setup
         # self.set_other_and_all_mask_ids()
 
-    def set_other_and_all_mask_ids(self):
+    def set_other_and_all_mask_ids(self) -> None:
         """Set the other mask IDs and consolidate all mask ID dictionaries.
 
         Creates the 'other' category for any anatomical structures not classified
@@ -107,7 +108,7 @@ class SegmentChestBase(PhysioMotion4DBase):
             **self.other_mask_ids,
         }
 
-    def set_target_spacing(self, target_spacing: float):
+    def set_target_spacing(self, target_spacing: float) -> None:
         """Set the target isotropic spacing for image resampling.
 
         Args:
@@ -121,8 +122,8 @@ class SegmentChestBase(PhysioMotion4DBase):
 
     def preprocess_input(
         self,
-        input_image: itk.image,
-    ) -> itk.image:
+        input_image: Any,
+    ) -> Any:
         """Preprocess the input image for segmentation.
 
         Performs image preprocessing including resampling to isotropic spacing
@@ -341,8 +342,8 @@ class SegmentChestBase(PhysioMotion4DBase):
         self,
         preprocessed_image: itk.image,
         labelmap_image: itk.image,
-        lower_threshold: float,
-        upper_threshold: float,
+        lower_threshold: int,
+        upper_threshold: int,
         labelmap_ids: None | list[int] = None,
         mask_id: int = 0,
         use_mid_slice: bool = True,
@@ -359,8 +360,8 @@ class SegmentChestBase(PhysioMotion4DBase):
         Args:
             preprocessed_image (itk.image): The preprocessed input image
             labelmap_image (itk.image): Existing labelmap to constrain search
-            lower_threshold (float): Lower intensity threshold
-            upper_threshold (float): Upper intensity threshold
+            lower_threshold (int): Lower intensity threshold
+            upper_threshold (int): Upper intensity threshold
             labelmap_ids (None | list[int]): List of label IDs to search within.
                 If None, searches within all existing labels
             mask_id (int): ID to assign to the segmented component
@@ -454,9 +455,7 @@ class SegmentChestBase(PhysioMotion4DBase):
             Assumes the mid-z slice of the data contains the heart.
 
         Example:
-            >>> contrast_labels = segmenter.segment_contrast_agent(
-            ...     preprocessed_image, base_labels
-            ... )
+            >>> contrast_labels = segmenter.segment_contrast_agent(preprocessed_image, base_labels)
         """
         thorasic_ids = (
             list(self.heart_mask_ids.keys())
@@ -502,8 +501,8 @@ class SegmentChestBase(PhysioMotion4DBase):
 
         Example:
             >>> masks = segmenter.create_anatomy_group_masks(labelmap)
-            >>> lung_mask = masks["lung"]
-            >>> heart_mask = masks["heart"]
+            >>> lung_mask = masks['lung']
+            >>> heart_mask = masks['heart']
         """
         labelmap_arr = itk.GetArrayFromImage(labelmap_image)
         other_mask_arr = np.where(labelmap_arr > 0, 1, 0)
@@ -639,16 +638,14 @@ class SegmentChestBase(PhysioMotion4DBase):
 
         Example:
             >>> result = segmenter.segment(ct_image, contrast_enhanced_study=True)
-            >>> labelmap = result["labelmap"]
-            >>> heart_mask = result["heart"]
+            >>> labelmap = result['labelmap']
+            >>> heart_mask = result['heart']
         """
         preprocessed_image = self.preprocess_input(input_image)
 
         labelmap_image = self.segmentation_method(preprocessed_image)
 
-        labelmap_arr = itk.GetArrayFromImage(labelmap_image)
         labelmap_image = self.postprocess_labelmap(labelmap_image, input_image)
-        labelmap_arr = itk.GetArrayFromImage(labelmap_image)
 
         if contrast_enhanced_study:
             labelmap_image = self.segment_contrast_agent(input_image, labelmap_image)

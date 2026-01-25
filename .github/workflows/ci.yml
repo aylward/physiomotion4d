@@ -103,7 +103,7 @@ jobs:
 
     - name: Run unit tests (fast, no external data)
       run: |
-        pytest tests/ -v -m "not slow and not requires_data" --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
+        pytest tests/ -v -m "not slow and not requires_data and not experiment" --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -231,7 +231,7 @@ jobs:
 
     - name: Run all integration tests
       run: |
-        pytest tests/ -v -m "not slow"
+        pytest tests/ -v -m "not slow and not experiment"
       continue-on-error: true
 
     - name: Upload coverage to Codecov
@@ -310,7 +310,7 @@ jobs:
 
     - name: Run GPU tests
       run: |
-        pytest tests/ -v -m "not slow" --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
+        pytest tests/ -v -m "not slow and not experiment" --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
       env:
         CUDA_VISIBLE_DEVICES: 0
 
@@ -351,26 +351,21 @@ jobs:
     - name: Install dev dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install black isort ruff flake8 pylint mypy
+        pip install ruff mypy
 
-    - name: Check code formatting with Black
+    - name: Check formatting with Ruff
       run: |
-        black --check src/ tests/ || echo "Black check failed"
-      continue-on-error: true
-
-    - name: Check import sorting with isort
-      run: |
-        isort --check-only src/ tests/ || echo "isort check failed"
-      continue-on-error: true
+        ruff format --check .
+      continue-on-error: false
 
     - name: Lint with Ruff
       run: |
-        ruff check src/ tests/ || echo "Ruff check failed"
-      continue-on-error: true
+        ruff check .
+      continue-on-error: false
 
-    - name: Lint with Flake8
+    - name: Type check with mypy
       run: |
-        flake8 src/ tests/ || echo "Flake8 check failed"
+        mypy src/
       continue-on-error: true
 
 # ==============================================================================
@@ -386,8 +381,17 @@ jobs:
 # - tests/test_segment_chest_total_segmentator.py (requires CUDA for TotalSegmentator)
 # - tests/test_segment_chest_vista_3d.py (requires CUDA for VISTA-3D, 20GB+ RAM)
 #
+# Experiment tests (EXTREMELY SLOW - hours to complete):
+# - tests/test_experiments.py (runs all notebooks in experiments/ subdirectories)
+#   These tests are NEVER run in CI/CD and must be run manually
+#   They execute end-to-end workflows that may take multiple hours
+#
 # To run locally:
 #   pytest tests/ -v -m "slow"  # Run all slow tests
 #   pytest tests/test_register_images_ants.py -v
 #   pytest tests/test_register_images_icon.py -v
 #   pytest tests/test_segment_chest_total_segmentator.py -v
+#
+# To run experiment tests (manual only, extremely slow):
+#   pytest tests/test_experiments.py -v -m experiment
+#   pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v

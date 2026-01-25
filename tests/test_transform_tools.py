@@ -6,8 +6,6 @@ This test depends on test_register_images_ants and uses registration
 transforms to test transform manipulation and application.
 """
 
-from pathlib import Path
-
 import itk
 import numpy as np
 import pytest
@@ -15,7 +13,6 @@ import pyvista as pv
 import vtk
 
 from physiomotion4d.image_tools import ImageTools
-from physiomotion4d.transform_tools import TransformTools
 
 
 @pytest.mark.requires_data
@@ -56,11 +53,11 @@ class TestTransformTools:
         # Verify result
         assert transformed_image is not None, "Transformed image is None"
         assert itk.size(transformed_image) == itk.size(fixed_image), "Size mismatch"
-        assert itk.spacing(transformed_image) == itk.spacing(
-            fixed_image
-        ), "Spacing mismatch"
+        assert itk.spacing(transformed_image) == itk.spacing(fixed_image), (
+            "Spacing mismatch"
+        )
 
-        print(f"✓ Image transformed with linear interpolation")
+        print("✓ Image transformed with linear interpolation")
         print(f"  Output size: {itk.size(transformed_image)}")
         print(f"  Output spacing: {itk.spacing(transformed_image)}")
 
@@ -92,7 +89,7 @@ class TestTransformTools:
         assert transformed_image is not None, "Transformed image is None"
         assert itk.size(transformed_image) == itk.size(fixed_image), "Size mismatch"
 
-        print(f"✓ Image transformed with nearest neighbor interpolation")
+        print("✓ Image transformed with nearest neighbor interpolation")
 
         # Save transformed image
         itk.imwrite(
@@ -122,7 +119,7 @@ class TestTransformTools:
         assert transformed_image is not None, "Transformed image is None"
         assert itk.size(transformed_image) == itk.size(fixed_image), "Size mismatch"
 
-        print(f"✓ Image transformed with sinc interpolation")
+        print("✓ Image transformed with sinc interpolation")
 
         # Save transformed image
         itk.imwrite(
@@ -149,7 +146,7 @@ class TestTransformTools:
                 interpolation_method="invalid",
             )
 
-        print(f"✓ Invalid method correctly raises ValueError")
+        print("✓ Invalid method correctly raises ValueError")
 
     def test_transform_pvcontour_without_deformation(
         self, transform_tools, test_contour, ants_registration_results
@@ -166,12 +163,12 @@ class TestTransformTools:
 
         # Verify result
         assert transformed_contour is not None, "Transformed contour is None"
-        assert (
-            transformed_contour.n_points == test_contour.n_points
-        ), "Point count changed"
-        assert (
-            "DeformationMagnitude" not in transformed_contour.point_data
-        ), "DeformationMagnitude should not be present"
+        assert transformed_contour.n_points == test_contour.n_points, (
+            "Point count changed"
+        )
+        assert "DeformationMagnitude" not in transformed_contour.point_data, (
+            "DeformationMagnitude should not be present"
+        )
 
         # Check that points actually changed
         original_points = test_contour.points
@@ -179,7 +176,7 @@ class TestTransformTools:
 
         max_diff = np.max(np.abs(transformed_points - original_points))
 
-        print(f"✓ Contour transformed without deformation magnitude")
+        print("✓ Contour transformed without deformation magnitude")
         print(f"  Transformed contour points: {transformed_contour.n_points}")
         print(f"  Max point displacement: {max_diff:.2f} mm")
 
@@ -201,21 +198,21 @@ class TestTransformTools:
 
         # Verify result
         assert transformed_contour is not None, "Transformed contour is None"
-        assert (
-            "DeformationMagnitude" in transformed_contour.point_data
-        ), "DeformationMagnitude not present"
+        assert "DeformationMagnitude" in transformed_contour.point_data, (
+            "DeformationMagnitude not present"
+        )
 
         # Check deformation magnitude values
         deformation = transformed_contour["DeformationMagnitude"]
-        assert (
-            len(deformation) == transformed_contour.n_points
-        ), "Deformation array size mismatch"
+        assert len(deformation) == transformed_contour.n_points, (
+            "Deformation array size mismatch"
+        )
         assert np.all(deformation >= 0), "Deformation magnitude should be non-negative"
 
         mean_def = np.mean(deformation)
         max_def = np.max(deformation)
 
-        print(f"✓ Contour transformed with deformation magnitude")
+        print("✓ Contour transformed with deformation magnitude")
         print(f"  Mean deformation: {mean_def:.2f} mm")
         print(f"  Max deformation: {max_def:.2f} mm")
 
@@ -247,7 +244,7 @@ class TestTransformTools:
         field_arr = itk.array_from_image(deformation_field)
         assert field_arr.shape[-1] == 3, "Should have 3 components (x, y, z)"
 
-        print(f"✓ Transform converted to deformation field")
+        print("✓ Transform converted to deformation field")
         print(f"  Field size: {itk.size(deformation_field)}")
         print(f"  Field shape: {field_arr.shape}")
 
@@ -276,9 +273,9 @@ class TestTransformTools:
 
         # Verify transform
         assert itk_transform is not None, "ITK transform is None"
-        assert isinstance(
-            itk_transform, itk.AffineTransform
-        ), "Should be an AffineTransform"
+        assert isinstance(itk_transform, itk.AffineTransform), (
+            "Should be an AffineTransform"
+        )
 
         # Check translation
         offset = itk_transform.GetOffset()
@@ -286,7 +283,7 @@ class TestTransformTools:
         assert abs(offset[1] - 20.0) < 0.01, "Y translation incorrect"
         assert abs(offset[2] - 30.0) < 0.01, "Z translation incorrect"
 
-        print(f"✓ VTK matrix converted to ITK transform")
+        print("✓ VTK matrix converted to ITK transform")
         print(f"  Translation: [{offset[0]:.1f}, {offset[1]:.1f}, {offset[2]:.1f}]")
 
     def test_compute_jacobian_determinant_from_field(
@@ -321,7 +318,7 @@ class TestTransformTools:
         min_jac = np.min(jac_arr)
         max_jac = np.max(jac_arr)
 
-        print(f"✓ Jacobian determinant computed")
+        print("✓ Jacobian determinant computed")
         print(f"  Mean: {mean_jac:.3f}")
         print(f"  Min: {min_jac:.3f}")
         print(f"  Max: {max_jac:.3f}")
@@ -360,7 +357,7 @@ class TestTransformTools:
         # Verify result
         assert isinstance(has_folding, bool), "Result should be boolean"
 
-        print(f"✓ Folding detection complete")
+        print("✓ Folding detection complete")
         print(f"  Has folding: {has_folding}")
 
     def test_interpolate_transforms(
@@ -389,12 +386,12 @@ class TestTransformTools:
 
         # Verify result
         assert interpolated_tfm is not None, "Interpolated transform is None"
-        assert isinstance(
-            interpolated_tfm, itk.DisplacementFieldTransform
-        ), "Should be a DisplacementFieldTransform"
+        assert isinstance(interpolated_tfm, itk.DisplacementFieldTransform), (
+            "Should be a DisplacementFieldTransform"
+        )
 
-        print(f"✓ Transform interpolation complete")
-        print(f"  Interpolation alpha: 0.5")
+        print("✓ Transform interpolation complete")
+        print("  Interpolation alpha: 0.5")
         print(f"  Result type: {type(interpolated_tfm).__name__}")
 
     def test_combine_displacement_field_transforms(
@@ -423,9 +420,9 @@ class TestTransformTools:
 
         # Verify result
         assert composed_tfm1 is not None, "Composed transform is None"
-        assert isinstance(
-            composed_tfm1, itk.DisplacementFieldTransform
-        ), "Should be a DisplacementFieldTransform"
+        assert isinstance(composed_tfm1, itk.DisplacementFieldTransform), (
+            "Should be a DisplacementFieldTransform"
+        )
 
         # Test 2: First transform only (weight 1.0, 0.0)
         print("  Test 2: First transform only (1.0, 0.0)")
@@ -499,7 +496,7 @@ class TestTransformTools:
         mag2 = np.mean(np.linalg.norm(arr2, axis=-1))
         mag3 = np.mean(np.linalg.norm(arr3, axis=-1))
 
-        print(f"✓ Transform composition complete")
+        print("✓ Transform composition complete")
         print(f"  Field magnitude (0.5, 0.5): {mag1:.3f} mm")
         print(f"  Field magnitude (1.0, 0.0): {mag2:.3f} mm")
         print(f"  Field magnitude (0.0, 1.0): {mag3:.3f} mm")
@@ -524,12 +521,12 @@ class TestTransformTools:
 
         # Verify result
         assert smoothed_tfm is not None, "Smoothed transform is None"
-        assert isinstance(
-            smoothed_tfm, itk.DisplacementFieldTransform
-        ), "Should be a DisplacementFieldTransform"
+        assert isinstance(smoothed_tfm, itk.DisplacementFieldTransform), (
+            "Should be a DisplacementFieldTransform"
+        )
 
-        print(f"✓ Transform smoothing complete")
-        print(f"  Smoothing sigma: 2.0")
+        print("✓ Transform smoothing complete")
+        print("  Smoothing sigma: 2.0")
 
     def test_combine_transforms_with_masks(
         self, transform_tools, ants_registration_results, test_images
@@ -569,11 +566,11 @@ class TestTransformTools:
 
         # Verify result
         assert combined_tfm is not None, "Combined transform is None"
-        assert isinstance(
-            combined_tfm, itk.DisplacementFieldTransform
-        ), "Should be a DisplacementFieldTransform"
+        assert isinstance(combined_tfm, itk.DisplacementFieldTransform), (
+            "Should be a DisplacementFieldTransform"
+        )
 
-        print(f"✓ Transforms combined with masks")
+        print("✓ Transforms combined with masks")
 
     def test_multiple_transform_applications(
         self, transform_tools, ants_registration_results, test_images
@@ -598,7 +595,7 @@ class TestTransformTools:
         assert result1 is not None, "First transform result is None"
         assert result2 is not None, "Second transform result is None"
 
-        print(f"✓ Multiple sequential transforms applied")
+        print("✓ Multiple sequential transforms applied")
 
     def test_identity_transform(self, transform_tools, test_images):
         """Test that identity transform doesn't change the image."""
@@ -616,7 +613,6 @@ class TestTransformTools:
         )
 
         # Images should be very similar (small differences due to interpolation)
-        moving_arr = itk.array_from_image(moving_image)
         transformed_arr = itk.array_from_image(transformed_image)
 
         # Resample moving to fixed grid first for fair comparison
@@ -630,7 +626,7 @@ class TestTransformTools:
         diff = np.abs(resampled_arr - transformed_arr)
         mean_diff = np.mean(diff)
 
-        print(f"✓ Identity transform tested")
+        print("✓ Identity transform tested")
         print(f"  Mean difference: {mean_diff:.4f}")
 
         # Should be very small (just interpolation error)

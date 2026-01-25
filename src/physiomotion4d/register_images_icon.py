@@ -9,8 +9,8 @@ The module uses the unigradicon package which provides GPU-accelerated
 deformable registration with mass preservation constraints.
 """
 
-import argparse
 import logging
+from typing import Optional
 
 import icon_registration as icon
 import icon_registration.itk_wrapper
@@ -55,10 +55,10 @@ class RegisterImagesICON(RegisterImagesBase):
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> result = registrar.register(moving_image)
-        >>> forward_transform = result["forward_transform"]
+        >>> forward_transform = result['forward_transform']
     """
 
-    def __init__(self, log_level: int | str = logging.INFO):
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
         """Initialize the ICON image registration class.
 
         Calls the parent RegisterImagesBase constructor to set up common parameters.
@@ -71,10 +71,10 @@ class RegisterImagesICON(RegisterImagesBase):
         super().__init__(log_level=log_level)
 
         self.net = None
-        self.use_multi_modality = False
-        self.use_mass_preservation = False
+        self.use_multi_modality: bool = False
+        self.use_mass_preservation: bool = False
 
-    def set_multi_modality(self, enable):
+    def set_multi_modality(self, enable: bool) -> None:
         """Enable or disable multi-modality registration.
 
         Multi-modality registration is useful when aligning images from different
@@ -87,11 +87,11 @@ class RegisterImagesICON(RegisterImagesBase):
 
         Example:
             >>> registrar.set_multi_modality(True)  # Enable for CT to MRI
-            >>> registrar.set_multi_modality(False) # Disable for CT to CT
+            >>> registrar.set_multi_modality(False)  # Disable for CT to CT
         """
         self.use_multi_modality = enable
 
-    def set_mass_preservation(self, enable):
+    def set_mass_preservation(self, enable: bool) -> None:
         """Enable or disable mass preservation constraint.
 
         Mass preservation is particularly useful for CT images where the
@@ -104,11 +104,11 @@ class RegisterImagesICON(RegisterImagesBase):
 
         Example:
             >>> registrar.set_mass_preservation(True)  # Enable for CT
-            >>> registrar.set_mass_preservation(False) # Disable for MRI
+            >>> registrar.set_mass_preservation(False)  # Disable for MRI
         """
         self.use_mass_preservation = enable
 
-    def preprocess(self, image, modality):
+    def preprocess(self, image: itk.Image, modality: str = "ct") -> itk.Image:
         """Preprocess the image for ICON registration.
 
         Applies modality-specific preprocessing steps to prepare the image
@@ -130,11 +130,11 @@ class RegisterImagesICON(RegisterImagesBase):
 
     def registration_method(
         self,
-        moving_image,
-        moving_mask=None,
-        moving_image_pre=None,
-        initial_forward_transform=None,
-    ):
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image] = None,
+        moving_image_pre: Optional[itk.Image] = None,
+        initial_forward_transform: Optional[itk.Transform] = None,
+    ) -> dict[str, object]:
         """Register moving image to fixed image using ICON registration algorithm.
 
         Implementation of the abstract register() method from RegisterImagesBase.
@@ -175,14 +175,12 @@ class RegisterImagesICON(RegisterImagesBase):
         Example:
             >>> # Basic registration
             >>> result = registrar.register(moving_image)
-            >>> forward_transform = result["forward_transform"]
-            >>> inverse_transform = result["inverse_transform"]
+            >>> forward_transform = result['forward_transform']
+            >>> inverse_transform = result['inverse_transform']
             >>>
             >>> # Masked registration for cardiac structures
             >>> registrar.set_fixed_mask(heart_mask_fixed)
-            >>> result = registrar.register(
-            ...     moving_image, moving_mask=heart_mask_moving
-            ... )
+            >>> result = registrar.register(moving_image, moving_mask=heart_mask_moving)
         """
 
         tfm_tools = TransformTools()
@@ -260,45 +258,3 @@ class RegisterImagesICON(RegisterImagesBase):
             "inverse_transform": inverse_transform,
             "loss": loss,
         }
-
-
-def parse_args():
-    """Parse command line arguments for image registration.
-
-    Returns:
-        argparse.Namespace: Parsed arguments containing:
-            - fixed_image: Path to fixed/reference image
-            - moving_image: Path to moving image to register
-            - output_image: Path for registered output image
-            - modality: Image modality (e.g., 'ct', 'mri')
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fixed_image", type=str, required=True)
-    parser.add_argument("--moving_image", type=str, required=True)
-    parser.add_argument("--output_image", type=str, required=True)
-    parser.add_argument("--modality", type=str, required=True)
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    """Command line interface for ICON-based image registration.
-
-    Example usage:
-        python register_images_icon.py \
-            --fixed_image reference.mha \
-            --moving_image timepoint_05.mha \
-            --output_image registered.mha \
-            --modality ct
-    """
-    args = parse_args()
-    registrar = RegisterImagesICON()
-    registrar.set_modality(args.modality)
-    registrar.set_fixed_image(itk.imread(args.fixed_image))
-    moving_image = itk.imread(args.moving_image)
-    result = registrar.register(moving_image=moving_image)
-    forward_transform = result["forward_transform"]
-    inverse_transform = result["inverse_transform"]
-    moving_image_reg = TransformTools().transform_image(
-        moving_image, forward_transform, registrar.fixed_image, "sinc"
-    )  # Final resampling with sinc
-    itk.imwrite(moving_image_reg, args.output_image, compression=True)

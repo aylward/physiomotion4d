@@ -3,6 +3,7 @@ class pmDataDirLab4dCT:
 This module contains the pmDataDirLab4DCT class, which is used to store the
 data for the DirLab 4DCT dataset.
 """
+
 import itk
 
 
@@ -12,7 +13,7 @@ class DataDirLab4DCT:
     """
 
     def __init__(self):
-        """ Define the variables specific to DirLab data"""
+        """Define the variables specific to DirLab data"""
         self.case_names = [
             "Case1Pack",
             "Case2Pack",
@@ -27,11 +28,11 @@ class DataDirLab4DCT:
         ]
 
     def get_case_names(self) -> list[str]:
-        """ Get the case names """
+        """Get the case names"""
         return self.case_names
 
     def fix_image(self, input_image: itk.image) -> itk.image:
-        """ Fix DirLab_4DCT intensities to conform to HU """
+        """Fix DirLab_4DCT intensities to conform to HU"""
         input_image_arr = itk.GetArrayViewFromImage(input_image)
         input_image_arr -= 1024
         input_image_arr = input_image_arr.clip(-1024, 3071)

@@ -6,10 +6,12 @@ and performing image processing operations.
 """
 
 import logging
+from typing import Any
 
 import itk
 import numpy as np
 import SimpleITK as sitk
+from numpy.typing import NDArray
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
@@ -30,7 +32,7 @@ class ImageTools(PhysioMotion4DBase):
         >>> itk_image_back = tools.convert_sitk_image_to_itk(sitk_image)
     """
 
-    def __init__(self, log_level: int | str = logging.INFO):
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
         """Initialize ImageTools.
 
         Args:
@@ -38,7 +40,7 @@ class ImageTools(PhysioMotion4DBase):
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
-    def imreadVD3(self, filename: str) -> itk.Image:
+    def imreadVD3(self, filename: str) -> Any:
         """Read an ITK vector image with double precision vectors.
 
         ITK's imread is not wrapped for itk.Image[itk.Vector[itk.D,3],3],
@@ -52,7 +54,7 @@ class ImageTools(PhysioMotion4DBase):
             itk.Image[itk.Vector[itk.D,3],3]: Vector image with double precision
 
         Example:
-            >>> displacement_field = ImageTools().imreadVD3("deformation.mha")
+            >>> displacement_field = ImageTools().imreadVD3('deformation.mha')
         """
         # Read as float precision vector image
         image = itk.imread(filename)
@@ -64,7 +66,7 @@ class ImageTools(PhysioMotion4DBase):
 
         return image_double
 
-    def imwriteVD3(self, image: itk.Image, filename: str, compression: bool = True):
+    def imwriteVD3(self, image: Any, filename: str, compression: bool = True) -> None:
         """Write an ITK vector image with double precision vectors.
 
         ITK's imwrite is not wrapped for itk.Image[itk.Vector[itk.D,3],3],
@@ -76,7 +78,7 @@ class ImageTools(PhysioMotion4DBase):
             compression (bool): Whether to use compression (default: True)
 
         Example:
-            >>> ImageTools().imwriteVD3(displacement_field, "deformation.mha")
+            >>> ImageTools().imwriteVD3(displacement_field, 'deformation.mha')
         """
         # Convert to float precision for writing
         if "VD" not in str(type(image)):
@@ -108,7 +110,7 @@ class ImageTools(PhysioMotion4DBase):
 
         Example:
             >>> tools = ImageTools()
-            >>> itk_image = itk.imread("image.nii.gz")
+            >>> itk_image = itk.imread('image.nii.gz')
             >>> sitk_image = tools.convert_itk_image_to_sitk(itk_image)
         """
         # Get numpy array from ITK image
@@ -122,7 +124,7 @@ class ImageTools(PhysioMotion4DBase):
 
         # Check if this is a vector image
         is_vector = False
-        if hasattr(itk_image, 'GetNumberOfComponentsPerPixel'):
+        if hasattr(itk_image, "GetNumberOfComponentsPerPixel"):
             n_components = itk_image.GetNumberOfComponentsPerPixel()
             is_vector = n_components > 1
 
@@ -139,14 +141,9 @@ class ImageTools(PhysioMotion4DBase):
         sitk_image.SetOrigin(tuple(origin))
         sitk_image.SetSpacing(tuple(spacing))
 
-        # Direction matrix needs to be flattened and reversed appropriately
-        # ITK and SimpleITK use the same direction convention, but we need to handle
-        # the ordering correctly for the dimension
-        dimension = sitk_image.GetDimension()
+        # Direction matrix needs to be flattened
+        # ITK and SimpleITK use the same direction convention, we just need to flatten it correctly
         direction_flat = direction.flatten()
-
-        # For 3D images, we need to reorder the direction matrix from ITK (x,y,z) to SimpleITK
-        # Actually, both use the same convention, we just need to flatten it correctly
         sitk_image.SetDirection(direction_flat.tolist())
 
         return sitk_image
@@ -171,7 +168,7 @@ class ImageTools(PhysioMotion4DBase):
 
         Example:
             >>> tools = ImageTools()
-            >>> sitk_image = sitk.ReadImage("image.nii.gz")
+            >>> sitk_image = sitk.ReadImage('image.nii.gz')
             >>> itk_image = tools.convert_sitk_image_to_itk(sitk_image)
         """
         # Get numpy array from SimpleITK image
@@ -220,10 +217,10 @@ class ImageTools(PhysioMotion4DBase):
 
     def convert_array_to_image_of_vectors(
         self,
-        arr_data: np.array,
-        reference_image: itk.Image,
-        ptype=itk.D,
-    ) -> itk.Image:
+        arr_data: NDArray[Any],
+        reference_image: Any,
+        ptype: Any = itk.D,
+    ) -> Any:
         """
         Convert a numpy array to an ITK image of vector type.
 

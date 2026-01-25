@@ -7,8 +7,10 @@ import sys
 from datetime import datetime
 from unittest.mock import MagicMock
 
+
 # Add the source directory to the path
-sys.path.insert(0, os.path.abspath('../src'))
+sys.path.insert(0, os.path.abspath("../src"))
+
 
 # Create a more robust mock for complex packages
 class Mock(MagicMock):
@@ -16,75 +18,74 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return MagicMock()
 
+
 # Mock modules that need special handling
-sys.modules['itk.TubeTK'] = Mock()
-sys.modules['icon_registration.losses'] = Mock()
-sys.modules['icon_registration.network_wrappers'] = Mock()
+sys.modules["itk.TubeTK"] = Mock()
+sys.modules["icon_registration.losses"] = Mock()
+sys.modules["icon_registration.network_wrappers"] = Mock()
 
 # -- Project information -----------------------------------------------------
-project = 'PhysioMotion4D'
-copyright = f'{datetime.now().year}, Stephen R. Aylward, NVIDIA Corporation'
-author = 'Stephen R. Aylward'
+project = "PhysioMotion4D"
+copyright = f"{datetime.now().year}, Stephen R. Aylward, NVIDIA Corporation"
+author = "Stephen R. Aylward"
 
 # The full version, including alpha/beta/rc tags
-release = '2025.05.0'
-version = '2025.05.0'
+release = "2025.05.0"
+version = "2025.05.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx_autodoc_typehints',
-    'sphinx_copybutton',
-    'sphinx_tabs.tabs',
-    'myst_parser',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.mathjax",
+    "sphinx_autodoc_typehints",
+    "sphinx_copybutton",
+    "sphinx_tabs.tabs",
+    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The suffix(es) of source filenames.
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.md': 'markdown',
+    ".rst": "restructuredtext",
+    ".md": "markdown",
 }
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_theme = "sphinx_rtd_theme"
+html_static_path = ["_static"]
 
 html_theme_options = {
-    'logo_only': False,
+    "logo_only": False,
     # 'display_version': True,  # Deprecated in sphinx_rtd_theme >= 1.0
-    'prev_next_buttons_location': 'both',  # Show navigation at top and bottom
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
-    'style_nav_header_background': '#2980B9',
+    "prev_next_buttons_location": "both",  # Show navigation at top and bottom
+    "style_external_links": False,
+    "vcs_pageview_mode": "",
+    "style_nav_header_background": "#2980B9",
     # Toc options - optimized for module browsing
-    'collapse_navigation': False,  # Keep sidebar expanded
-    'sticky_navigation': True,  # Sidebar follows scroll
-    'navigation_depth': 5,  # Increased depth for module pages
-    'includehidden': True,
-    'titles_only': False  # Show full TOC hierarchy
+    "collapse_navigation": False,  # Keep sidebar expanded
+    "sticky_navigation": True,  # Sidebar follows scroll
+    "navigation_depth": 5,  # Increased depth for module pages
+    "includehidden": True,
+    "titles_only": False,  # Show full TOC hierarchy
 }
 
 # Enable search language features
-html_search_language = 'en'
-html_search_options = {
-    'type': 'default'
-}
+html_search_language = "en"
+html_search_options = {"type": "default"}
 
 # Show page source link
 html_show_sourcelink = True
@@ -105,7 +106,7 @@ html_context = {
 
 # Add custom CSS
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 
 # -- Extension configuration -------------------------------------------------
@@ -128,23 +129,23 @@ napoleon_attr_annotations = True
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
-    'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__'
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": True,
+    "exclude-members": "__weakref__",
 }
-autodoc_typehints = 'description'
-autodoc_typehints_description_target = 'documented'
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
 autodoc_inherit_docstrings = True
 autodoc_warningiserror = False  # Don't treat import warnings as errors
 
 # Intersphinx mapping
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'torch': ('https://pytorch.org/docs/stable/', None),
-    'itk': ('https://docs.itk.org/en/latest/', None),
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "torch": ("https://pytorch.org/docs/stable/", None),
+    "itk": ("https://docs.itk.org/en/latest/", None),
 }
 
 # Todo extension
@@ -168,36 +169,36 @@ myst_enable_extensions = [
 
 # Mock imports for packages that require heavy dependencies or CUDA
 autodoc_mock_imports = [
-    'torch',
-    'torchvision',
-    'torchaudio',
-    'monai',
-    'totalsegmentator',
-    'icon_registration',
-    'unigradicon',
-    'vtk',
-    'pyvista',
-    'itk',
-    'nibabel',
-    'pynrrd',
-    'transformers',
-    'SimpleITK',
-    'cupy',
-    'cupyx',
-    'pxr',
-    'scipy',
-    'matplotlib',
-    'ants',
-    'antspyx',
-    'cv2',
-    'skimage',
-    'PIL',
-    'Usd',
-    'UsdGeom',
-    'UsdShade',
-    'Gf',
-    'Vt',
-    'Sdf',
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "monai",
+    "totalsegmentator",
+    "icon_registration",
+    "unigradicon",
+    "vtk",
+    "pyvista",
+    "itk",
+    "nibabel",
+    "pynrrd",
+    "transformers",
+    "SimpleITK",
+    "cupy",
+    "cupyx",
+    "pxr",
+    "scipy",
+    "matplotlib",
+    "ants",
+    "antspyx",
+    "cv2",
+    "skimage",
+    "PIL",
+    "Usd",
+    "UsdGeom",
+    "UsdShade",
+    "Gf",
+    "Vt",
+    "Sdf",
 ]
 
 # Copybutton configuration
@@ -206,20 +207,22 @@ copybutton_prompt_is_regexp = True
 
 # -- Custom setup ------------------------------------------------------------
 
+
 def autodoc_skip_member(app, what, name, obj, skip, options):
     """Custom function to skip certain members during autodoc processing."""
     # Skip private methods unless explicitly documented
-    if name.startswith('_') and not name.startswith('__'):
+    if name.startswith("_") and not name.startswith("__"):
         return True
     return skip
+
 
 def setup(app):
     """Custom setup function for Sphinx."""
     # Connect the autodoc-skip-member event
-    app.connect('autodoc-skip-member', autodoc_skip_member)
-    
+    app.connect("autodoc-skip-member", autodoc_skip_member)
+
     # Suppress specific warnings
     import warnings
-    warnings.filterwarnings('ignore', category=DeprecationWarning)
-    warnings.filterwarnings('ignore', category=FutureWarning)
 
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    warnings.filterwarnings("ignore", category=FutureWarning)

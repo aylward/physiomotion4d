@@ -30,14 +30,14 @@ def get_time_metadata(filepath: str) -> dict:
     stage = Usd.Stage.Open(filepath)
 
     return {
-        'start_time': stage.GetStartTimeCode(),
-        'end_time': stage.GetEndTimeCode(),
-        'time_codes_per_second': stage.GetTimeCodesPerSecond(),
-        'frames_per_second': stage.GetFramesPerSecond()
+        "start_time": stage.GetStartTimeCode(),
+        "end_time": stage.GetEndTimeCode(),
+        "time_codes_per_second": stage.GetTimeCodesPerSecond(),
+        "frames_per_second": stage.GetFramesPerSecond(),
     }
 
 
-def get_mesh_time_samples(filepath: str, mesh_name: str = 'inferior_vena_cava') -> dict:
+def get_mesh_time_samples(filepath: str, mesh_name: str = "inferior_vena_cava") -> dict:
     """
     Get time sample data for a specific mesh in a USD file.
 
@@ -71,10 +71,10 @@ def get_mesh_time_samples(filepath: str, mesh_name: str = 'inferior_vena_cava') 
                         positions[t] = points[0]  # First point
 
             return {
-                'num_samples': len(time_samples),
-                'time_codes': list(time_samples),
-                'positions': positions,
-                'prim_path': str(prim.GetPath())
+                "num_samples": len(time_samples),
+                "time_codes": list(time_samples),
+                "positions": positions,
+                "prim_path": str(prim.GetPath()),
             }
 
     return None
@@ -87,16 +87,17 @@ class TestUSDTimePreservation:
     @pytest.fixture(scope="class")
     def test_data_files(self):
         """Locate test USD files with time-varying data."""
-        dynamic_file = Path("experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.dynamic_anatomy_painted.usd")
-        static_file = Path("experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.static_anatomy_painted.usd")
+        dynamic_file = Path(
+            "experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.dynamic_anatomy_painted.usd"
+        )
+        static_file = Path(
+            "experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.static_anatomy_painted.usd"
+        )
 
         if not dynamic_file.exists() or not static_file.exists():
             pytest.skip("Test data not available. Run Heart-GatedCT experiments first.")
 
-        return {
-            'dynamic': str(dynamic_file),
-            'static': str(static_file)
-        }
+        return {"dynamic": str(dynamic_file), "static": str(static_file)}
 
     @pytest.fixture(scope="class")
     def output_dir(self, tmp_path_factory):
@@ -107,58 +108,74 @@ class TestUSDTimePreservation:
     @pytest.fixture(scope="class")
     def source_metadata(self, test_data_files):
         """Get time metadata from source file."""
-        return get_time_metadata(test_data_files['dynamic'])
+        return get_time_metadata(test_data_files["dynamic"])
 
     @pytest.fixture(scope="class")
     def source_time_samples(self, test_data_files):
         """Get time sample data from source file."""
-        return get_mesh_time_samples(test_data_files['dynamic'])
+        return get_mesh_time_samples(test_data_files["dynamic"])
 
-    def test_merge_copy_preserves_time_metadata(self, test_data_files, source_metadata, output_dir):
+    def test_merge_copy_preserves_time_metadata(
+        self, test_data_files, source_metadata, output_dir
+    ):
         """Test that merge_usd_files() preserves time metadata."""
         usd_tools = USDTools()
         merged_file = output_dir / "test_time_copy.usd"
 
         usd_tools.merge_usd_files(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         merged_metadata = get_time_metadata(str(merged_file))
 
         # Verify all time metadata matches
-        assert merged_metadata['start_time'] == source_metadata['start_time'], \
+        assert merged_metadata["start_time"] == source_metadata["start_time"], (
             f"Start time not preserved: {merged_metadata['start_time']} != {source_metadata['start_time']}"
+        )
 
-        assert merged_metadata['end_time'] == source_metadata['end_time'], \
+        assert merged_metadata["end_time"] == source_metadata["end_time"], (
             f"End time not preserved: {merged_metadata['end_time']} != {source_metadata['end_time']}"
+        )
 
-        assert merged_metadata['time_codes_per_second'] == source_metadata['time_codes_per_second'], \
+        assert (
+            merged_metadata["time_codes_per_second"]
+            == source_metadata["time_codes_per_second"]
+        ), (
             f"TimeCodesPerSecond not preserved: {merged_metadata['time_codes_per_second']} != {source_metadata['time_codes_per_second']}"
+        )
 
-    def test_merge_flattened_preserves_time_metadata(self, test_data_files, source_metadata, output_dir):
+    def test_merge_flattened_preserves_time_metadata(
+        self, test_data_files, source_metadata, output_dir
+    ):
         """Test that merge_usd_files_flattened() preserves time metadata."""
         usd_tools = USDTools()
         merged_file = output_dir / "test_time_flattened.usd"
 
         usd_tools.merge_usd_files_flattened(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         merged_metadata = get_time_metadata(str(merged_file))
 
         # Verify all time metadata matches
-        assert merged_metadata['start_time'] == source_metadata['start_time'], \
+        assert merged_metadata["start_time"] == source_metadata["start_time"], (
             f"Start time not preserved: {merged_metadata['start_time']} != {source_metadata['start_time']}"
+        )
 
-        assert merged_metadata['end_time'] == source_metadata['end_time'], \
+        assert merged_metadata["end_time"] == source_metadata["end_time"], (
             f"End time not preserved: {merged_metadata['end_time']} != {source_metadata['end_time']}"
+        )
 
-        assert merged_metadata['time_codes_per_second'] == source_metadata['time_codes_per_second'], \
+        assert (
+            merged_metadata["time_codes_per_second"]
+            == source_metadata["time_codes_per_second"]
+        ), (
             f"TimeCodesPerSecond not preserved: {merged_metadata['time_codes_per_second']} != {source_metadata['time_codes_per_second']}"
+        )
 
-    def test_merge_copy_preserves_time_samples(self, test_data_files, source_time_samples, output_dir):
+    def test_merge_copy_preserves_time_samples(
+        self, test_data_files, source_time_samples, output_dir
+    ):
         """Test that merge_usd_files() preserves actual time sample data."""
         if source_time_samples is None:
             pytest.skip("Test mesh not found in source data")
@@ -167,32 +184,36 @@ class TestUSDTimePreservation:
         merged_file = output_dir / "test_samples_copy.usd"
 
         usd_tools.merge_usd_files(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         merged_samples = get_mesh_time_samples(str(merged_file))
         assert merged_samples is not None, "Test mesh not found in merged file"
 
         # Verify time sample count
-        assert merged_samples['num_samples'] == source_time_samples['num_samples'], \
+        assert merged_samples["num_samples"] == source_time_samples["num_samples"], (
             f"Time sample count mismatch: {merged_samples['num_samples']} != {source_time_samples['num_samples']}"
+        )
 
         # Verify time codes
-        assert merged_samples['time_codes'] == source_time_samples['time_codes'], \
+        assert merged_samples["time_codes"] == source_time_samples["time_codes"], (
             f"Time codes mismatch: {merged_samples['time_codes']} != {source_time_samples['time_codes']}"
+        )
 
         # Verify point positions at key time codes
-        for time_code, source_pos in source_time_samples['positions'].items():
-            merged_pos = merged_samples['positions'].get(time_code)
+        for time_code, source_pos in source_time_samples["positions"].items():
+            merged_pos = merged_samples["positions"].get(time_code)
             assert merged_pos is not None, f"Position missing at time {time_code}"
 
             # Compare positions with small tolerance for floating point
             for i in range(3):
-                assert abs(merged_pos[i] - source_pos[i]) < 1e-5, \
+                assert abs(merged_pos[i] - source_pos[i]) < 1e-5, (
                     f"Position mismatch at time {time_code}: {merged_pos} != {source_pos}"
+                )
 
-    def test_merge_flattened_preserves_time_samples(self, test_data_files, source_time_samples, output_dir):
+    def test_merge_flattened_preserves_time_samples(
+        self, test_data_files, source_time_samples, output_dir
+    ):
         """Test that merge_usd_files_flattened() preserves actual time sample data."""
         if source_time_samples is None:
             pytest.skip("Test mesh not found in source data")
@@ -201,32 +222,36 @@ class TestUSDTimePreservation:
         merged_file = output_dir / "test_samples_flattened.usd"
 
         usd_tools.merge_usd_files_flattened(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         merged_samples = get_mesh_time_samples(str(merged_file))
         assert merged_samples is not None, "Test mesh not found in merged file"
 
         # Verify time sample count
-        assert merged_samples['num_samples'] == source_time_samples['num_samples'], \
+        assert merged_samples["num_samples"] == source_time_samples["num_samples"], (
             f"Time sample count mismatch: {merged_samples['num_samples']} != {source_time_samples['num_samples']}"
+        )
 
         # Verify time codes
-        assert merged_samples['time_codes'] == source_time_samples['time_codes'], \
+        assert merged_samples["time_codes"] == source_time_samples["time_codes"], (
             f"Time codes mismatch: {merged_samples['time_codes']} != {source_time_samples['time_codes']}"
+        )
 
         # Verify point positions at key time codes
-        for time_code, source_pos in source_time_samples['positions'].items():
-            merged_pos = merged_samples['positions'].get(time_code)
+        for time_code, source_pos in source_time_samples["positions"].items():
+            merged_pos = merged_samples["positions"].get(time_code)
             assert merged_pos is not None, f"Position missing at time {time_code}"
 
             # Compare positions with small tolerance for floating point
             for i in range(3):
-                assert abs(merged_pos[i] - source_pos[i]) < 1e-5, \
+                assert abs(merged_pos[i] - source_pos[i]) < 1e-5, (
                     f"Position mismatch at time {time_code}: {merged_pos} != {source_pos}"
+                )
 
-    def test_animation_range_matches_actual_motion(self, test_data_files, source_time_samples, output_dir):
+    def test_animation_range_matches_actual_motion(
+        self, test_data_files, source_time_samples, output_dir
+    ):
         """
         Test that the full animation range is accessible.
 
@@ -240,8 +265,7 @@ class TestUSDTimePreservation:
         merged_file = output_dir / "test_animation_range.usd"
 
         usd_tools.merge_usd_files_flattened(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         # Get metadata and samples
@@ -250,19 +274,20 @@ class TestUSDTimePreservation:
 
         # Calculate the time duration that the animation represents
         # This should equal the number of time codes (e.g., 21 codes = 21 seconds at TCPS=1.0)
-        num_time_codes = len(samples['time_codes'])
-        expected_duration = (metadata['end_time'] - metadata['start_time'])
+        num_time_codes = len(samples["time_codes"])
+        expected_duration = metadata["end_time"] - metadata["start_time"]
 
         # With TCPS=1.0, the duration in seconds should equal the number of time codes
         # With TCPS=24.0 (the bug), only 21/24 = 0.875 seconds would be used
-        tcps = metadata['time_codes_per_second']
+        tcps = metadata["time_codes_per_second"]
         actual_duration_in_playback = expected_duration / tcps
 
         # The playback duration should be close to the number of time codes
         # (allowing some tolerance for different TCPS values)
-        assert abs(actual_duration_in_playback - (num_time_codes - 1)) < 2.0, \
-            f"Animation duration mismatch: {actual_duration_in_playback} seconds playback " \
+        assert abs(actual_duration_in_playback - (num_time_codes - 1)) < 2.0, (
+            f"Animation duration mismatch: {actual_duration_in_playback} seconds playback "
             f"for {num_time_codes} time codes (TCPS={tcps})"
+        )
 
 
 if __name__ == "__main__":

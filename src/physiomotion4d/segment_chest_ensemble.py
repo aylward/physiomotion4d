@@ -7,7 +7,6 @@
 #      --shm-size=8G -p 8000:8000
 #      -v /tmp/data:/home/aylward/tmp/data nvcr.io/nim/nvidia/vista3d:latest
 
-import argparse
 import logging
 
 import itk
@@ -387,8 +386,7 @@ class SegmentChestEnsemble(SegmentChestBase):
                 results_arr[idx] = label
                 labelmap_vista_arr[idx] = label
                 totseg_label = self.vista3d_to_totseg_ids_map.get(vista_label, 0)
-                if totseg_label < 0:
-                    totseg_label = 0
+                totseg_label = max(totseg_label, 0)
                 labelmap_totseg_arr[idx] = totseg_label
 
         results_arr = results_arr.reshape(labelmap_vista_arr.shape)
@@ -418,19 +416,3 @@ class SegmentChestEnsemble(SegmentChestBase):
         )
 
         return ensemble_segmentation
-
-
-def parse_args():
-    """
-    Parse command line arguments for Vista3D.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_image", type=str, required=True)
-    parser.add_argument("--output_image", type=str, required=True)
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    seg_image = SegmentChestVista3D().segment(itk.imread(args.fixed_image))
-    itk.imwrite(seg_image, args.output_image, compression=True)

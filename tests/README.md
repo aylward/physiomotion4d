@@ -6,6 +6,9 @@ This directory contains comprehensive test suites for the PhysioMotion4D package
 
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing guide with setup, troubleshooting, and best practices
 - **[GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)** - CI/CD documentation and GitHub Actions workflow details
+- **[EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)** - Guide for running experiment notebook tests
+- **[PARALLEL_EXECUTION_GUIDE.md](PARALLEL_EXECUTION_GUIDE.md)** - How parallel execution works with experiment tests
+- **[EXPERIMENT_FLAG_USAGE.md](EXPERIMENT_FLAG_USAGE.md)** - Details on the --run-experiments flag
 - **[TEST_FIXES_SUMMARY.md](TEST_FIXES_SUMMARY.md)** - Recent bug fixes and known issues
 
 ## 🧪 Test Categories
@@ -30,6 +33,17 @@ This directory contains comprehensive test suites for the PhysioMotion4D package
 ### USD Utility Tests
 - **`test_usd_merge.py`** - USD file merging with material preservation
 - **`test_usd_time_preservation.py`** - Time-varying data validation
+
+### Experiment Tests (EXTREMELY SLOW - Manual Only)
+- **`test_experiments.py`** - End-to-end experiment notebook execution (hours to complete)
+  - 🔒 **Opt-in only** - Requires `--run-experiments` flag to run
+  - ⚠️ **NOT included in CI/CD** - Never runs in automated workflows
+  - ⚠️ **Automatically skipped** - Won't run with `pytest tests/` unless flag is set
+  - Runs all notebooks in `experiments/` subdirectories
+  - Each subdirectory gets its own test
+  - Notebooks run in alphanumeric order
+  - Requires GPU, CUDA, and all dependencies installed
+  - 📖 **See [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md) for detailed usage instructions**
 
 ## 📂 Directory Structure
 
@@ -59,7 +73,15 @@ pytest tests/ -m "not slow" -v
 pytest tests/test_usd_merge.py -v
 
 # All tests (including slow registration tests)
+# Note: Experiment tests are automatically skipped
 pytest tests/ -v
+
+# Run experiment tests (EXTREMELY SLOW - hours to complete)
+# NOTE: Requires --run-experiments flag!
+pytest tests/test_experiments.py -v --run-experiments
+
+# Run a specific experiment
+pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --run-experiments
 ```
 
 ### Common Test Commands
@@ -88,6 +110,7 @@ pytest tests/test_usd_merge.py::TestUSDMerge::test_merge_usd_files_copy_method -
 - `@pytest.mark.slow` - Tests taking >30 seconds (registration, segmentation)
 - `@pytest.mark.requires_data` - Tests requiring external data download
 - `@pytest.mark.integration` - Integration tests vs unit tests
+- `@pytest.mark.experiment` - **Experiment tests (EXTREMELY SLOW, manual only, NOT in CI/CD)**
 - `@pytest.mark.timeout(seconds)` - Per-test timeout override
 
 ### Test Dependencies
@@ -115,6 +138,7 @@ Tests automatically run on pull requests via GitHub Actions. The CI workflow:
 
 - ✅ **Runs fast tests** - USD utilities, data conversion, basic validation
 - ❌ **Skips slow tests** - Registration and segmentation (too slow for CI)
+- ❌ **Automatically skips experiment tests** - Protected by `--run-experiments` flag requirement
 - ✅ **Caches test data** - Speeds up subsequent runs
 - ✅ **Generates coverage** - Reports uploaded to Codecov
 
@@ -122,6 +146,7 @@ Tests automatically run on pull requests via GitHub Actions. The CI workflow:
 - Platforms: Ubuntu, Windows, macOS
 - Python versions: 3.10, 3.11, 3.12
 - Target coverage: >70%
+- Protection: Experiment tests require `--run-experiments` flag (never used in CI/CD)
 
 > 📖 **For detailed CI/CD information**, see [GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)
 
@@ -179,6 +204,9 @@ Tests automatically:
 ## 📚 Additional Resources
 
 - **Detailed Testing Guide**: [TESTING_GUIDE.md](TESTING_GUIDE.md)
+- **Experiment Tests Guide**: [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)
+- **Parallel Execution Guide**: [PARALLEL_EXECUTION_GUIDE.md](PARALLEL_EXECUTION_GUIDE.md)
+- **Experiment Flag Usage**: [EXPERIMENT_FLAG_USAGE.md](EXPERIMENT_FLAG_USAGE.md)
 - **CI/CD Documentation**: [GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)
 - **Recent Fixes**: [TEST_FIXES_SUMMARY.md](TEST_FIXES_SUMMARY.md)
 - **Main Project**: [../README.md](../README.md)

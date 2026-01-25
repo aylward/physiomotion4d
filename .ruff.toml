@@ -1,0 +1,6 @@
+# Ruff configuration file
+# This overrides settings in pyproject.toml
+
+[lint]
+# Ignore UP007: Use Optional[X] instead of X | None for itk.Image compatibility
+ignore = ["UP007"]

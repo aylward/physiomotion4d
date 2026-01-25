@@ -60,6 +60,7 @@ from .workflow_register_heart_model_to_patient import (
     WorkflowRegisterHeartModelToPatient,
 )
 
+
 __all__ = [
     # Workflow classes
     "WorkflowConvertHeartGatedCTToUSD",
@@ -77,6 +78,7 @@ __all__ = [
     "RegisterTimeSeriesImages",
     "RegisterModelsPCA",
     "RegisterModelsICP",
+    "RegisterModelsICPITK",
     "RegisterModelsDistanceMaps",
     # Base classes
     "PhysioMotion4DBase",

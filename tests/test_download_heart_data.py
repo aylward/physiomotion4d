@@ -6,9 +6,6 @@ This test replicates the functionality from cells 0-2 of the notebook
 Heart-GatedCT_To_USD/0-download_and_convert_4d_to_3d.ipynb.
 """
 
-import urllib.request
-from pathlib import Path
-
 import pytest
 
 
@@ -35,7 +32,9 @@ class TestDownloadHeartData:
 
         # Check file size is reasonable (should be > 1MB)
         file_size = data_file.stat().st_size
-        assert file_size > 1_000_000, f"Downloaded file seems too small: {file_size} bytes"
+        assert file_size > 1_000_000, (
+            f"Downloaded file seems too small: {file_size} bytes"
+        )
 
         print(f"\n✓ Data file downloaded successfully: {data_file}")
         print(f"  File size: {file_size / 1_000_000:.2f} MB")

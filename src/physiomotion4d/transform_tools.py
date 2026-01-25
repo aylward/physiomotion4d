@@ -18,10 +18,16 @@ import itk
 import numpy as np
 import pyvista as pv
 import SimpleITK as sitk
+import vtk
+from collections.abc import Sequence
+from typing import TypeAlias
+from numpy.typing import NDArray
 from pxr import Gf, Usd, UsdGeom
 
 from physiomotion4d.image_tools import ImageTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+
+FloatArray: TypeAlias = NDArray[np.float32] | NDArray[np.float64]
 
 
 class TransformTools(PhysioMotion4DBase):
@@ -125,35 +131,35 @@ class TransformTools(PhysioMotion4DBase):
             new_tfm = itk.DisplacementFieldTransform[itk.D, 3].New()
             new_tfm.SetDisplacementField(dfield_composed)
             return new_tfm
-        else:  # compose
-            image_tools = ImageTools()
+        # compose
+        image_tools = ImageTools()
 
-            dfield1_arr = tfm1_weight * dfield1_arr
-            dfield2_arr = tfm2_weight * dfield2_arr
-            new_dfield1 = image_tools.convert_array_to_image_of_vectors(
-                dfield1_arr,
-                ptype=itk.D,
-                reference_image=dfield1,
-            )
-            new_dfield2 = image_tools.convert_array_to_image_of_vectors(
-                dfield2_arr,
-                ptype=itk.D,
-                reference_image=dfield2,
-            )
-            new_tfm1 = itk.DisplacementFieldTransform[itk.D, 3].New()
-            new_tfm1.SetDisplacementField(new_dfield1)
-            new_tfm2 = itk.DisplacementFieldTransform[itk.D, 3].New()
-            new_tfm2.SetDisplacementField(new_dfield2)
-            composite_tfm = itk.CompositeTransform[itk.D, 3].New()
-            composite_tfm.AddTransform(new_tfm1)
-            composite_tfm.AddTransform(new_tfm2)
-            return composite_tfm
+        dfield1_arr = tfm1_weight * dfield1_arr
+        dfield2_arr = tfm2_weight * dfield2_arr
+        new_dfield1 = image_tools.convert_array_to_image_of_vectors(
+            dfield1_arr,
+            ptype=itk.D,
+            reference_image=dfield1,
+        )
+        new_dfield2 = image_tools.convert_array_to_image_of_vectors(
+            dfield2_arr,
+            ptype=itk.D,
+            reference_image=dfield2,
+        )
+        new_tfm1 = itk.DisplacementFieldTransform[itk.D, 3].New()
+        new_tfm1.SetDisplacementField(new_dfield1)
+        new_tfm2 = itk.DisplacementFieldTransform[itk.D, 3].New()
+        new_tfm2.SetDisplacementField(new_dfield2)
+        composite_tfm = itk.CompositeTransform[itk.D, 3].New()
+        composite_tfm.AddTransform(new_tfm1)
+        composite_tfm.AddTransform(new_tfm2)
+        return composite_tfm
 
     def convert_transform_to_displacement_field(
         self,
         tfm: itk.Transform,
         reference_image: itk.image,
-        np_component_type: np.dtype = np.float64,
+        np_component_type: type[np.float32] | type[np.float64] = np.float64,
         use_reference_image_as_mask: bool = False,
     ) -> itk.image:
         """
@@ -247,9 +253,9 @@ class TransformTools(PhysioMotion4DBase):
         """
         Invert a displacement field transform.
         """
-        assert "DisplacementFieldTransform" in str(
-            type(tfm)
-        ), "Input transform must be a displacement field transform"
+        assert "DisplacementFieldTransform" in str(type(tfm)), (
+            "Input transform must be a displacement field transform"
+        )
         image_tools = ImageTools()
 
         field_itk = tfm.GetDisplacementField()
@@ -297,7 +303,7 @@ class TransformTools(PhysioMotion4DBase):
             ...     heart_contour, cardiac_transform, with_deformation_magnitude=True
             ... )
             >>> # Access deformation magnitudes
-            >>> deformation = transformed_heart["DeformationMagnitude"]
+            >>> deformation = transformed_heart['DeformationMagnitude']
         """
 
         new_contour = contour.copy(deep=True)
@@ -317,7 +323,7 @@ class TransformTools(PhysioMotion4DBase):
             np.array(tfm.TransformPoint((float(p[0]), float(p[1]), float(p[2]))))
             for p in pnts
         ]
-        new_contour.points = new_pnts
+        new_contour.points = np.asarray(new_pnts, dtype=float)
 
         new_pnts = cp.array(new_pnts)
         pnts = cp.array(pnts)
@@ -366,7 +372,7 @@ class TransformTools(PhysioMotion4DBase):
             ... )
             >>> # Transform label map preserving discrete values
             >>> warped_labels = transform_tools.transform_image(
-            ...     labelmap, transform, reference, tfm_type="nearest"
+            ...     labelmap, transform, reference, tfm_type='nearest'
             ... )
         """
         # Handle case where tfm is a list (e.g., from itk.transformread)
@@ -405,7 +411,9 @@ class TransformTools(PhysioMotion4DBase):
         )
         return img_reg
 
-    def convert_vtk_matrix_to_itk_transform(self, vtk_mat) -> itk.Transform:
+    def convert_vtk_matrix_to_itk_transform(
+        self, vtk_mat: vtk.vtkMatrix4x4
+    ) -> itk.Transform:
         """
         Convert a VTK matrix to an ITK transform.
 
@@ -634,11 +642,11 @@ class TransformTools(PhysioMotion4DBase):
 
         Example:
             >>> if transform_tools.detect_folding_in_field(jacobian, 0.1):
-            ...     print("Spatial folding detected - transform needs correction")
+            ...     print('Spatial folding detected - transform needs correction')
         """
         stats = itk.StatisticsImageFilter.New(jacobian_det)
         stats.Update()
-        return stats.GetMinimum() < threshold
+        return float(stats.GetMinimum()) < threshold
 
     def reduce_folding_in_field(
         self,
@@ -791,8 +799,8 @@ class TransformTools(PhysioMotion4DBase):
             >>> usd_file = transform_tools.convert_transform_to_usd_visualization(
             ...     registration_transform,
             ...     reference_ct,
-            ...     "deformation_arrows.usda",
-            ...     visualization_type="arrows",
+            ...     'deformation_arrows.usda',
+            ...     visualization_type='arrows',
             ...     subsample_factor=8,  # 512x fewer arrows
             ...     arrow_scale=2.0,  # 2x longer arrows
             ...     magnitude_threshold=1.0,  # Only show displacements > 1mm
@@ -802,8 +810,8 @@ class TransformTools(PhysioMotion4DBase):
             >>> usd_file = transform_tools.convert_transform_to_usd_visualization(
             ...     registration_transform,
             ...     reference_ct,
-            ...     "deformation_flowlines.usda",
-            ...     visualization_type="flowlines",
+            ...     'deformation_flowlines.usda',
+            ...     visualization_type='flowlines',
             ...     subsample_factor=4,
             ... )
 
@@ -881,14 +889,14 @@ class TransformTools(PhysioMotion4DBase):
 
     def _create_arrow_visualization(
         self,
-        stage,
-        displacement_array,
-        displacement_field,
-        size,
-        subsample_factor,
-        arrow_scale,
-        magnitude_threshold,
-    ):
+        stage: Usd.Stage,
+        displacement_array: FloatArray,
+        displacement_field: itk.Image,
+        size: Sequence[int],
+        subsample_factor: int,
+        arrow_scale: float,
+        magnitude_threshold: float,
+    ) -> None:
         """Create arrow-based visualization of displacement field."""
         # Iterate through all points in the subsampled field
         arrow_count = 0
@@ -922,7 +930,7 @@ class TransformTools(PhysioMotion4DBase):
                         arrow_path,
                         world_pos,
                         displacement,
-                        magnitude,
+                        float(magnitude),
                         arrow_scale,
                     )
                     arrow_count += 1
@@ -930,8 +938,14 @@ class TransformTools(PhysioMotion4DBase):
         self.log_info("  Created %d arrows", arrow_count)
 
     def _create_arrow_prim(
-        self, stage, prim_path, position, displacement, magnitude, arrow_scale
-    ):
+        self,
+        stage: Usd.Stage,
+        prim_path: str,
+        position: Sequence[float],
+        displacement: FloatArray,
+        magnitude: float,
+        arrow_scale: float,
+    ) -> None:
         """Create a single arrow primitive representing a displacement vector."""
         # Create xform for the arrow
         arrow_xform = UsdGeom.Xform.Define(stage, prim_path)
@@ -999,13 +1013,13 @@ class TransformTools(PhysioMotion4DBase):
 
     def _create_flowline_visualization(
         self,
-        stage,
-        displacement_array,
-        displacement_field,
-        size,
-        subsample_factor,
-        magnitude_threshold,
-    ):
+        stage: Usd.Stage,
+        displacement_array: FloatArray,
+        displacement_field: itk.Image,
+        size: Sequence[int],
+        subsample_factor: int,
+        magnitude_threshold: float,
+    ) -> None:
         """Create flow line visualization by tracing streamlines through displacement
         field."""
         # Seed points - use a sparser grid for flowline seeds
@@ -1055,17 +1069,17 @@ class TransformTools(PhysioMotion4DBase):
 
     def _trace_streamline(
         self,
-        displacement_array,
-        displacement_field,
-        subsample_factor,
-        seed_pos,
-        max_steps,
-        step_size,
-    ):
+        displacement_array: FloatArray,
+        displacement_field: itk.Image,
+        subsample_factor: int,
+        seed_pos: Sequence[float],
+        max_steps: int,
+        step_size: float,
+    ) -> list[NDArray[np.float64]]:
         """Trace a streamline through the displacement field using forward Euler
         integration."""
-        points = [np.array(seed_pos)]
-        current_pos = np.array(seed_pos)
+        points = [np.array(seed_pos, dtype=float)]
+        current_pos = np.array(seed_pos, dtype=float)
 
         # Get original image size for bounds checking
         original_size = displacement_field.GetLargestPossibleRegion().GetSize()
@@ -1118,7 +1132,9 @@ class TransformTools(PhysioMotion4DBase):
 
         return points
 
-    def _create_curve_prim(self, stage, prim_path, points):
+    def _create_curve_prim(
+        self, stage: Usd.Stage, prim_path: str, points: Sequence[NDArray[np.float64]]
+    ) -> UsdGeom.BasisCurves:
         """Create a USD BasisCurves primitive for a streamline."""
         curve = UsdGeom.BasisCurves.Define(stage, prim_path)
 

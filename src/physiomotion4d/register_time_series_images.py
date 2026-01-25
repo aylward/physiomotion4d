@@ -10,6 +10,7 @@ CT where sequential frames need to be registered to a common frame.
 """
 
 import logging
+from typing import Optional, TypeAlias, Union, cast
 
 import itk
 
@@ -20,6 +21,7 @@ from physiomotion4d.transform_tools import TransformTools
 
 
 class RegisterTimeSeriesImages(RegisterImagesBase):
+    NumberOfIterations: TypeAlias = RegisterImagesBase.NumberOfIterations
     """Register a time series of images to a fixed image.
 
     This class extends RegisterImagesBase to provide sequential registration of
@@ -58,15 +60,17 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         ...     moving_images=time_series_images,
         ...     reference_frame=5,  # Start from middle of cardiac cycle
         ...     register_reference=True,
-        ...     prior_weight=0.5
+        ...     prior_weight=0.5,
         ... )
         >>>
-        >>> forward_tfms = result["forward_transforms"]  # Moving → Fixed
-        >>> inverse_tfms = result["inverse_transforms"]  # Fixed → Moving
-        >>> losses = result["losses"]
+        >>> forward_tfms = result['forward_transforms']  # Moving → Fixed
+        >>> inverse_tfms = result['inverse_transforms']  # Fixed → Moving
+        >>> losses = result['losses']
     """
 
-    def __init__(self, registration_method='ants', log_level: int | str = logging.INFO):
+    def __init__(
+        self, registration_method: str = "ants", log_level: int | str = logging.INFO
+    ) -> None:
         """Initialize the time series image registration class.
 
         Args:
@@ -79,26 +83,29 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         """
         super().__init__(log_level=log_level)
 
-        self.registration_method = registration_method.lower()
+        self.registration_method_name: str = registration_method.lower()
 
         self.registrar_ants = RegisterImagesANTs(log_level=log_level)
         self.registrar_icon = RegisterImagesICON(log_level=log_level)
-        if self.registration_method == 'ants':
+        if self.registration_method_name == "ants":
             self.number_of_iterations = [40, 20, 10]
-        elif self.registration_method == 'icon':
+        elif self.registration_method_name == "icon":
             self.number_of_iterations = 50
-        elif self.registration_method == 'ants_icon':
-            self.number_of_iterations = [[40, 20, 10], 50]
+        elif self.registration_method_name == "ants_icon":
+            iterations: list[int | list[int]] = [[40, 20, 10], 50]
+            self.number_of_iterations = iterations
         else:
             raise ValueError(
                 f"registration_method must be 'ants', 'icon' or 'ants_icon', got '{registration_method}'"
             )
 
-        self.transform_tools = TransformTools()
+        self.transform_tools: TransformTools = TransformTools()
 
-        self.smooth_prior_transform_sigma = 0.5
+        self.smooth_prior_transform_sigma: float = 0.5
 
-    def set_number_of_iterations(self, number_of_iterations):
+    def set_number_of_iterations(
+        self, number_of_iterations: NumberOfIterations
+    ) -> None:
         """Set the number of iterations for registration.
 
         This passes through to the underlying registration method (ANTs or ICON).
@@ -110,7 +117,9 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         """
         self.number_of_iterations = number_of_iterations
 
-    def set_smooth_prior_transform_sigma(self, smooth_prior_transform_sigma):
+    def set_smooth_prior_transform_sigma(
+        self, smooth_prior_transform_sigma: float
+    ) -> None:
         """Set the sigma for smoothing the prior transform.
 
         Args:
@@ -118,7 +127,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         """
         self.smooth_prior_transform_sigma = smooth_prior_transform_sigma
 
-    def set_mask_dilation(self, mask_dilation_mm):
+    def set_mask_dilation(self, mask_dilation_mm: float) -> None:
         """Set the dilation of the fixed and moving image masks.
 
         This passes through to the underlying registration method.
@@ -128,7 +137,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         """
         self.mask_dilation_mm = mask_dilation_mm
 
-    def set_modality(self, modality):
+    def set_modality(self, modality: str) -> None:
         """Set the imaging modality for registration optimization.
 
         This passes through to the underlying registration method.
@@ -138,7 +147,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         """
         self.modality = modality
 
-    def set_fixed_image(self, fixed_image):
+    def set_fixed_image(self, fixed_image: itk.Image) -> None:
         """Set the fixed image for registration.
 
         All moving images in the time series will be registered to this
@@ -149,7 +158,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         """
         self.fixed_image = fixed_image
 
-    def set_fixed_mask(self, fixed_mask):
+    def set_fixed_mask(self, fixed_mask: Optional[itk.Image]) -> None:
         """Set a binary mask for the fixed image region of interest.
 
         This passes through to the underlying registration method.
@@ -161,12 +170,12 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
 
     def register_time_series(
         self,
-        moving_images,
-        moving_masks=None,
-        reference_frame=0,
-        register_reference=True,
-        prior_weight=0.0,
-    ):
+        moving_images: list[itk.Image],
+        moving_masks: Optional[list[Optional[itk.Image]]] = None,
+        reference_frame: int = 0,
+        register_reference: bool = True,
+        prior_weight: float = 0.0,
+    ) -> dict[str, list[itk.Transform] | list[float]]:
         """Register a time series of images to the fixed image.
 
         This method registers an ordered sequence of images to a common fixed
@@ -229,13 +238,13 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             ...     moving_masks=mask_list,  # Optional
             ...     reference_frame=5,
             ...     register_reference=True,
-            ...     prior_weight=0.5
+            ...     prior_weight=0.5,
             ... )
             >>>
             >>> # Access results using new intuitive names
-            >>> for i, (forward_tfm, loss) in enumerate(zip(
-            ...     result["forward_transforms"], result["losses"]
-            ... )):
+            >>> for i, (forward_tfm, loss) in enumerate(
+            ...     zip(result['forward_transforms'], result['losses'])
+            ... ):
             ...     # Apply forward transform to align moving image i to fixed
             ...     registered = transform_tools.transform_image(
             ...         moving_images[i], forward_tfm, fixed_image
@@ -244,35 +253,40 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         if self.fixed_image is None:
             raise ValueError("Fixed image must be set before registering time series")
 
-        if self.registration_method == 'ants':
+        if self.registration_method_name == "ants":
             self.registrar_ants.set_fixed_image(self.fixed_image)
             self.registrar_ants.set_modality(self.modality)
             self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
             self.registrar_ants.set_number_of_iterations(self.number_of_iterations)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
-        elif self.registration_method == 'icon':
+        elif self.registration_method_name == "icon":
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
             self.registrar_icon.set_number_of_iterations(self.number_of_iterations)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
-        elif self.registration_method == 'ants_icon':
+        elif self.registration_method_name == "ants_icon":
             self.registrar_ants.set_fixed_image(self.fixed_image)
             self.registrar_ants.set_modality(self.modality)
             self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_ants.set_number_of_iterations(self.number_of_iterations[0])
+            assert isinstance(self.number_of_iterations, list)
+            ants_iterations = self.number_of_iterations[0]
+            icon_iterations = self.number_of_iterations[1]
+            assert isinstance(ants_iterations, list)
+            assert isinstance(icon_iterations, int)
+            self.registrar_ants.set_number_of_iterations(ants_iterations)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_icon.set_number_of_iterations(self.number_of_iterations[1])
+            self.registrar_icon.set_number_of_iterations(icon_iterations)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
 
         num_images = len(moving_images)
 
         if reference_frame < 0 or reference_frame >= num_images:
             raise ValueError(
-                f"reference_frame {reference_frame} out of range [0, {num_images-1}]"
+                f"reference_frame {reference_frame} out of range [0, {num_images - 1}]"
             )
 
         if not 0.0 <= prior_weight <= 1.0:
@@ -285,8 +299,8 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             )
 
         # Initialize result lists
-        forward_transforms = [None] * num_images
-        inverse_transforms = [None] * num_images
+        forward_transforms: list[Optional[itk.Transform]] = [None] * num_images
+        inverse_transforms: list[Optional[itk.Transform]] = [None] * num_images
         losses = [0.0] * num_images
 
         # Create identity transform for fixed image
@@ -302,17 +316,17 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             reference_mask = (
                 moving_masks[reference_frame] if moving_masks is not None else None
             )
-            if self.registration_method == 'ants':
+            if self.registration_method_name == "ants":
                 result = self.registrar_ants.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
                 )
-            elif self.registration_method == 'icon':
+            elif self.registration_method_name == "icon":
                 result = self.registrar_icon.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
                 )
-            elif self.registration_method == 'ants_icon':
+            elif self.registration_method_name == "ants_icon":
                 result = self.registrar_ants.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
@@ -325,7 +339,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 )
             else:
                 raise ValueError(
-                    f"Invalid registration method: {self.registration_method}"
+                    f"Invalid registration method: {self.registration_method_name}"
                 )
             forward_transform = result["forward_transform"]
             inverse_transform = result["inverse_transform"]
@@ -370,17 +384,17 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 )
 
                 # Try registration with identity initialization
-                if self.registration_method == 'ants':
+                if self.registration_method_name == "ants":
                     result_init_identity = self.registrar_ants.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
                     )
-                elif self.registration_method == 'icon':
+                elif self.registration_method_name == "icon":
                     result_init_identity = self.registrar_icon.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
                     )
-                elif self.registration_method == 'ants_icon':
+                elif self.registration_method_name == "ants_icon":
                     result_init_identity = self.registrar_ants.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
@@ -393,7 +407,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                     )
                 else:
                     raise ValueError(
-                        f"Invalid registration method: {self.registration_method}"
+                        f"Invalid registration method: {self.registration_method_name}"
                     )
                 forward_init_identity = result_init_identity["forward_transform"]
                 inverse_init_identity = result_init_identity["inverse_transform"]
@@ -402,19 +416,19 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 # Select best result based on prior usage
                 if prior_weight > 0.0:
                     # Try with prior transform initialization
-                    if self.registration_method == 'ants':
+                    if self.registration_method_name == "ants":
                         result_init_prior = self.registrar_ants.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
                             initial_forward_transform=prior_forward,
                         )
-                    elif self.registration_method == 'icon':
+                    elif self.registration_method_name == "icon":
                         result_init_prior = self.registrar_icon.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
                             initial_forward_transform=prior_forward,
                         )
-                    elif self.registration_method == 'ants_icon':
+                    elif self.registration_method_name == "ants_icon":
                         result_init_prior = self.registrar_ants.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
@@ -428,7 +442,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                         )
                     else:
                         raise ValueError(
-                            f"Invalid registration method: {self.registration_method}"
+                            f"Invalid registration method: {self.registration_method_name}"
                         )
                     forward_init_prior = result_init_prior["forward_transform"]
                     inverse_init_prior = result_init_prior["inverse_transform"]
@@ -471,19 +485,21 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 inverse_transforms[img_idx] = inverse_transform
                 losses[img_idx] = loss
 
+        assert all(t is not None for t in forward_transforms)
+        assert all(t is not None for t in inverse_transforms)
         return {
-            "forward_transforms": forward_transforms,  # List of transforms: moving → fixed
-            "inverse_transforms": inverse_transforms,  # List of transforms: fixed → moving
+            "forward_transforms": [t for t in forward_transforms if t is not None],
+            "inverse_transforms": [t for t in inverse_transforms if t is not None],
             "losses": losses,
         }
 
     def registration_method(
         self,
-        moving_image,
-        moving_mask=None,
-        moving_image_pre=None,
-        initial_forward_transform=None,
-    ):
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image] = None,
+        moving_image_pre: Optional[itk.Image] = None,
+        initial_forward_transform: Optional[itk.Transform] = None,
+    ) -> dict[str, Union[itk.Transform, float]]:
         """Registration method required by RegisterImagesBase.
 
         This method is not typically called directly. Use register_time_series()
@@ -498,31 +514,48 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         Returns:
             dict: Registration result with forward_transform, inverse_transform, and loss
         """
-        if self.registration_method == 'ants':
-            return self.registrar_ants.registration_method(
+        if self.registration_method_name == "ants":
+            res = self.registrar_ants.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
                 moving_image_pre=moving_image_pre,
                 initial_forward_transform=initial_forward_transform,
             )
-        elif self.registration_method == 'icon':
-            return self.registrar_icon.registration_method(
+            return {
+                "forward_transform": cast(itk.Transform, res["forward_transform"]),
+                "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
+                "loss": float(cast(float, res["loss"])),
+            }
+        if self.registration_method_name == "icon":
+            res = self.registrar_icon.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
                 moving_image_pre=moving_image_pre,
                 initial_forward_transform=initial_forward_transform,
             )
-        elif self.registration_method == 'ants_icon':
-            forward_ants = self.registrar_ants.registration_method(
+            return {
+                "forward_transform": cast(itk.Transform, res["forward_transform"]),
+                "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
+                "loss": float(cast(float, res["loss"])),
+            }
+        if self.registration_method_name == "ants_icon":
+            ants_res = self.registrar_ants.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
                 moving_image_pre=moving_image_pre,
-            )["forward_transform"]
-            return self.registrar_icon.registration_method(
+            )
+            forward_ants = ants_res["forward_transform"]
+            icon_res = self.registrar_icon.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
                 moving_image_pre=moving_image_pre,
                 initial_forward_transform=forward_ants,
             )
-        else:
-            raise ValueError(f"Invalid registration method: {self.registration_method}")
+            return {
+                "forward_transform": cast(itk.Transform, icon_res["forward_transform"]),
+                "inverse_transform": cast(itk.Transform, icon_res["inverse_transform"]),
+                "loss": float(cast(float, icon_res["loss"])),
+            }
+        raise ValueError(
+            f"Invalid registration method: {self.registration_method_name}"
+        )

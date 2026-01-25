@@ -16,16 +16,17 @@ the register() method with their specific algorithm (e.g., Icon, ANTs, etc.).
 """
 
 import logging
+from typing import Any, Optional, TypeAlias
 
 import itk
 import numpy as np
 from itk import TubeTK as ttk
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.transform_tools import TransformTools
 
 
 class RegisterImagesBase(PhysioMotion4DBase):
+    NumberOfIterations: TypeAlias = int | list[int] | list[int | list[int]]
     """Base class for deformable image registration algorithms.
 
     This class provides a common interface and shared functionality for
@@ -58,20 +59,20 @@ class RegisterImagesBase(PhysioMotion4DBase):
         ...     def registration_method(self, moving_image, **kwargs):
         ...         # Implement specific registration algorithm
         ...         return {
-        ...             "forward_transform": tfm_forward,  # Moving → Fixed
-        ...             "inverse_transform": tfm_inverse,  # Fixed → Moving
-        ...             "loss": 0.0
+        ...             'forward_transform': tfm_forward,  # Moving → Fixed
+        ...             'inverse_transform': tfm_inverse,  # Fixed → Moving
+        ...             'loss': 0.0,
         ...         }
         >>>
         >>> registrar = MyRegistration()
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> result = registrar.register(moving_image)
-        >>> forward_tfm = result["forward_transform"]  # Moving → Fixed
-        >>> inverse_tfm = result["inverse_transform"]  # Fixed → Moving
+        >>> forward_tfm = result['forward_transform']  # Moving → Fixed
+        >>> inverse_tfm = result['inverse_transform']  # Fixed → Moving
     """
 
-    def __init__(self, log_level: int | str = logging.INFO):
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
         """Initialize the base image registration class.
 
         Sets up the common registration parameters with default values. Algorithm-specific
@@ -83,31 +84,36 @@ class RegisterImagesBase(PhysioMotion4DBase):
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
-        self.net = None
+        self.net: Any = None
 
-        self.modality = 'ct'
+        self.modality: str = "ct"
 
-        self.fixed_image = None
-        self.fixed_image_pre = None
-        self.fixed_mask = None
+        self.fixed_image: Optional[itk.Image] = None
+        self.fixed_image_pre: Optional[itk.Image] = None
+        self.fixed_mask: Optional[itk.Image] = None
 
-        self.moving_image = None
-        self.moving_image_pre = None
-        self.moving_mask = None
+        self.moving_image: Optional[itk.Image] = None
+        self.moving_image_pre: Optional[itk.Image] = None
+        self.moving_mask: Optional[itk.Image] = None
 
-        self.mask_dilation_mm = 5
+        self.mask_dilation_mm: float = 5.0
 
-        self.number_of_iterations = 10
+        self.number_of_iterations: RegisterImagesBase.NumberOfIterations = 10
 
-    def set_number_of_iterations(self, number_of_iterations):
+    def set_number_of_iterations(
+        self, number_of_iterations: NumberOfIterations
+    ) -> None:
         """Set the number of iterations for registration.
 
         Args:
-            number_of_iterations (int): Number of iterations to perform during registration.
+            number_of_iterations: Number of iterations to perform during registration.
+                - For single-stage registrars: int
+                - For multi-resolution registrars (e.g. ANTs): list[int]
+                - For combined workflows: list[int | list[int]]
         """
         self.number_of_iterations = number_of_iterations
 
-    def set_modality(self, modality):
+    def set_modality(self, modality: str) -> None:
         """Set the imaging modality for registration optimization.
 
         Different imaging modalities benefit from different registration
@@ -123,7 +129,7 @@ class RegisterImagesBase(PhysioMotion4DBase):
         """
         self.modality = modality
 
-    def set_fixed_image(self, fixed_image):
+    def set_fixed_image(self, fixed_image: itk.Image) -> None:
         """Set the fixed/target image for registration.
 
         The fixed image serves as the reference coordinate system to which
@@ -140,7 +146,7 @@ class RegisterImagesBase(PhysioMotion4DBase):
         self.fixed_image = fixed_image
         self.fixed_image_pre = None
 
-    def set_mask_dilation(self, mask_dilation_mm):
+    def set_mask_dilation(self, mask_dilation_mm: float) -> None:
         """Set the dilation of the fixed and moving image masks.
 
         Args:
@@ -148,7 +154,7 @@ class RegisterImagesBase(PhysioMotion4DBase):
         """
         self.mask_dilation_mm = mask_dilation_mm
 
-    def set_fixed_mask(self, fixed_mask):
+    def set_fixed_mask(self, fixed_mask: Optional[itk.Image]) -> None:
         """Set a binary mask for the fixed image region of interest.
 
         The mask constrains registration to focus on specific anatomical
@@ -171,6 +177,9 @@ class RegisterImagesBase(PhysioMotion4DBase):
             self.fixed_mask = None
             return
 
+        if self.fixed_image is None:
+            raise ValueError("Fixed image must be set before setting a fixed mask.")
+
         mask_arr = itk.GetArrayFromImage(fixed_mask)
         mask_arr = np.where(mask_arr > 0, 1, 0)
         self.fixed_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
@@ -182,7 +191,7 @@ class RegisterImagesBase(PhysioMotion4DBase):
             )
             self.fixed_mask = imMath.GetOutputUChar()
 
-    def preprocess(self, image, modality='ct'):
+    def preprocess(self, image: itk.Image, modality: str = "ct") -> itk.Image:
         """Preprocess the image based on modality-specific requirements.
 
         This method applies preprocessing steps such as intensity normalization,
@@ -205,11 +214,11 @@ class RegisterImagesBase(PhysioMotion4DBase):
 
     def registration_method(
         self,
-        moving_image,
-        moving_mask=None,
-        moving_image_pre=None,
-        initial_forward_transform=None,
-    ) -> dict:
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image] = None,
+        moving_image_pre: Optional[itk.Image] = None,
+        initial_forward_transform: Optional[itk.Transform] = None,
+    ) -> dict[str, Any]:
         """Main registration method to align moving image to fixed image.
 
         This method serves as the primary interface for performing image
@@ -238,11 +247,11 @@ class RegisterImagesBase(PhysioMotion4DBase):
 
     def register(
         self,
-        moving_image,
-        moving_mask=None,
-        moving_image_pre=None,
-        initial_forward_transform=None,
-    ) -> dict:
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image] = None,
+        moving_image_pre: Optional[itk.Image] = None,
+        initial_forward_transform: Optional[itk.Transform] = None,
+    ) -> dict[str, Any]:
         """Register a moving image to the fixed image.
 
         This is the main registration method that must be implemented by

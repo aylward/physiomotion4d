@@ -6,13 +6,9 @@ This test depends on test_convert_nrrd_4d_to_3d and tests segmentation
 functionality on two time points from the converted 3D data.
 """
 
-from pathlib import Path
-
 import itk
 import numpy as np
 import pytest
-
-from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 
 
 @pytest.mark.requires_data
@@ -27,20 +23,20 @@ class TestSegmentChestVista3D:
 
         # Check that anatomical structure ID mappings are defined
         assert len(segmenter_vista_3d.heart_mask_ids) > 0, "Heart mask IDs not defined"
-        assert (
-            len(segmenter_vista_3d.major_vessels_mask_ids) > 0
-        ), "Major vessels mask IDs not defined"
+        assert len(segmenter_vista_3d.major_vessels_mask_ids) > 0, (
+            "Major vessels mask IDs not defined"
+        )
         assert len(segmenter_vista_3d.lung_mask_ids) > 0, "Lung mask IDs not defined"
         assert len(segmenter_vista_3d.bone_mask_ids) > 0, "Bone mask IDs not defined"
-        assert (
-            len(segmenter_vista_3d.soft_tissue_mask_ids) > 0
-        ), "Soft tissue mask IDs not defined"
+        assert len(segmenter_vista_3d.soft_tissue_mask_ids) > 0, (
+            "Soft tissue mask IDs not defined"
+        )
 
         # Check VISTA-3D specific attributes
         assert segmenter_vista_3d.bundle_path is not None, "Bundle path not set"
-        assert (
-            segmenter_vista_3d.label_prompt is None
-        ), "Label prompt should be None initially"
+        assert segmenter_vista_3d.label_prompt is None, (
+            "Label prompt should be None initially"
+        )
 
         print("\n✓ Segmenter initialized with correct parameters")
         print(f"  Heart structures: {len(segmenter_vista_3d.heart_mask_ids)}")
@@ -64,7 +60,7 @@ class TestSegmentChestVista3D:
         # Test on first time point only
         input_image = test_images[0]
 
-        print(f"\nSegmenting time point 0 (automatic mode)...")
+        print("\nSegmenting time point 0 (automatic mode)...")
         print(f"  Input image size: {itk.size(input_image)}")
 
         # Run segmentation
@@ -95,7 +91,7 @@ class TestSegmentChestVista3D:
         unique_labels = np.unique(labelmap_arr)
         assert len(unique_labels) > 1, "Labelmap should contain multiple labels"
 
-        print(f"✓ Segmentation complete for time point 0")
+        print("✓ Segmentation complete for time point 0")
         print(f"  Labelmap size: {itk.size(labelmap)}")
         print(f"  Unique labels: {len(unique_labels)}")
 
@@ -168,9 +164,9 @@ class TestSegmentChestVista3D:
             assert 0 in unique_values, f"{group} mask should contain background"
 
             # Check that mask has same size as input
-            assert itk.size(mask) == itk.size(
-                input_image
-            ), f"{group} mask size mismatch"
+            assert itk.size(mask) == itk.size(input_image), (
+                f"{group} mask size mismatch"
+            )
 
         print("\n✓ All anatomy group masks created correctly")
         for group in anatomy_groups:
@@ -203,7 +199,7 @@ class TestSegmentChestVista3D:
         labelmap_arr = itk.array_from_image(labelmap)
         unique_labels = np.unique(labelmap_arr)
 
-        print(f"✓ Label prompt segmentation complete")
+        print("✓ Label prompt segmentation complete")
         print(f"  Unique labels: {unique_labels}")
 
         # Save result
@@ -271,9 +267,9 @@ class TestSegmentChestVista3D:
         labelmap = result["labelmap"]
 
         # Postprocessing is part of segment(), verify output is properly sized
-        assert itk.size(labelmap) == itk.size(
-            input_image
-        ), "Postprocessing failed: size mismatch"
+        assert itk.size(labelmap) == itk.size(input_image), (
+            "Postprocessing failed: size mismatch"
+        )
 
         # Check that labelmap has been resampled to original spacing
         original_spacing = itk.spacing(input_image)
@@ -281,9 +277,9 @@ class TestSegmentChestVista3D:
 
         # Spacing should match (within floating point tolerance)
         for i in range(3):
-            assert (
-                abs(labelmap_spacing[i] - original_spacing[i]) < 0.01
-            ), f"Spacing mismatch at dimension {i}"
+            assert abs(labelmap_spacing[i] - original_spacing[i]) < 0.01, (
+                f"Spacing mismatch at dimension {i}"
+            )
 
         print("\n✓ Postprocessing tested")
         print(f"  Original spacing: {original_spacing}")
@@ -292,9 +288,9 @@ class TestSegmentChestVista3D:
     def test_set_and_reset_prompts(self, segmenter_vista_3d):
         """Test setting and resetting label prompt mode."""
         # Initially should be in automatic mode
-        assert (
-            segmenter_vista_3d.label_prompt is None
-        ), "Label prompt should be None initially"
+        assert segmenter_vista_3d.label_prompt is None, (
+            "Label prompt should be None initially"
+        )
 
         # Set label prompt
         segmenter_vista_3d.set_label_prompt([115, 6])
@@ -305,9 +301,9 @@ class TestSegmentChestVista3D:
 
         # Reset to whole image
         segmenter_vista_3d.set_whole_image_segmentation()
-        assert (
-            segmenter_vista_3d.label_prompt is None
-        ), "Label prompt should be None after reset"
+        assert segmenter_vista_3d.label_prompt is None, (
+            "Label prompt should be None after reset"
+        )
 
         print("\n✓ Prompt setting and resetting works correctly")
 

@@ -13,24 +13,25 @@ Example:
     >>>
     >>> class MyClass(PhysioMotion4DBase):
     ...     def __init__(self):
-    ...         super().__init__(class_name="MyClass", log_level=logging.INFO)
+    ...         super().__init__(class_name='MyClass', log_level=logging.INFO)
     ...
     ...     def process(self):
-    ...         self.log_info("Starting processing...")
-    ...         self.log_debug("Debug details here")
-    ...         self.log_warning("Something to be aware of")
+    ...         self.log_info('Starting processing...')
+    ...         self.log_debug('Debug details here')
+    ...         self.log_warning('Something to be aware of')
     >>>
     >>> obj = MyClass()
     >>> obj.process()
     >>>
     >>> # Filter to show only specific classes
-    >>> PhysioMotion4DBase.set_log_classes(["MyClass", "OtherClass"])
+    >>> PhysioMotion4DBase.set_log_classes(['MyClass', 'OtherClass'])
     >>>
     >>> # Show all classes again
     >>> PhysioMotion4DBase.set_log_all_classes()
 """
 
 import logging
+from typing import Any, Optional, cast
 
 
 class ClassNameFilter(logging.Filter):
@@ -39,19 +40,19 @@ class ClassNameFilter(logging.Filter):
     When enabled, only log messages from classes in the allowed list will be shown.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.enabled = False
-        self.allowed_classes = set()
+        self.enabled: bool = False
+        self.allowed_classes: set[str] = set()
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         """Filter log records based on class name."""
         if not self.enabled:
             return True  # Show all when filter is disabled
 
         # Extract class name from the message (format: "ClassName - message")
-        if hasattr(record, 'class_name'):
-            return record.class_name in self.allowed_classes
+        if hasattr(record, "class_name"):
+            return cast(str, getattr(record, "class_name")) in self.allowed_classes
 
         return True  # Show messages without class name attribute
 
@@ -76,29 +77,29 @@ class PhysioMotion4DBase:
         >>> import logging
         >>> class MyRegistration(PhysioMotion4DBase):
         ...     def __init__(self):
-        ...         super().__init__(class_name="MyRegistration", log_level=logging.INFO)
+        ...         super().__init__(class_name='MyRegistration', log_level=logging.INFO)
         ...
         ...     def register(self):
-        ...         self.log_info("Starting registration...")
-        ...         self.log_debug("Using parameters: ...")
+        ...         self.log_info('Starting registration...')
+        ...         self.log_debug('Using parameters: ...')
         >>>
         >>> # Filter to show only specific classes
-        >>> PhysioMotion4DBase.set_log_classes(["MyRegistration"])
+        >>> PhysioMotion4DBase.set_log_classes(['MyRegistration'])
         >>>
         >>> # Show all classes again
         >>> PhysioMotion4DBase.set_log_all_classes()
     """
 
     # Class-level shared logger and filter
-    _shared_logger = None
-    _class_filter = None
-    _logger_initialized = False
+    _shared_logger: Optional[logging.Logger] = None
+    _class_filter: Optional[ClassNameFilter] = None
+    _logger_initialized: bool = False
 
     def __init__(
         self,
-        class_name: str | None = None,
+        class_name: Optional[str] = None,
         log_level: int | str = logging.INFO,
-        log_to_file: str | None = None,
+        log_to_file: Optional[str] = None,
     ):
         """Initialize the base class with logging configuration.
 
@@ -122,7 +123,8 @@ class PhysioMotion4DBase:
             PhysioMotion4DBase._initialize_shared_logger(log_level, log_to_file)
 
         # Get reference to shared logger
-        self.logger = PhysioMotion4DBase._shared_logger
+        assert PhysioMotion4DBase._shared_logger is not None
+        self.logger: logging.Logger = PhysioMotion4DBase._shared_logger
 
         # Convert string log level to integer if needed
         if isinstance(log_level, str):
@@ -132,7 +134,9 @@ class PhysioMotion4DBase:
         self.log_level = log_level
 
     @classmethod
-    def _initialize_shared_logger(cls, log_level, log_to_file=None):
+    def _initialize_shared_logger(
+        cls, log_level: int | str, log_to_file: Optional[str] = None
+    ) -> None:
         """Initialize the shared logger (called once)."""
         if cls._logger_initialized:
             return
@@ -159,8 +163,8 @@ class PhysioMotion4DBase:
 
         # Create formatter (includes class name in message)
         formatter = logging.Formatter(
-            '%(asctime)s %(levelname)s %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
+            "%(asctime)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         console_handler.setFormatter(formatter)
 
@@ -218,7 +222,7 @@ class PhysioMotion4DBase:
                 Example: ["RegisterModelsPCA", "WorkflowRegisterHeartModelToPatient"]
 
         Example:
-            >>> PhysioMotion4DBase.set_log_classes(["RegisterModelsPCA"])
+            >>> PhysioMotion4DBase.set_log_classes(['RegisterModelsPCA'])
             >>> # Now only RegisterModelsPCA logs will be shown
         """
         if cls._class_filter is not None:
@@ -256,7 +260,7 @@ class PhysioMotion4DBase:
             return sorted(cls._class_filter.allowed_classes)
         return []
 
-    def log_debug(self, message: str, *args) -> None:
+    def log_debug(self, message: str, *args: Any) -> None:
         """Log a debug message with optional %-style formatting.
 
         Args:
@@ -264,12 +268,12 @@ class PhysioMotion4DBase:
             *args: Arguments for %-style string formatting
 
         Example:
-            >>> self.log_debug("Processing %s with %d items", filename, count)
-            >>> self.log_debug("Value is %(value)d", {"value": 42})
+            >>> self.log_debug('Processing %s with %d items', filename, count)
+            >>> self.log_debug('Value is %(value)d', {'value': 42})
         """
         self._log(logging.DEBUG, message, *args)
 
-    def log_info(self, message: str, *args) -> None:
+    def log_info(self, message: str, *args: Any) -> None:
         """Log an info message with optional %-style formatting.
 
         Args:
@@ -277,12 +281,12 @@ class PhysioMotion4DBase:
             *args: Arguments for %-style string formatting
 
         Example:
-            >>> self.log_info("Loading file: %s", filepath)
-            >>> self.log_info("Iteration %(iter)d of %(total)d", {"iter": 5, "total": 10})
+            >>> self.log_info('Loading file: %s', filepath)
+            >>> self.log_info('Iteration %(iter)d of %(total)d', {'iter': 5, 'total': 10})
         """
         self._log(logging.INFO, message, *args)
 
-    def log_warning(self, message: str, *args) -> None:
+    def log_warning(self, message: str, *args: Any) -> None:
         """Log a warning message with optional %-style formatting.
 
         Args:
@@ -290,12 +294,12 @@ class PhysioMotion4DBase:
             *args: Arguments for %-style string formatting
 
         Example:
-            >>> self.log_warning("Memory usage at %d%%", usage_percent)
-            >>> self.log_warning("Parameter %(name)s out of range", {"name": "threshold"})
+            >>> self.log_warning('Memory usage at %d%%', usage_percent)
+            >>> self.log_warning('Parameter %(name)s out of range', {'name': 'threshold'})
         """
         self._log(logging.WARNING, message, *args)
 
-    def log_error(self, message: str, *args) -> None:
+    def log_error(self, message: str, *args: Any) -> None:
         """Log an error message with optional %-style formatting.
 
         Args:
@@ -303,12 +307,12 @@ class PhysioMotion4DBase:
             *args: Arguments for %-style string formatting
 
         Example:
-            >>> self.log_error("Failed to load %s: %s", filename, error_msg)
-            >>> self.log_error("Error code: %(code)d", {"code": 404})
+            >>> self.log_error('Failed to load %s: %s', filename, error_msg)
+            >>> self.log_error('Error code: %(code)d', {'code': 404})
         """
         self._log(logging.ERROR, message, *args)
 
-    def log_critical(self, message: str, *args) -> None:
+    def log_critical(self, message: str, *args: Any) -> None:
         """Log a critical message with optional %-style formatting.
 
         Args:
@@ -316,12 +320,12 @@ class PhysioMotion4DBase:
             *args: Arguments for %-style string formatting
 
         Example:
-            >>> self.log_critical("System failure at %s", timestamp)
-            >>> self.log_critical("Critical error: %(msg)s", {"msg": "Out of memory"})
+            >>> self.log_critical('System failure at %s', timestamp)
+            >>> self.log_critical('Critical error: %(msg)s', {'msg': 'Out of memory'})
         """
         self._log(logging.CRITICAL, message, *args)
 
-    def _log(self, level: int, message: str, *args) -> None:
+    def _log(self, level: int, message: str, *args: Any) -> None:
         """Internal method to log with class name attached and %-style formatting.
 
         Args:
@@ -346,7 +350,9 @@ class PhysioMotion4DBase:
             record.class_name = self.class_name
             self.logger.handle(record)
 
-    def log_section(self, title: str, *args, width: int = 70, char: str = '=') -> None:
+    def log_section(
+        self, title: str, *args: Any, width: int = 70, char: str = "="
+    ) -> None:
         """Log a formatted section header with optional %-style formatting.
 
         Useful for visually separating major sections of output.
@@ -358,9 +364,9 @@ class PhysioMotion4DBase:
             char: Character to use for the header line. Default: '='
 
         Example:
-            >>> self.log_section("Stage 1: Initialization")
-            >>> self.log_section("Processing file: %s", filename)
-            >>> self.log_section("Stage %(num)d: %(name)s", {"num": 2, "name": "Analysis"})
+            >>> self.log_section('Stage 1: Initialization')
+            >>> self.log_section('Processing file: %s', filename)
+            >>> self.log_section('Stage %(num)d: %(name)s', {'num': 2, 'name': 'Analysis'})
             # Outputs:
             # ======================================================================
             # Stage 2: Analysis
@@ -372,7 +378,7 @@ class PhysioMotion4DBase:
         self.log_info(title, *args)
         self.log_info(separator)
 
-    def log_progress(self, current: int, total: int, prefix: str = 'Progress') -> None:
+    def log_progress(self, current: int, total: int, prefix: str = "Progress") -> None:
         """Log progress information.
 
         Args:
@@ -382,95 +388,12 @@ class PhysioMotion4DBase:
 
         Example:
             >>> for i in range(100):
-            ...     self.log_progress(i+1, 100)
-            >>> self.log_progress(5, 10, prefix="Processing")
+            ...     self.log_progress(i + 1, 100)
+            >>> self.log_progress(5, 10, prefix='Processing')
 
         Note:
             For custom formatted progress messages, use log_info() directly:
-            >>> self.log_info("Loading %s: %d/%d", filename, current, total)
+            >>> self.log_info('Loading %s: %d/%d', filename, current, total)
         """
         percentage = (current / total) * 100 if total > 0 else 0
         self.log_info("%s: %d/%d (%.1f%%)", prefix, current, total, percentage)
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Example demonstrating the PhysioMotion4DBase class
-
-    # Example 1: Basic usage with INFO level (default)
-    print("\n=== Example 1: Basic usage with INFO level (default) ===")
-
-    class ExampleProcessor(PhysioMotion4DBase):
-        def __init__(self, log_level=logging.INFO):
-            super().__init__(class_name="ExampleProcessor", log_level=log_level)
-
-        def process_data(self):
-            self.log_section("Data Processing")
-            self.log_info("Loading data...")
-            self.log_debug("Data dimensions: 100x100x100")
-            self.log_info("Processing complete!")
-
-    processor = ExampleProcessor(log_level=logging.INFO)
-    processor.process_data()
-
-    # Example 2: Debug mode (DEBUG level)
-    print("\n=== Example 2: Debug mode enabled (DEBUG level) ===")
-    debug_processor = ExampleProcessor(log_level=logging.DEBUG)
-    debug_processor.log_debug("This debug message will now be visible")
-    debug_processor.log_info("This is an info message")
-
-    # Example 3: Quiet mode (WARNING level only)
-    print("\n=== Example 3: Quiet mode (WARNING level only) ===")
-    quiet_processor = ExampleProcessor(log_level=logging.WARNING)
-    quiet_processor.log_info("This info message will NOT be shown")
-    quiet_processor.log_warning("This warning WILL be shown")
-    quiet_processor.log_error("This error WILL be shown")
-
-    # Example 4: Progress tracking
-    print("\n=== Example 4: Progress tracking ===")
-    progress_processor = ExampleProcessor(log_level=logging.INFO)
-    progress_processor.log_section("Progress Tracking Example")
-    for i in range(0, 101, 25):
-        progress_processor.log_progress(i, 100, prefix="Processing")
-
-    # Example 5: Dynamic log level changes
-    print("\n=== Example 5: Dynamic log level changes ===")
-    PhysioMotion4DBase.set_log_level(logging.INFO)
-    test_processor = ExampleProcessor(log_level=logging.INFO)
-    test_processor.log_info("At INFO level")
-    PhysioMotion4DBase.set_log_level('DEBUG')  # Can also use string
-    test_processor.log_debug("This debug message WILL be shown (DEBUG level)")
-
-    # Example 6: Class filtering - multiple classes
-    print("\n=== Example 6: Class filtering ===")
-
-    class FirstProcessor(PhysioMotion4DBase):
-        def __init__(self):
-            super().__init__(class_name="FirstProcessor", log_level=logging.INFO)
-
-    class SecondProcessor(PhysioMotion4DBase):
-        def __init__(self):
-            super().__init__(class_name="SecondProcessor", log_level=logging.INFO)
-
-    first = FirstProcessor()
-    second = SecondProcessor()
-
-    print("\n-- All classes enabled --")
-    PhysioMotion4DBase.set_log_all_classes()
-    first.log_info("Message from FirstProcessor")
-    second.log_info("Message from SecondProcessor")
-
-    print("\n-- Only FirstProcessor enabled --")
-    PhysioMotion4DBase.set_log_classes(["FirstProcessor"])
-    first.log_info("This WILL be shown (FirstProcessor is filtered)")
-    second.log_info("This will NOT be shown (SecondProcessor is filtered out)")
-
-    print("\n-- Only SecondProcessor enabled --")
-    PhysioMotion4DBase.set_log_classes(["SecondProcessor"])
-    first.log_info("This will NOT be shown")
-    second.log_info("This WILL be shown (SecondProcessor is filtered)")
-
-    print("\n-- All classes enabled again --")
-    PhysioMotion4DBase.set_log_all_classes()
-    first.log_info("Both classes shown again - FirstProcessor")
-    second.log_info("Both classes shown again - SecondProcessor")

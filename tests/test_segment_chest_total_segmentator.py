@@ -19,26 +19,26 @@ class TestSegmentChestTotalSegmentator:
     def test_segmenter_initialization(self, segmenter_total_segmentator):
         """Test that SegmentChestTotalSegmentator initializes correctly."""
         assert segmenter_total_segmentator is not None, "Segmenter not initialized"
-        assert (
-            segmenter_total_segmentator.target_spacing == 1.5
-        ), "Target spacing not set correctly"
+        assert segmenter_total_segmentator.target_spacing == 1.5, (
+            "Target spacing not set correctly"
+        )
 
         # Check that anatomical structure ID mappings are defined
-        assert (
-            len(segmenter_total_segmentator.heart_mask_ids) > 0
-        ), "Heart mask IDs not defined"
-        assert (
-            len(segmenter_total_segmentator.major_vessels_mask_ids) > 0
-        ), "Major vessels mask IDs not defined"
-        assert (
-            len(segmenter_total_segmentator.lung_mask_ids) > 0
-        ), "Lung mask IDs not defined"
-        assert (
-            len(segmenter_total_segmentator.bone_mask_ids) > 0
-        ), "Bone mask IDs not defined"
-        assert (
-            len(segmenter_total_segmentator.soft_tissue_mask_ids) > 0
-        ), "Soft tissue mask IDs not defined"
+        assert len(segmenter_total_segmentator.heart_mask_ids) > 0, (
+            "Heart mask IDs not defined"
+        )
+        assert len(segmenter_total_segmentator.major_vessels_mask_ids) > 0, (
+            "Major vessels mask IDs not defined"
+        )
+        assert len(segmenter_total_segmentator.lung_mask_ids) > 0, (
+            "Lung mask IDs not defined"
+        )
+        assert len(segmenter_total_segmentator.bone_mask_ids) > 0, (
+            "Bone mask IDs not defined"
+        )
+        assert len(segmenter_total_segmentator.soft_tissue_mask_ids) > 0, (
+            "Soft tissue mask IDs not defined"
+        )
 
         print("\n✓ Segmenter initialized with correct parameters")
         print(f"  Heart structures: {len(segmenter_total_segmentator.heart_mask_ids)}")
@@ -60,7 +60,7 @@ class TestSegmentChestTotalSegmentator:
         # Test on first time point only
         input_image = test_images[0]
 
-        print(f"\nSegmenting time point 0...")
+        print("\nSegmenting time point 0...")
         print(f"  Input image size: {itk.size(input_image)}")
 
         # Run segmentation
@@ -93,7 +93,7 @@ class TestSegmentChestTotalSegmentator:
         unique_labels = np.unique(labelmap_arr)
         assert len(unique_labels) > 1, "Labelmap should contain multiple labels"
 
-        print(f"✓ Segmentation complete for time point 0")
+        print("✓ Segmentation complete for time point 0")
         print(f"  Labelmap size: {itk.size(labelmap)}")
         print(f"  Unique labels: {len(unique_labels)}")
 
@@ -164,9 +164,9 @@ class TestSegmentChestTotalSegmentator:
             assert 0 in unique_values, f"{group} mask should contain background"
 
             # Check that mask has same size as input
-            assert itk.size(mask) == itk.size(
-                input_image
-            ), f"{group} mask size mismatch"
+            assert itk.size(mask) == itk.size(input_image), (
+                f"{group} mask size mismatch"
+            )
 
         print("\n✓ All anatomy group masks created correctly")
         for group in anatomy_groups:
@@ -232,9 +232,9 @@ class TestSegmentChestTotalSegmentator:
         labelmap = result["labelmap"]
 
         # Postprocessing is part of segment(), verify output is properly sized
-        assert itk.size(labelmap) == itk.size(
-            input_image
-        ), "Postprocessing failed: size mismatch"
+        assert itk.size(labelmap) == itk.size(input_image), (
+            "Postprocessing failed: size mismatch"
+        )
 
         # Check that labelmap has been resampled to original spacing
         original_spacing = itk.spacing(input_image)
@@ -242,9 +242,9 @@ class TestSegmentChestTotalSegmentator:
 
         # Spacing should match (within floating point tolerance)
         for i in range(3):
-            assert (
-                abs(labelmap_spacing[i] - original_spacing[i]) < 0.01
-            ), f"Spacing mismatch at dimension {i}"
+            assert abs(labelmap_spacing[i] - original_spacing[i]) < 0.01, (
+                f"Spacing mismatch at dimension {i}"
+            )
 
         print("\n✓ Postprocessing tested")
         print(f"  Original spacing: {original_spacing}")

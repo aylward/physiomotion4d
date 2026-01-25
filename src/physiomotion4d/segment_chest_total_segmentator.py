@@ -6,7 +6,6 @@ from SegmentChestBase and defines anatomical structure mappings specific to
 TotalSegmentator's output labels.
 """
 
-import argparse
 import logging
 import os
 import tempfile
@@ -51,8 +50,8 @@ class SegmentChestTotalSegmentator(SegmentChestBase):
     Example:
         >>> segmenter = SegmentChestTotalSegmentator()
         >>> result = segmenter.segment(ct_image, contrast_enhanced_study=True)
-        >>> labelmap = result["labelmap"]
-        >>> heart_mask = result["heart"]
+        >>> labelmap = result['labelmap']
+        >>> heart_mask = result['heart']
     """
 
     def __init__(self, log_level: int | str = logging.INFO):
@@ -264,31 +263,3 @@ class SegmentChestTotalSegmentator(SegmentChestBase):
             labelmap_image.CopyInformation(preprocessed_image)
 
         return labelmap_image
-
-
-def parse_args():
-    """Parse command line arguments for TotalSegmentator.
-
-    Returns:
-        argparse.Namespace: Parsed command line arguments containing:
-            - input_image: Path to input CT image
-            - output_image: Path for output segmentation
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_image", type=str, required=True)
-    parser.add_argument("--output_image", type=str, required=True)
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    """Command line interface for TotalSegmentator-based chest segmentation.
-
-    Example usage:
-        python segment_chest_total_segmentator.py \
-            --input_image chest_ct.mha \
-            --output_image segmentation.mha
-    """
-    args = parse_args()
-    segmenter = SegmentChestTotalSegmentator()
-    result = segmenter.segment(itk.imread(args.input_image))
-    itk.imwrite(result["labelmap"], args.output_image, compression=True)

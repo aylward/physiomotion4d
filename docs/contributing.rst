@@ -43,45 +43,134 @@ Getting Started
 
       pre-commit install
 
+IDE Setup (VS Code / Cursor)
+==============================
+
+Recommended Extensions
+----------------------
+
+For the best development experience with VS Code or Cursor, install these extensions:
+
+**Required:**
+
+* `charliermarsh.ruff <https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff>`_ - Ruff linting and formatting
+* `ms-python.python <https://marketplace.visualstudio.com/items?itemName=ms-python.python>`_ - Python language support
+* `ms-python.vscode-pylance <https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance>`_ - IntelliSense and type checking
+
+**Recommended:**
+
+* `ms-python.debugpy <https://marketplace.visualstudio.com/items?itemName=ms-python.debugpy>`_ - Python debugger
+* `njpwerner.autodocstring <https://marketplace.visualstudio.com/items?itemName=njpwerner.autodocstring>`_ - Generate docstrings automatically
+
+**Not Needed (Replaced by Ruff):**
+
+* ❌ ms-python.black-formatter - No longer needed
+* ❌ ms-python.isort - No longer needed
+* ❌ ms-python.flake8 - No longer needed
+* ❌ ms-python.pylint - No longer needed
+
+VS Code Settings
+----------------
+
+The repository includes `.vscode/settings.json` with optimal configuration. Key settings:
+
+.. code-block:: json
+
+   {
+     "[python]": {
+       "editor.defaultFormatter": "charliermarsh.ruff",
+       "editor.formatOnSave": true,
+       "editor.codeActionsOnSave": {
+         "source.fixAll": "explicit",
+         "source.organizeImports": "explicit"
+       },
+       "editor.rulers": [88]
+     },
+     "ruff.enable": true,
+     "python.analysis.typeCheckingMode": "basic"
+   }
+
+This configuration:
+
+* Uses Ruff for all formatting and linting
+* Automatically formats code on save
+* Organizes imports automatically
+* Shows a ruler at 88 characters (line length limit)
+* Enables basic type checking with Pylance
+
+Jupyter Notebooks
+-----------------
+
+For working with notebooks in the `experiments/` and `data/` directories:
+
+* Install `ms-toolsai.jupyter <https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter>`_ extension
+* Ruff will automatically format notebook cells
+* Type checking is less strict in notebooks (expected for exploratory work)
+
+First-Time Setup Checklist
+---------------------------
+
+After cloning the repository:
+
+1. ✅ Install Python 3.10+ and create virtual environment
+2. ✅ Install development dependencies: ``pip install -e ".[dev]"``
+3. ✅ Install pre-commit hooks: ``pre-commit install``
+4. ✅ Install Ruff extension in VS Code/Cursor
+5. ✅ Remove old formatter extensions (black, isort, flake8, pylint)
+6. ✅ Verify settings: Open a Python file and save to test auto-formatting
+7. ✅ Run tests: ``pytest tests/ -m "not slow"`` to verify setup
+
 Code Style
 ==========
 
-PhysioMotion4D follows strict code quality standards:
+PhysioMotion4D follows strict code quality standards using modern, fast tooling.
 
-Formatting
-----------
+Formatting and Linting with Ruff
+---------------------------------
 
-* **Black**: Code formatting (line length: 88)
-* **isort**: Import sorting (profile: black)
+We use **Ruff** for all formatting and linting (line length: 88, single quotes):
 
 .. code-block:: bash
+
+   # Check and fix linting issues
+   ruff check . --fix
 
    # Format code
-   black src/
-   isort src/
+   ruff format .
 
-Linting
--------
+   # Check without making changes
+   ruff check . --diff
+   ruff format --check .
 
-* **flake8**: Style guide enforcement
-* **pylint**: Static code analysis
-* **mypy**: Type checking
+Type Checking with mypy
+------------------------
+
+We use **mypy** for static type checking:
 
 .. code-block:: bash
 
-   # Check code quality
-   flake8 src/
-   pylint src/
+   # Run type checking
    mypy src/
 
 Pre-commit Hooks
 ----------------
 
-Run all checks automatically:
+Run all checks automatically before committing:
 
 .. code-block:: bash
 
+   # Run on all files
    pre-commit run --all-files
+
+   # Run on staged files only
+   pre-commit run
+
+The pre-commit hooks will automatically:
+
+* Run Ruff linter with auto-fixes
+* Run Ruff formatter
+* Run mypy type checking (on push)
+* Run fast unit tests (on push)
 
 Development Workflow
 ====================

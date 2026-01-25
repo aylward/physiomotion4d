@@ -39,7 +39,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
     def __init__(
         self,
         fixed_model: pv.PolyData,
-        reference_image: Optional[itk.image] = None,
+        reference_image: Optional[itk.Image] = None,
         point_subsample_step: int = 4,
         log_level: int | str = logging.INFO,
     ):
@@ -47,10 +47,10 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         super().__init__(class_name="RegisterModelsICPITK", log_level=log_level)
 
         # Store model data
-        self.fixed_model: pv.Polydata = fixed_model
+        self.fixed_model: pv.PolyData = fixed_model
         self.reference_image = reference_image
 
-        self.moving_model: Optional[pv.Polydata] = None
+        self.moving_model: Optional[pv.PolyData] = None
 
         # Working transform (reused to avoid repeated memory allocation)
         self._working_transform: itk.ComposeScaleSkewVersor3DTransform[itk.D] = (
@@ -74,7 +74,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         self._transform_tools = TransformTools()
 
         # Image interpolator (created when needed)
-        self.fixed_distance_map: Optional[itk.image] = None
+        self.fixed_distance_map: Optional[itk.Image] = None
         self._interpolator: Optional[itk.LinearInterpolateImageFunction] = None
         self._max_distance: float = 0.0
 
@@ -92,6 +92,9 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         """
         self.log_info("Converting mean shape points to ITK format...")
 
+        assert self.moving_model is not None, (
+            "moving_model must be set before creating ITK points"
+        )
         self._moving_model_points_itk = []
         for point in self.moving_model.points:
             itk_point = itk.Point[itk.D, 3]()
@@ -189,6 +192,10 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         total_distance = 0.0
         center = np.zeros(3)
         point = itk.Point[itk.D, 3]()
+        assert self.reference_image is not None, "reference_image must be set"
+        assert self._moving_model_points_itk is not None, (
+            "ITK points must be initialized"
+        )
         image_size = self.reference_image.GetBufferedRegion().GetSize()
         for i, base_point in enumerate(self._moving_model_points_itk):
             if i % self.point_subsample_step != 0:
@@ -233,7 +240,12 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
                 self.log_warning("   Center: %s", center)
                 self.log_warning("   Mean distance: %f", mean_distance)
 
-        if self.log_level <= logging.DEBUG or self._metric_call_count % 100 == 0:
+        log_level_int = (
+            self.log_level
+            if isinstance(self.log_level, int)
+            else logging.getLevelName(self.log_level)
+        )
+        if log_level_int <= logging.DEBUG or self._metric_call_count % 100 == 0:
             self.log_info(
                 "   Metric %d: %s -> %f",
                 (self._metric_call_count + 1),
@@ -337,12 +349,17 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
 
         # Run optimization
         self.log_info("Running optimization...")
-        if self.log_level <= logging.INFO:
+        log_level_int = (
+            self.log_level
+            if isinstance(self.log_level, int)
+            else logging.getLevelName(self.log_level)
+        )
+        if log_level_int <= logging.INFO:
             disp = True
         else:
             disp = False
 
-        result_affine = minimize(
+        result_affine = minimize(  # type: ignore[call-overload]
             self._evaluate_distance_metric,
             initial_params,
             method=method,

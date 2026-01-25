@@ -11,6 +11,7 @@ anatomical structures need to be organized and visualized together.
 """
 
 import logging
+from typing import Any
 
 import numpy as np
 from pxr import Gf, Usd, UsdGeom, UsdShade
@@ -46,17 +47,15 @@ class USDTools(PhysioMotion4DBase):
         >>> usd_tools = USDTools()
         >>> # Merge multiple anatomical USD files
         >>> usd_tools.merge_usd_files(
-        ...     "combined_anatomy.usd",
-        ...     ["heart.usd", "lungs.usd", "bones.usd"]
+        ...     'combined_anatomy.usd', ['heart.usd', 'lungs.usd', 'bones.usd']
         ... )
         >>> # Create grid arrangement for comparison
         >>> usd_tools.save_usd_file_arrangement(
-        ...     "comparison_grid.usd",
-        ...     ["patient1.usd", "patient2.usd", "patient3.usd"]
+        ...     'comparison_grid.usd', ['patient1.usd', 'patient2.usd', 'patient3.usd']
         ... )
     """
 
-    def __init__(self, log_level: int | str = logging.INFO):
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
         """Initialize the USDTools class.
 
         Args:
@@ -84,8 +83,8 @@ class USDTools(PhysioMotion4DBase):
                 - bbox_max: Maximum corner of the bounding box
 
         Example:
-            >>> stage = Usd.Stage.Open("anatomy.usd")
-            >>> heart_prim = stage.GetPrimAtPath("/World/Heart")
+            >>> stage = Usd.Stage.Open('anatomy.usd')
+            >>> heart_prim = stage.GetPrimAtPath('/World/Heart')
             >>> bbox_min, bbox_max = usd_tools.get_subtree_bounding_box(heart_prim)
             >>> center = (bbox_min + bbox_max) / 2
         """
@@ -93,7 +92,7 @@ class USDTools(PhysioMotion4DBase):
         bbox_min = np.array([0, 0, 0])
         bbox_max = np.array([0, 0, 0])
 
-        def traverse_prim(current_prim):
+        def traverse_prim(current_prim: Any) -> None:
             nonlocal bbox_min, bbox_max, first_bbox
             if current_prim.IsA(UsdGeom.Mesh):
                 bbox = UsdGeom.Boundable.ComputeExtentFromPlugins(
@@ -115,7 +114,9 @@ class USDTools(PhysioMotion4DBase):
 
         return bbox_min, bbox_max
 
-    def save_usd_file_arrangement(self, new_stage_name: str, usd_file_names: list[str]):
+    def save_usd_file_arrangement(
+        self, new_stage_name: str, usd_file_names: list[str]
+    ) -> None:
         """
         Create a spatial grid arrangement of objects from multiple USD files.
 
@@ -144,9 +145,13 @@ class USDTools(PhysioMotion4DBase):
         Example:
             >>> # Create comparison grid of cardiac models
             >>> usd_tools.save_usd_file_arrangement(
-            ...     "cardiac_comparison.usd",
-            ...     ["patient_001_heart.usd", "patient_002_heart.usd",
-            ...      "patient_003_heart.usd", "patient_004_heart.usd"]
+            ...     'cardiac_comparison.usd',
+            ...     [
+            ...         'patient_001_heart.usd',
+            ...         'patient_002_heart.usd',
+            ...         'patient_003_heart.usd',
+            ...         'patient_004_heart.usd',
+            ...     ],
             ... )
         """
         new_stage = Usd.Stage.Open(usd_file_names[0])
@@ -161,7 +166,6 @@ class USDTools(PhysioMotion4DBase):
         y_offset = -y_spacing * (n_rows - 1) / 2
 
         for i, usd_file_name in enumerate(usd_file_names):
-
             source_stage = Usd.Stage.Open(usd_file_name, Usd.Stage.LoadAll)
 
             source_root = source_stage.GetPrimAtPath("/World")
@@ -229,7 +233,9 @@ class USDTools(PhysioMotion4DBase):
         self.log_info("Exporting stage...")
         new_stage.Export(new_stage_name)
 
-    def merge_usd_files(self, output_filename: str, input_filenames_list: list[str]):
+    def merge_usd_files(
+        self, output_filename: str, input_filenames_list: list[str]
+    ) -> None:
         """
         Merge multiple USD files into a single comprehensive USD file.
 
@@ -260,22 +266,21 @@ class USDTools(PhysioMotion4DBase):
         Example:
             >>> # Merge anatomical components into complete scene
             >>> usd_tools.merge_usd_files(
-            ...     "complete_anatomy.usd",
-            ...     ["heart_dynamic.usd", "lungs_static.usd", "skeleton.usd"]
+            ...     'complete_anatomy.usd', ['heart_dynamic.usd', 'lungs_static.usd', 'skeleton.usd']
             ... )
         """
         # Create new stage with meters as units (standard USD configuration)
         stage = Usd.Stage.CreateNew(output_filename)
-        stage.SetMetadata('metersPerUnit', 0.01)
-        stage.SetMetadata('upAxis', 'Y')
+        stage.SetMetadata("metersPerUnit", 0.01)
+        stage.SetMetadata("upAxis", "Y")
 
         # Define root prim for organization
         root_prim = stage.DefinePrim("/World", "Xform")
         stage.SetDefaultPrim(root_prim)
 
         # Track time range across all input files for stage metadata
-        global_start_time = float('inf')
-        global_end_time = float('-inf')
+        global_start_time = float("inf")
+        global_end_time = float("-inf")
         time_codes_per_second = None
         frames_per_second = None
 
@@ -300,7 +305,7 @@ class USDTools(PhysioMotion4DBase):
                 self.log_info("Copying %s to %s", prim.GetPrimPath(), new_path)
 
                 # Recursively copy prim hierarchy with all attributes and time samples
-                def _copy_prim(src_prim, target_path):
+                def _copy_prim(src_prim: Any, target_path: str) -> None:
                     # Create new prim with same type
                     new_prim = stage.DefinePrim(target_path, src_prim.GetTypeName())
 
@@ -389,7 +394,7 @@ class USDTools(PhysioMotion4DBase):
                             )
 
         # Set stage time range metadata for animation playback
-        if global_start_time != float('inf') and global_end_time != float('-inf'):
+        if global_start_time != float("inf") and global_end_time != float("-inf"):
             stage.SetStartTimeCode(global_start_time)
             stage.SetEndTimeCode(global_end_time)
             if time_codes_per_second is not None:
@@ -411,7 +416,7 @@ class USDTools(PhysioMotion4DBase):
 
     def merge_usd_files_flattened(
         self, output_filename: str, input_filenames_list: list[str]
-    ):
+    ) -> None:
         """
         Merge multiple USD files using references and flattening.
 
@@ -442,24 +447,23 @@ class USDTools(PhysioMotion4DBase):
         Example:
             >>> usd_tools = USDTools()
             >>> usd_tools.merge_usd_files_flattened(
-            ...     "complete_anatomy.usd",
-            ...     ["heart_dynamic.usd", "lungs_static.usd"]
+            ...     'complete_anatomy.usd', ['heart_dynamic.usd', 'lungs_static.usd']
             ... )
         """
         # Create temporary in-memory stage for composition
         temp_stage = Usd.Stage.CreateInMemory()
 
         # Set standard metadata (meters and Y-up for Omniverse)
-        temp_stage.SetMetadata('metersPerUnit', 0.01)
-        temp_stage.SetMetadata('upAxis', 'Y')
+        temp_stage.SetMetadata("metersPerUnit", 0.01)
+        temp_stage.SetMetadata("upAxis", "Y")
 
         # Define root prim for organization
         root_prim = temp_stage.DefinePrim("/World", "Xform")
         temp_stage.SetDefaultPrim(root_prim)
 
         # Track time range across all input files for stage metadata
-        global_start_time = float('inf')
-        global_end_time = float('-inf')
+        global_start_time = float("inf")
+        global_end_time = float("-inf")
         time_codes_per_second = None
         frames_per_second = None
 
@@ -493,7 +497,7 @@ class USDTools(PhysioMotion4DBase):
                 )
 
         # Set time range metadata on temporary stage before flattening
-        if global_start_time != float('inf') and global_end_time != float('-inf'):
+        if global_start_time != float("inf") and global_end_time != float("-inf"):
             temp_stage.SetStartTimeCode(global_start_time)
             temp_stage.SetEndTimeCode(global_end_time)
             if time_codes_per_second is not None:
@@ -519,7 +523,7 @@ class USDTools(PhysioMotion4DBase):
 
         # Set time metadata on the output stage (must be done AFTER flattening)
         # This is critical - the flattened layer doesn't inherit metadata from temp_stage
-        if global_start_time != float('inf') and global_end_time != float('-inf'):
+        if global_start_time != float("inf") and global_end_time != float("-inf"):
             output_stage.SetStartTimeCode(global_start_time)
             output_stage.SetEndTimeCode(global_end_time)
             if time_codes_per_second is not None:

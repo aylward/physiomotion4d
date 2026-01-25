@@ -141,6 +141,52 @@ These experiments are **starting points for exploration**, not copy-paste soluti
 The **`scripts/` directory contains the production-quality implementations** you should
 use and extend for real-world digital twin projects.
 
+## Automated Testing
+
+A comprehensive test suite is available to validate all experiment notebooks:
+
+```bash
+# Run all experiment tests (EXTREMELY SLOW - may take hours)
+# NOTE: Requires --run-experiments flag!
+pytest tests/test_experiments.py -v --run-experiments
+
+# Run a specific experiment subdirectory
+pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --run-experiments
+
+# List all notebooks that would be run (without executing)
+pytest tests/test_experiments.py::test_list_notebooks_in_subdir -v -s --run-experiments
+
+# Validate experiment directory structure
+pytest tests/test_experiments.py::test_experiment_structure -v --run-experiments
+```
+
+🔒 **IMPORTANT:** Experiment tests require the `--run-experiments` flag. Without this flag, they are automatically skipped, even if you run `pytest tests/` or target the test file directly.
+
+### Test Features
+
+- **One test per subdirectory** - Each experiment subdirectory gets its own test function
+- **Alphanumeric ordering** - Notebooks execute in alphanumeric order (e.g., `0-`, `1-`, `2-`)
+- **Long timeouts** - Each notebook has up to 1 hour execution time, tests have multi-hour timeouts
+- **Detailed output** - Progress reporting, execution summaries, and failure diagnostics
+- **Opt-in only** - Requires `--run-experiments` flag; automatically skipped otherwise
+- **Protected from CI/CD** - NEVER runs in automated workflows
+
+### Requirements
+
+These tests require:
+- All dependencies installed (see `pyproject.toml`)
+- GPU/CUDA support for most experiments
+- Large amounts of disk space and memory
+- External data downloads (see individual experiment notebooks)
+
+### Important Notes
+
+⚠️ **These tests are extremely long-running** - Plan for multiple hours of execution time
+
+⚠️ **Not part of CI/CD** - These tests are excluded from all automated workflows
+
+⚠️ **Resource intensive** - Requires GPU, significant memory, and disk space
+
 ## Structure
 
 Each subdirectory represents a different experimental domain:

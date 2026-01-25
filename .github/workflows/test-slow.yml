@@ -52,7 +52,7 @@ jobs:
 
     - name: Run slow tests
       run: |
-        pytest tests/ -v -m "slow" --cov=physiomotion4d --cov-report=xml --cov-report=term
+        pytest tests/ -v -m "slow and not experiment" --cov=physiomotion4d --cov-report=xml --cov-report=term
       env:
         CUDA_VISIBLE_DEVICES: 0
 

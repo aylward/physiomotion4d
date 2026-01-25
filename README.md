@@ -122,7 +122,7 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 
 ### Command-Line Interface
 
-After installation, PhysioMotion4D provides command-line tools for various workflows:
+After installation, PhysioMotion4D provides command-line tools that are automatically added to your PATH:
 
 #### Heart-Gated CT to USD
 
@@ -141,6 +141,11 @@ physiomotion4d-heart-gated-ct cardiac.nrrd \
     --reference-image ref.mha \
     --registration-iterations 50 \
     --output-dir ./output
+```
+
+**Alternative:** You can also run the Python scripts directly from the repository:
+```bash
+python scripts/convert_heart_gated_ct_to_usd.py cardiac_4d.nrrd --contrast
 ```
 
 #### Heart Model to Patient Registration
@@ -394,26 +399,34 @@ downloader.download_case(1)  # Downloads Case 1 to ./data/
 
 ### Code Quality Tools
 
-- **Formatting**: `black` (line length: 100)
-- **Import sorting**: `isort` (profile: black)
-- **Linting**: `flake8` (max line length: 100)
-- **Static analysis**: `pylint`
-- **Pre-commit hooks**: `pre-commit`
+PhysioMotion4D uses modern, fast tooling for code quality:
+
+- **Ruff**: Fast linting and formatting (replaces black, isort, flake8, pylint)
+- **mypy**: Type checking
+- **Pre-commit hooks**: Automatic code quality checks on commit
 
 ### Running Quality Checks
 
 ```bash
+# Check and fix linting issues
+ruff check . --fix
+
 # Format code
-black src/
-isort src/
+ruff format .
 
-# Check code quality
-flake8 src/
-pylint src/
+# Run type checking
+mypy src/
 
-# Run pre-commit hooks
+# Run all pre-commit hooks
 pre-commit run --all-files
 ```
+
+### IDE Setup
+
+For VS Code or Cursor, install the Ruff extension:
+- `charliermarsh.ruff` - Automatic formatting and linting on save
+
+See `docs/contributing.rst` for complete IDE setup instructions.
 
 ### Testing
 
@@ -466,10 +479,12 @@ Tests automatically run on pull requests via GitHub Actions. See `tests/README.m
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Run code quality checks (`black src/ && flake8 src/`)
+3. Run code quality checks (`ruff check . --fix && ruff format . && mypy src/`)
 4. Commit your changes (`git commit -m 'Add amazing feature'`)
 5. Push to the branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
+
+See `docs/contributing.rst` for detailed contribution guidelines and IDE setup.
 
 ## 📄 License
 

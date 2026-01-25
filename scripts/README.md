@@ -1,10 +1,38 @@
 # PhysioMotion4D Scripts
 
-Example scripts demonstrating how to use PhysioMotion4D for processing CT images into dynamic USD models for NVIDIA Omniverse visualization.
+Command-line scripts for using PhysioMotion4D to process CT images into dynamic USD models for NVIDIA Omniverse visualization.
 
 ## Overview
 
-The CLI provides a streamlined interface to the PhysioMotion4D pipeline for converting 4D cardiac CT images into animated anatomical models. The workflow handles segmentation, registration, mesh generation, and USD file creation automatically.
+These scripts provide streamlined command-line interfaces to the PhysioMotion4D library for converting 4D cardiac CT images into animated anatomical models. The workflows handle segmentation, registration, mesh generation, and USD file creation automatically.
+
+## Usage Options
+
+After installing PhysioMotion4D via pip, these CLI tools are available in two ways:
+
+### 1. Installed Commands (Recommended)
+
+When you `pip install physiomotion4d`, the CLI commands are automatically installed and available in your PATH:
+
+```bash
+# Heart-gated CT to USD workflow
+physiomotion4d-heart-gated-ct input.nrrd --contrast
+
+# Heart model to patient registration
+physiomotion4d-register-heart-model --template-model heart.vtu --template-labelmap heart.nii.gz ...
+```
+
+### 2. Python Scripts (Development)
+
+You can also run the scripts directly from the repository during development:
+
+```bash
+# Heart-gated CT to USD workflow
+python scripts/convert_heart_gated_ct_to_usd.py input.nrrd --contrast
+
+# Heart model to patient registration
+python scripts/register_heart_model_to_patient.py --template-model heart.vtu ...
+```
 
 ## Installation
 
@@ -75,6 +103,15 @@ pytest tests/ -m "not slow and not requires_data"
 Register a generic heart model to patient-specific data:
 
 ```bash
+# Using installed command
+physiomotion4d-register-heart-model \
+  --template-model heart_model.vtu \
+  --template-labelmap heart_labelmap.nii.gz \
+  --patient-models lv.vtp rv.vtp myo.vtp \
+  --patient-image patient_ct.nii.gz \
+  --output-dir ./results
+
+# Or using Python script directly
 python scripts/register_heart_model_to_patient.py \
   --template-model heart_model.vtu \
   --template-labelmap heart_labelmap.nii.gz \
@@ -86,7 +123,7 @@ python scripts/register_heart_model_to_patient.py \
 #### With PCA Shape Fitting
 
 ```bash
-python scripts/register_heart_model_to_patient.py \
+physiomotion4d-register-heart-model \
   --template-model heart_model.vtu \
   --template-labelmap heart_labelmap.nii.gz \
   --patient-models lv.vtp rv.vtp myo.vtp \
@@ -99,7 +136,7 @@ python scripts/register_heart_model_to_patient.py \
 #### With ICON Refinement
 
 ```bash
-python scripts/register_heart_model_to_patient.py \
+physiomotion4d-register-heart-model \
   --template-model heart_model.vtu \
   --template-labelmap heart_labelmap.nii.gz \
   --patient-models lv.vtp rv.vtp \
@@ -155,11 +192,11 @@ The registration workflow produces the following output files in the specified o
 
 **Single 4D NRRD file:**
 ```bash
-# Using the installed CLI tool (recommended)
+# Using installed command
 physiomotion4d-heart-gated-ct input_4d.nrrd --contrast
 
-# Or using the example script
-python scripts/process_heart_gated_ct_example.py input_4d.nrrd --contrast
+# Or using Python script directly
+python scripts/convert_heart_gated_ct_to_usd.py input_4d.nrrd --contrast
 ```
 
 **Multiple 3D files (time series):**

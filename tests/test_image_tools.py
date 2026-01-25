@@ -288,7 +288,7 @@ class TestImageTools:
         max_diff = np.max(np.abs(read_arr - original_arr))
         mean_diff = np.mean(np.abs(read_arr - original_arr))
 
-        print(f"✓ Vector field I/O test complete")
+        print("✓ Vector field I/O test complete")
         print(f"  Max difference: {max_diff:.6e}")
         print(f"  Mean difference: {mean_diff:.6e}")
 

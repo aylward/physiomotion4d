@@ -26,9 +26,9 @@ Example:
     >>> from physiomotion4d import RegisterModelsDistanceMaps
     >>>
     >>> # Load models and reference image
-    >>> moving_model = pv.read("generic_model.vtu").extract_surface()
-    >>> fixed_model = pv.read("patient_surface.stl")
-    >>> reference_image = itk.imread("patient_ct.nii.gz")
+    >>> moving_model = pv.read('generic_model.vtu').extract_surface()
+    >>> fixed_model = pv.read('patient_surface.stl')
+    >>> reference_image = itk.imread('patient_ct.nii.gz')
     >>>
     >>> # Run deformable registration with ICON refinement
     >>> registrar = RegisterModelsDistanceMaps(
@@ -37,11 +37,7 @@ Example:
     ...     reference_image=reference_image,
     ...     roi_dilation_mm=20,
     ... )
-    >>> result = registrar.register(
-    ...     mode='deformable',
-    ...     use_icon=True,
-    ...     icon_iterations=50
-    ... )
+    >>> result = registrar.register(mode='deformable', use_icon=True, icon_iterations=50)
     >>>
     >>> # Access results
     >>> aligned_model = result['registered_model']
@@ -49,6 +45,7 @@ Example:
 """
 
 import logging
+from typing import Optional
 
 import itk
 import pyvista as pv
@@ -110,10 +107,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         >>>
         >>> # Or run deformable with ICON refinement
         >>> result = registrar.register(
-        ...     mode='deformable',
-        ...     use_ants=False,
-        ...     use_icon=True,
-        ...     icon_iterations=50
+        ...     mode='deformable', use_ants=False, use_icon=True, icon_iterations=50
         ... )
         >>>
         >>> # Get aligned model and transforms
@@ -158,21 +152,21 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         # Registration instances
         self.registrar_ants = RegisterImagesANTs(log_level=log_level)
         self.registrar_icon = RegisterImagesICON(log_level=log_level)
-        self.registrar_icon.set_modality('ct')
+        self.registrar_icon.set_modality("ct")
         self.registrar_icon.set_multi_modality(False)
 
         # Generated masks (will be created during registration)
-        self.fixed_mask_image: itk.Image = None
-        self.fixed_mask_roi_image: itk.Image = None
-        self.moving_mask_image: itk.Image = None
-        self.moving_mask_roi_image: itk.Image = None
+        self.fixed_mask_image: Optional[itk.Image] = None
+        self.fixed_mask_roi_image: Optional[itk.Image] = None
+        self.moving_mask_image: Optional[itk.Image] = None
+        self.moving_mask_roi_image: Optional[itk.Image] = None
 
         # Registration results
-        self.forward_transform: itk.CompositeTransform = None  # Moving→fixed
-        self.inverse_transform: itk.CompositeTransform = None  # Fixed→moving
-        self.registered_model: pv.PolyData = None
+        self.forward_transform: Optional[itk.CompositeTransform] = None  # Moving→fixed
+        self.inverse_transform: Optional[itk.CompositeTransform] = None  # Fixed→moving
+        self.registered_model: Optional[pv.PolyData] = None
 
-    def _create_masks_from_models(self):
+    def _create_masks_from_models(self) -> None:
         """Generate binary mask images from moving and fixed models.
 
         Creates:
@@ -226,7 +220,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
     def register(
         self,
-        transform_type: str = 'Deformable',
+        transform_type: str = "Deformable",
         use_icon: bool = False,
         icon_iterations: int = 50,
     ) -> dict:
@@ -271,9 +265,11 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             >>> result = registrar.register(transform_type='Affine')
             >>>
             >>> # Deformable registration with ICON refinement
-            >>> result = registrar.register(transform_type='Deformable', use_icon=True, icon_iterations=100)
+            >>> result = registrar.register(
+            ...     transform_type='Deformable', use_icon=True, icon_iterations=100
+            ... )
         """
-        if transform_type not in ['None', 'Rigid', 'Affine', 'Deformable']:
+        if transform_type not in ["None", "Rigid", "Affine", "Deformable"]:
             raise ValueError(
                 f"Invalid transform type '{transform_type}'. Must be 'None', 'Rigid', 'Affine', or 'Deformable'."
             )
@@ -290,7 +286,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
         inverse_transform_ants = None
         forward_transform_ants = None
-        if transform_type != 'None':
+        if transform_type != "None":
             self.registrar_ants.set_fixed_image(self.fixed_mask_image)
             self.registrar_ants.set_fixed_mask(self.fixed_mask_roi_image)
 
@@ -374,7 +370,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
         # Return results as dictionary
         return {
-            'forward_transform': self.forward_transform,
-            'inverse_transform': self.inverse_transform,
-            'registered_model': self.registered_model,
+            "forward_transform": self.forward_transform,
+            "inverse_transform": self.inverse_transform,
+            "registered_model": self.registered_model,
         }

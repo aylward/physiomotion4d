@@ -60,11 +60,11 @@ def analyze_usd_file(filepath: str) -> dict:
                 max_time_samples = max(max_time_samples, len(time_samples))
 
     return {
-        'materials': len(materials),
-        'meshes_with_materials': meshes_with_materials,
-        'meshes_without_materials': meshes_without_materials,
-        'time_varying_meshes': time_varying_meshes,
-        'max_time_samples': max_time_samples
+        "materials": len(materials),
+        "meshes_with_materials": meshes_with_materials,
+        "meshes_without_materials": meshes_without_materials,
+        "time_varying_meshes": time_varying_meshes,
+        "max_time_samples": max_time_samples,
     }
 
 
@@ -75,16 +75,17 @@ class TestUSDMerge:
     @pytest.fixture(scope="class")
     def test_data_files(self):
         """Locate test USD files with materials and time-varying data."""
-        dynamic_file = Path("experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.dynamic_anatomy_painted.usd")
-        static_file = Path("experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.static_anatomy_painted.usd")
+        dynamic_file = Path(
+            "experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.dynamic_anatomy_painted.usd"
+        )
+        static_file = Path(
+            "experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.static_anatomy_painted.usd"
+        )
 
         if not dynamic_file.exists() or not static_file.exists():
             pytest.skip("Test data not available. Run Heart-GatedCT experiments first.")
 
-        return {
-            'dynamic': str(dynamic_file),
-            'static': str(static_file)
-        }
+        return {"dynamic": str(dynamic_file), "static": str(static_file)}
 
     @pytest.fixture(scope="class")
     def output_dir(self, tmp_path_factory):
@@ -95,22 +96,20 @@ class TestUSDMerge:
     @pytest.fixture(scope="class")
     def input_stats(self, test_data_files):
         """Analyze input USD files."""
-        dynamic_stats = analyze_usd_file(test_data_files['dynamic'])
-        static_stats = analyze_usd_file(test_data_files['static'])
-        return {
-            'dynamic': dynamic_stats,
-            'static': static_stats
-        }
+        dynamic_stats = analyze_usd_file(test_data_files["dynamic"])
+        static_stats = analyze_usd_file(test_data_files["static"])
+        return {"dynamic": dynamic_stats, "static": static_stats}
 
-    def test_merge_usd_files_copy_method(self, test_data_files, input_stats, output_dir):
+    def test_merge_usd_files_copy_method(
+        self, test_data_files, input_stats, output_dir
+    ):
         """Test merge_usd_files() manual copy method."""
         # Merge files using manual copy method
         usd_tools = USDTools()
         merged_file = output_dir / "test_merged_copy.usd"
 
         usd_tools.merge_usd_files(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         # Verify file was created
@@ -120,41 +119,55 @@ class TestUSDMerge:
         merged_stats = analyze_usd_file(str(merged_file))
 
         # Verify material preservation
-        expected_materials = input_stats['dynamic']['materials'] + input_stats['static']['materials']
-        assert merged_stats['materials'] == expected_materials, \
+        expected_materials = (
+            input_stats["dynamic"]["materials"] + input_stats["static"]["materials"]
+        )
+        assert merged_stats["materials"] == expected_materials, (
             f"Materials not preserved: expected {expected_materials}, got {merged_stats['materials']}"
+        )
 
         # Verify mesh material bindings
-        expected_meshes = (input_stats['dynamic']['meshes_with_materials'] +
-                          input_stats['static']['meshes_with_materials'])
-        assert merged_stats['meshes_with_materials'] == expected_meshes, \
+        expected_meshes = (
+            input_stats["dynamic"]["meshes_with_materials"]
+            + input_stats["static"]["meshes_with_materials"]
+        )
+        assert merged_stats["meshes_with_materials"] == expected_meshes, (
             f"Material bindings not preserved: expected {expected_meshes}, got {merged_stats['meshes_with_materials']}"
+        )
 
         # Verify no meshes lost materials
-        assert merged_stats['meshes_without_materials'] == 0, \
+        assert merged_stats["meshes_without_materials"] == 0, (
             f"Some meshes lost material bindings: {merged_stats['meshes_without_materials']} meshes without materials"
+        )
 
         # Verify time-varying mesh preservation
-        expected_time_varying = (input_stats['dynamic']['time_varying_meshes'] +
-                                input_stats['static']['time_varying_meshes'])
-        assert merged_stats['time_varying_meshes'] == expected_time_varying, \
+        expected_time_varying = (
+            input_stats["dynamic"]["time_varying_meshes"]
+            + input_stats["static"]["time_varying_meshes"]
+        )
+        assert merged_stats["time_varying_meshes"] == expected_time_varying, (
             f"Time-varying meshes not preserved: expected {expected_time_varying}, got {merged_stats['time_varying_meshes']}"
+        )
 
         # Verify time sample count
-        expected_max_samples = max(input_stats['dynamic']['max_time_samples'],
-                                   input_stats['static']['max_time_samples'])
-        assert merged_stats['max_time_samples'] == expected_max_samples, \
+        expected_max_samples = max(
+            input_stats["dynamic"]["max_time_samples"],
+            input_stats["static"]["max_time_samples"],
+        )
+        assert merged_stats["max_time_samples"] == expected_max_samples, (
             f"Time samples not preserved: expected {expected_max_samples}, got {merged_stats['max_time_samples']}"
+        )
 
-    def test_merge_usd_files_flattened_method(self, test_data_files, input_stats, output_dir):
+    def test_merge_usd_files_flattened_method(
+        self, test_data_files, input_stats, output_dir
+    ):
         """Test merge_usd_files_flattened() composition method."""
         # Merge files using flattened method
         usd_tools = USDTools()
         merged_file = output_dir / "test_merged_flattened.usd"
 
         usd_tools.merge_usd_files_flattened(
-            str(merged_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(merged_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         # Verify file was created
@@ -164,31 +177,44 @@ class TestUSDMerge:
         merged_stats = analyze_usd_file(str(merged_file))
 
         # Verify material preservation
-        expected_materials = input_stats['dynamic']['materials'] + input_stats['static']['materials']
-        assert merged_stats['materials'] == expected_materials, \
+        expected_materials = (
+            input_stats["dynamic"]["materials"] + input_stats["static"]["materials"]
+        )
+        assert merged_stats["materials"] == expected_materials, (
             f"Materials not preserved: expected {expected_materials}, got {merged_stats['materials']}"
+        )
 
         # Verify mesh material bindings
-        expected_meshes = (input_stats['dynamic']['meshes_with_materials'] +
-                          input_stats['static']['meshes_with_materials'])
-        assert merged_stats['meshes_with_materials'] == expected_meshes, \
+        expected_meshes = (
+            input_stats["dynamic"]["meshes_with_materials"]
+            + input_stats["static"]["meshes_with_materials"]
+        )
+        assert merged_stats["meshes_with_materials"] == expected_meshes, (
             f"Material bindings not preserved: expected {expected_meshes}, got {merged_stats['meshes_with_materials']}"
+        )
 
         # Verify no meshes lost materials
-        assert merged_stats['meshes_without_materials'] == 0, \
+        assert merged_stats["meshes_without_materials"] == 0, (
             f"Some meshes lost material bindings: {merged_stats['meshes_without_materials']} meshes without materials"
+        )
 
         # Verify time-varying mesh preservation
-        expected_time_varying = (input_stats['dynamic']['time_varying_meshes'] +
-                                input_stats['static']['time_varying_meshes'])
-        assert merged_stats['time_varying_meshes'] == expected_time_varying, \
+        expected_time_varying = (
+            input_stats["dynamic"]["time_varying_meshes"]
+            + input_stats["static"]["time_varying_meshes"]
+        )
+        assert merged_stats["time_varying_meshes"] == expected_time_varying, (
             f"Time-varying meshes not preserved: expected {expected_time_varying}, got {merged_stats['time_varying_meshes']}"
+        )
 
         # Verify time sample count
-        expected_max_samples = max(input_stats['dynamic']['max_time_samples'],
-                                   input_stats['static']['max_time_samples'])
-        assert merged_stats['max_time_samples'] == expected_max_samples, \
+        expected_max_samples = max(
+            input_stats["dynamic"]["max_time_samples"],
+            input_stats["static"]["max_time_samples"],
+        )
+        assert merged_stats["max_time_samples"] == expected_max_samples, (
             f"Time samples not preserved: expected {expected_max_samples}, got {merged_stats['max_time_samples']}"
+        )
 
     def test_both_methods_produce_equivalent_results(self, test_data_files, output_dir):
         """Verify both merge methods produce equivalent results."""
@@ -199,13 +225,11 @@ class TestUSDMerge:
         flattened_file = output_dir / "test_flattened.usd"
 
         usd_tools.merge_usd_files(
-            str(copy_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(copy_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         usd_tools.merge_usd_files_flattened(
-            str(flattened_file),
-            [test_data_files['dynamic'], test_data_files['static']]
+            str(flattened_file), [test_data_files["dynamic"], test_data_files["static"]]
         )
 
         # Analyze both outputs
@@ -213,14 +237,19 @@ class TestUSDMerge:
         flattened_stats = analyze_usd_file(str(flattened_file))
 
         # Verify equivalence
-        assert copy_stats['materials'] == flattened_stats['materials'], \
+        assert copy_stats["materials"] == flattened_stats["materials"], (
             "Methods produce different material counts"
-        assert copy_stats['meshes_with_materials'] == flattened_stats['meshes_with_materials'], \
-            "Methods produce different mesh material binding counts"
-        assert copy_stats['time_varying_meshes'] == flattened_stats['time_varying_meshes'], \
-            "Methods produce different time-varying mesh counts"
-        assert copy_stats['max_time_samples'] == flattened_stats['max_time_samples'], \
+        )
+        assert (
+            copy_stats["meshes_with_materials"]
+            == flattened_stats["meshes_with_materials"]
+        ), "Methods produce different mesh material binding counts"
+        assert (
+            copy_stats["time_varying_meshes"] == flattened_stats["time_varying_meshes"]
+        ), "Methods produce different time-varying mesh counts"
+        assert copy_stats["max_time_samples"] == flattened_stats["max_time_samples"], (
             "Methods produce different time sample counts"
+        )
 
 
 if __name__ == "__main__":

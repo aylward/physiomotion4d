@@ -18,7 +18,7 @@ import pyvista as pv
 from physiomotion4d import WorkflowRegisterHeartModelToPatient
 
 
-def main():
+def main() -> int:
     """Command-line interface for heart model to patient registration."""
     parser = argparse.ArgumentParser(
         description="Register generic heart model to patient-specific data",
@@ -78,7 +78,7 @@ Examples:
     )
     parser.add_argument(
         "--patient-models",
-        nargs='+',
+        nargs="+",
         required=True,
         help="Paths to patient-specific surface models (e.g., lv.vtp rv.vtp myo.vtp)",
     )
@@ -94,21 +94,21 @@ Examples:
     # Template labelmap configuration
     parser.add_argument(
         "--template-labelmap-muscle-ids",
-        nargs='+',
+        nargs="+",
         type=int,
         default=[1],
         help="Label IDs for heart muscle in template labelmap (default: 1)",
     )
     parser.add_argument(
         "--template-labelmap-chamber-ids",
-        nargs='+',
+        nargs="+",
         type=int,
         default=[2],
         help="Label IDs for heart chambers in template labelmap (default: 2)",
     )
     parser.add_argument(
         "--template-labelmap-background-ids",
-        nargs='+',
+        nargs="+",
         type=int,
         default=[0],
         help="Label IDs for background in template labelmap (default: 0)",
@@ -192,7 +192,11 @@ Examples:
     print("\nLoading input data...")
     try:
         print(f"  Loading template model: {args.template_model}")
-        template_model = pv.read(args.template_model)
+        template_model_raw = pv.read(args.template_model)
+        assert isinstance(template_model_raw, pv.UnstructuredGrid), (
+            f"Template model must be an UnstructuredGrid, got {type(template_model_raw)}"
+        )
+        template_model: pv.UnstructuredGrid = template_model_raw
 
         print(f"  Loading template labelmap: {args.template_labelmap}")
         template_labelmap = itk.imread(args.template_labelmap)

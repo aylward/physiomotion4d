@@ -20,20 +20,20 @@ Example:
     >>> from physiomotion4d import RegisterModelsICP
     >>>
     >>> # Load models
-    >>> moving_model = pv.read("generic_model.vtu")
-    >>> fixed_model = pv.read("patient_surface.stl")
+    >>> moving_model = pv.read('generic_model.vtu')
+    >>> fixed_model = pv.read('patient_surface.stl')
     >>>
     >>> # Run affine registration
     >>> registrar = RegisterModelsICP(fixed_model=fixed_model)
     >>> result = registrar.register(
-    ...     transform_type="Affine",
+    ...     transform_type='Affine',
     ...     moving_model=moving_model,
     ...     max_iterations=200,
     ... )
     >>>
     >>> # Access results
-    >>> aligned_model = result["registered_model"]
-    >>> forward_point_transform = result["forward_point_transform"]  # Moving to fixed
+    >>> aligned_model = result['registered_model']
+    >>> forward_point_transform = result['forward_point_transform']  # Moving to fixed
         # transform
 """
 
@@ -80,21 +80,21 @@ class RegisterModelsICP(PhysioMotion4DBase):
         >>>
         >>> # Run rigid registration
         >>> result = registrar.register(
-        ...     transform_type="Rigid",
+        ...     transform_type='Rigid',
         ...     max_iterations=200,
         ...     moving_model=model_surface,
         ... )
         >>>
         >>> # Or run affine registration
         >>> result = registrar.register(
-        ...     transform_type="Affine",
+        ...     transform_type='Affine',
         ...     max_iterations=200,
         ...     moving_model=model_surface,
         ... )
         >>>
         >>> # Get aligned model and transforms
-        >>> aligned_model = result["registered_model"]
-        >>> forward_point_transform = result["forward_point_transform"]
+        >>> aligned_model = result['registered_model']
+        >>> forward_point_transform = result['forward_point_transform']
     """
 
     def __init__(
@@ -167,14 +167,14 @@ class RegisterModelsICP(PhysioMotion4DBase):
         Example:
             >>> # Rigid registration
             >>> result = registrar.register(
-            ...     transform_type="Rigid",
+            ...     transform_type='Rigid',
             ...     max_iterations=5000,
             ...     moving_model=moving_model,
             ... )
             >>>
             >>> # Affine registration
             >>> result = registrar.register(
-            ...     transform_type="Affine",
+            ...     transform_type='Affine',
             ...     max_iterations=2000,
             ...     moving_model=moving_model,
             ... )

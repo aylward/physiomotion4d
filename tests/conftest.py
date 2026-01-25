@@ -11,7 +11,6 @@ import urllib.request
 from pathlib import Path
 
 import itk
-import numpy as np
 import pytest
 from itk import TubeTK as ttk
 
@@ -22,6 +21,50 @@ from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 from physiomotion4d.transform_tools import TransformTools
+
+
+# ============================================================================
+# Pytest Configuration - Command Line Options
+# ============================================================================
+
+
+def pytest_addoption(parser):
+    """Add custom command-line options for pytest."""
+    parser.addoption(
+        "--run-experiments",
+        action="store_true",
+        default=False,
+        help="Run experiment tests (extremely long-running notebook tests)",
+    )
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers and settings."""
+    config.addinivalue_line(
+        "markers",
+        "experiment: marks tests that run experiment notebooks (extremely slow, manual only)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """
+    Automatically skip experiment tests unless --run-experiments is passed.
+
+    This ensures that experiment tests are opt-in only and won't run
+    accidentally when running the normal test suite.
+    """
+    if config.getoption("--run-experiments"):
+        # User explicitly requested experiment tests, let them run
+        return
+
+    # Skip all tests marked with @pytest.mark.experiment
+    skip_experiments = pytest.mark.skip(
+        reason="Experiment tests require --run-experiments flag to run"
+    )
+    for item in items:
+        if "experiment" in item.keywords:
+            item.add_marker(skip_experiments)
+
 
 # Directory and Data Download Fixtures
 # ============================================================================
@@ -95,7 +138,7 @@ def converted_3d_images(download_truncal_valve_data, test_directories):
 
     if not slice_000.exists() or not slice_007.exists():
         # Convert 4D to 3D time series
-        print(f"\nConverting 4D NRRD to 3D time series...")
+        print("\nConverting 4D NRRD to 3D time series...")
         conv = ConvertNRRD4DTo3D()
         conv.load_nrrd_4d(str(input_4d_file))
         conv.save_3d_images(str(data_dir / "slice"))
@@ -105,7 +148,7 @@ def converted_3d_images(download_truncal_valve_data, test_directories):
         shutil.copyfile(str(slice_007), str(fixed_image_output))
         print(f"Conversion complete, saved fixed image to: {fixed_image_output}")
     else:
-        print(f"\n3D slice files already exist")
+        print("\n3D slice files already exist")
 
     return data_dir
 
@@ -194,30 +237,29 @@ def segmentation_results(segmenter_total_segmentator, test_images, test_director
             itk.imwrite(labelmap, str(output_file), compression=True)
 
         return results
-    else:
-        # Load existing segmentation results
-        print("\nLoading existing segmentation results...")
-        results = []
-        for i in range(2):
-            labelmap_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
-            labelmap = itk.imread(str(labelmap_file))
+    # Load existing segmentation results
+    print("\nLoading existing segmentation results...")
+    results = []
+    for i in range(2):
+        labelmap_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
+        labelmap = itk.imread(str(labelmap_file))
 
-            # Create anatomy group masks from labelmap
-            masks = segmenter_total_segmentator.create_anatomy_group_masks(labelmap)
+        # Create anatomy group masks from labelmap
+        masks = segmenter_total_segmentator.create_anatomy_group_masks(labelmap)
 
-            result = {
-                "labelmap": labelmap,
-                "lung": masks["lung"],
-                "heart": masks["heart"],
-                "major_vessels": masks["major_vessels"],
-                "bone": masks["bone"],
-                "soft_tissue": masks["soft_tissue"],
-                "other": masks["other"],
-                "contrast": masks["contrast"],
-            }
-            results.append(result)
+        result = {
+            "labelmap": labelmap,
+            "lung": masks["lung"],
+            "heart": masks["heart"],
+            "major_vessels": masks["major_vessels"],
+            "bone": masks["bone"],
+            "soft_tissue": masks["soft_tissue"],
+            "other": masks["other"],
+            "contrast": masks["contrast"],
+        }
+        results.append(result)
 
-        return results
+    return results
 
 
 # ============================================================================

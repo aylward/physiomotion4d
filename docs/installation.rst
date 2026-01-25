@@ -109,11 +109,15 @@ To install development dependencies (testing, linting, formatting):
 
 This includes:
 
-* black (code formatting)
-* isort (import sorting)
-* flake8, pylint (linting)
-* pytest, pytest-cov (testing)
-* mypy (type checking)
+* **ruff** (fast linting and formatting)
+* **mypy** (type checking)
+* **pytest, pytest-cov** (testing)
+* **pre-commit** (git hooks for automatic checks)
+
+.. note::
+   As of 2026, PhysioMotion4D uses Ruff as the primary linter and formatter,
+   replacing the previous black, isort, flake8, and pylint tools for improved
+   speed and simplicity.
 
 Documentation Tools
 -------------------

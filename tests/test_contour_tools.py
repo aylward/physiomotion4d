@@ -43,7 +43,7 @@ class TestContourTools:
         assert isinstance(contours, pv.PolyData), "Contours should be PyVista PolyData"
         assert contours.n_points > 0, "Contours should have points"
 
-        print(f"✓ Heart contours extracted successfully")
+        print("✓ Heart contours extracted successfully")
         print(f"  Number of points: {contours.n_points}")
         print(f"  Number of cells: {contours.n_cells}")
 
@@ -69,7 +69,7 @@ class TestContourTools:
         assert contours is not None, "Lung contours not extracted"
         assert contours.n_points > 0, "Lung contours should have points"
 
-        print(f"✓ Lung contours extracted successfully")
+        print("✓ Lung contours extracted successfully")
         print(f"  Number of points: {contours.n_points}")
         print(f"  Number of cells: {contours.n_cells}")
 
@@ -108,9 +108,9 @@ class TestContourTools:
                 output_file = contour_output_dir / f"{group}_contours_slice000.vtp"
                 contours.save(str(output_file))
 
-        assert (
-            len(contours_dict) > 0
-        ), "Should extract contours from at least one anatomy group"
+        assert len(contours_dict) > 0, (
+            "Should extract contours from at least one anatomy group"
+        )
         print(f"\n✓ Extracted contours from {len(contours_dict)} anatomy groups")
 
     def test_create_mask_from_mesh(
@@ -132,16 +132,16 @@ class TestContourTools:
 
         # Verify recreated mask
         assert recreated_mask is not None, "Mask not created from mesh"
-        assert itk.size(recreated_mask) == itk.size(
-            reference_image
-        ), "Mask size should match reference"
+        assert itk.size(recreated_mask) == itk.size(reference_image), (
+            "Mask size should match reference"
+        )
 
         # Check that mask has foreground voxels
         mask_arr = itk.array_from_image(recreated_mask)
         num_foreground = np.sum(mask_arr > 0)
         assert num_foreground > 0, "Recreated mask should have foreground voxels"
 
-        print(f"✓ Mask created from mesh successfully")
+        print("✓ Mask created from mesh successfully")
         print(f"  Mask size: {itk.size(recreated_mask)}")
         print(f"  Foreground voxels: {num_foreground}")
 
@@ -174,17 +174,17 @@ class TestContourTools:
 
             # Verify merged mesh
             assert merged_mesh is not None, "Merged mesh is None"
-            assert isinstance(
-                merged_mesh, pv.PolyData
-            ), "Merged mesh should be PyVista PolyData"
+            assert isinstance(merged_mesh, pv.PolyData), (
+                "Merged mesh should be PyVista PolyData"
+            )
             assert merged_mesh.n_points > 0, "Merged mesh should have points"
 
             # Verify individual meshes were also transformed
-            assert len(individual_meshes) == len(
-                meshes
-            ), "Should return same number of individual meshes"
+            assert len(individual_meshes) == len(meshes), (
+                "Should return same number of individual meshes"
+            )
 
-            print(f"✓ Meshes merged successfully")
+            print("✓ Meshes merged successfully")
             print(f"  Merged mesh points: {merged_mesh.n_points}")
             print(f"  Merged mesh cells: {merged_mesh.n_cells}")
 
@@ -218,25 +218,25 @@ class TestContourTools:
 
         # Verify transformed contours
         assert transformed_contours is not None, "Transformed contours is None"
-        assert isinstance(
-            transformed_contours, pv.PolyData
-        ), "Should be PyVista PolyData"
-        assert (
-            transformed_contours.n_points == contours.n_points
-        ), "Should have same number of points"
+        assert isinstance(transformed_contours, pv.PolyData), (
+            "Should be PyVista PolyData"
+        )
+        assert transformed_contours.n_points == contours.n_points, (
+            "Should have same number of points"
+        )
 
         # Points should be nearly identical for identity transform
         original_points = contours.points
         transformed_points = transformed_contours.points
         max_diff = np.max(np.abs(original_points - transformed_points))
 
-        print(f"✓ Contours transformed successfully")
+        print("✓ Contours transformed successfully")
         print(f"  Number of points: {transformed_contours.n_points}")
         print(f"  Max point difference (identity): {max_diff:.6f} mm")
 
-        assert (
-            max_diff < 0.01
-        ), "Identity transform should produce nearly identical points"
+        assert max_diff < 0.01, (
+            "Identity transform should produce nearly identical points"
+        )
 
     def test_transform_contours_with_deformation(
         self, contour_tools, segmentation_results, test_directories
@@ -263,19 +263,19 @@ class TestContourTools:
         assert transformed_contours is not None, "Transformed contours is None"
 
         # Check for DeformationMagnitude in point data
-        if 'DeformationMagnitude' in transformed_contours.point_data:
-            deformation = transformed_contours['DeformationMagnitude']
+        if "DeformationMagnitude" in transformed_contours.point_data:
+            deformation = transformed_contours["DeformationMagnitude"]
             mean_deformation = np.mean(deformation)
             expected_deformation = np.sqrt(10**2 + 10**2 + 10**2)  # ~17.32 mm
 
-            print(f"✓ Deformation magnitude calculated")
+            print("✓ Deformation magnitude calculated")
             print(f"  Mean deformation: {mean_deformation:.2f} mm")
             print(f"  Expected: {expected_deformation:.2f} mm")
 
             # Should be close to expected (within 1mm tolerance)
-            assert (
-                abs(mean_deformation - expected_deformation) < 1.0
-            ), f"Mean deformation {mean_deformation:.2f} should be close to {expected_deformation:.2f}"
+            assert abs(mean_deformation - expected_deformation) < 1.0, (
+                f"Mean deformation {mean_deformation:.2f} should be close to {expected_deformation:.2f}"
+            )
 
             # Save transformed contours with deformation
             output_file = contour_output_dir / "heart_contours_transformed.vtp"

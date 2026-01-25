@@ -16,11 +16,12 @@ and supports both local inference and NVIDIA NIM deployment modes.
 #      --shm-size=8G -p 8000:8000
 #      -v /tmp/data:/home/aylward/tmp/data nvcr.io/nim/nvidia/vista3d:latest
 
-import argparse
 import logging
 import os
 import shutil
+import sys
 import tempfile
+from typing import Optional
 
 import itk
 import torch
@@ -57,15 +58,15 @@ class SegmentChestVista3D(SegmentChestBase):
         >>> # Automatic segmentation
         >>> segmenter = SegmentChestVista3D()
         >>> result = segmenter.segment(ct_image, contrast_enhanced_study=True)
-        >>> labelmap = result["labelmap"]
-        >>> heart_mask = result["heart"]
+        >>> labelmap = result['labelmap']
+        >>> heart_mask = result['heart']
         >>>
         >>> # Segment specific structures
         >>> segmenter.set_label_prompt([115, 6, 28])  # Heart, aorta, left lung
         >>> result = segmenter.segment(ct_image)
     """
 
-    def __init__(self, log_level: int | str = logging.INFO):
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
         """Initialize the VISTA-3D based chest segmentation.
 
         Sets up the VISTA-3D model including downloading weights from Hugging Face,
@@ -99,10 +100,7 @@ class SegmentChestVista3D(SegmentChestBase):
 
         self.model_name = "vista3d"
 
-        self.hf_pipeline_helper = None
-        self.hf_pipeline = None
-
-        self.label_prompt = None
+        self.label_prompt: Optional[list[int]] = None
 
         repo_id = "MONAI/VISTA3D-HF"
         snapshot_download(repo_id=repo_id, local_dir=self.bundle_path)
@@ -232,7 +230,7 @@ class SegmentChestVista3D(SegmentChestBase):
 
         self.set_other_and_all_mask_ids()
 
-    def set_label_prompt(self, label_prompt: list):
+    def set_label_prompt(self, label_prompt: list[int]) -> None:
         """
         Set specific anatomical structure labels to segment.
 
@@ -253,7 +251,7 @@ class SegmentChestVista3D(SegmentChestBase):
         """
         self.label_prompt = label_prompt
 
-    def set_whole_image_segmentation(self):
+    def set_whole_image_segmentation(self) -> None:
         """
         Configure for automatic whole-image segmentation.
 
@@ -287,9 +285,7 @@ class SegmentChestVista3D(SegmentChestBase):
             itk.image: Updated labelmap with soft tissue regions filled
 
         Example:
-            >>> filled_labelmap = segmenter.segment_soft_tissue(
-            ...     preprocessed_image, vista_labelmap
-            ... )
+            >>> filled_labelmap = segmenter.segment_soft_tissue(preprocessed_image, vista_labelmap)
         """
         hole_ids = [0]
         labelmap_plus_soft_tissue_image = self.segment_connected_component(
@@ -325,8 +321,7 @@ class SegmentChestVista3D(SegmentChestBase):
         if self.target_spacing == 0.0:
             spacing = input_image.GetSpacing()
             self.target_spacing = (spacing[0] + spacing[1] + spacing[2]) / 3
-            if self.target_spacing < 0.5:
-                self.target_spacing = 0.5
+            self.target_spacing = max(self.target_spacing, 0.5)
 
         preprocessed_image = super().preprocess_input(input_image)
 
@@ -362,48 +357,44 @@ class SegmentChestVista3D(SegmentChestBase):
         Example:
             >>> labelmap = segmenter.segmentation_method(preprocessed_ct)
         """
-        os.sys.path.append(self.bundle_path)
+        sys.path.append(self.bundle_path)
 
         from hugging_face_pipeline import HuggingFacePipelineHelper
 
-        if self.hf_pipeline_helper is None:
-            self.hf_pipeline_helper = HuggingFacePipelineHelper(self.model_name)
-        if self.hf_pipeline is None:
-            self.hf_pipeline = self.hf_pipeline_helper.init_pipeline(
-                os.path.join(self.bundle_path, "vista3d_pretrained_model"),
-                device=self.device,
-                resample_spacing=(
-                    self.target_spacing,
-                    self.target_spacing,
-                    self.target_spacing,
-                ),
-            )
+        hf_pipeline_helper = HuggingFacePipelineHelper(self.model_name)
+        hf_pipeline = hf_pipeline_helper.init_pipeline(
+            os.path.join(self.bundle_path, "vista3d_pretrained_model"),
+            device=self.device,
+            resample_spacing=(
+                self.target_spacing,
+                self.target_spacing,
+                self.target_spacing,
+            ),
+        )
 
         tmp_dir = tempfile.mkdtemp()
         tmp_input_file_name = os.path.join(tmp_dir, "tmp.nii.gz")
         itk.imwrite(preprocessed_image, tmp_input_file_name, compression=True)
 
-        input = [
-            {
-                "image": tmp_input_file_name,
-            }
+        hf_inputs: list[dict[str, str | int | list[int]]] = [
+            {"image": tmp_input_file_name}
         ]
         if self.label_prompt is None:
-            input[0].update(
+            hf_inputs[0].update(
                 {
-                    "label_prompt": self.hf_pipeline.EVERYTHING_LABEL,
+                    "label_prompt": hf_pipeline.EVERYTHING_LABEL,
                 }
             )
         else:
-            input[0].update(
+            hf_inputs[0].update(
                 {
                     "label_prompt": self.label_prompt,
                 }
             )
 
-        self.hf_pipeline(input, output_dir=tmp_dir)
+        hf_pipeline(hf_inputs, output_dir=tmp_dir)
 
-        output_itk = None
+        output_itk: Optional[itk.image] = None
         for file_name in os.listdir(os.path.join(tmp_dir, "tmp")):
             if file_name.endswith(".nii.gz"):
                 output_itk = itk.imread(os.path.join(tmp_dir, "tmp", file_name))
@@ -418,32 +409,3 @@ class SegmentChestVista3D(SegmentChestBase):
         output_itk = self.segment_soft_tissue(preprocessed_image, output_itk)
 
         return output_itk
-
-
-def parse_args():
-    """
-    Parse command line arguments for VISTA-3D segmentation.
-
-    Returns:
-        argparse.Namespace: Parsed arguments containing:
-            - input_image: Path to input CT image
-            - output_image: Path for output segmentation
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_image", type=str, required=True)
-    parser.add_argument("--output_image", type=str, required=True)
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    """Command line interface for VISTA-3D based chest segmentation.
-
-    Example usage:
-        python segment_chest_vista_3d.py \
-            --input_image chest_ct.mha \
-            --output_image segmentation.mha
-    """
-    args = parse_args()
-    segmenter = SegmentChestVista3D()
-    result = segmenter.segment(itk.imread(args.input_image))
-    itk.imwrite(result["labelmap"], args.output_image, compression=True)

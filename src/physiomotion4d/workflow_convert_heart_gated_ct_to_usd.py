@@ -12,13 +12,13 @@ from typing import Optional
 import itk
 import numpy as np
 import pyvista as pv
-from pxr import Usd
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
 from physiomotion4d.convert_vtk_4d_to_usd import ConvertVTK4DToUSD
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_base import RegisterImagesBase
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.transform_tools import TransformTools
@@ -41,7 +41,7 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         project_name: str,
         reference_image_filename: Optional[str] = None,
         number_of_registration_iterations: Optional[int] = 1,
-        registration_method: str = 'icon',
+        registration_method: str = "icon",
         log_level: int | str = logging.INFO,
     ):
         """
@@ -68,7 +68,7 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         self.number_of_registration_iterations = number_of_registration_iterations
 
         # Validate registration method
-        if registration_method not in ['ants', 'icon']:
+        if registration_method not in ["ants", "icon"]:
             raise ValueError(
                 f"Invalid registration_method '{registration_method}'. "
                 "Must be 'ants' or 'icon'."
@@ -84,44 +84,47 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         self.segmenter.contrast_threshold = 500
 
         # Initialize registration method
-        if self.registration_method == 'ants':
+        self.registrar: RegisterImagesBase
+        if self.registration_method == "ants":
             self.log_info("Initializing ANTs registration...")
-            self.registrar = RegisterImagesANTs(log_level=log_level)
-            self.registrar.set_modality('ct')
-            self.registrar.set_transform_type('SyN')
+            ants_registrar = RegisterImagesANTs(log_level=log_level)
+            ants_registrar.set_modality("ct")
+            ants_registrar.set_transform_type("SyN")
             if (
                 number_of_registration_iterations is not None
                 and number_of_registration_iterations > 0
             ):
-                self.registrar.set_syn_parameters(
-                    reg_iterations=(
+                ants_registrar.set_number_of_iterations(
+                    [
                         number_of_registration_iterations,
                         number_of_registration_iterations // 2,
                         0,
-                    )
+                    ]
                 )
+            self.registrar = ants_registrar
         else:  # icon (default)
             self.log_info("Initializing ICON registration...")
-            self.registrar = RegisterImagesICON(log_level=log_level)
-            self.registrar.set_modality('ct')
+            icon_registrar = RegisterImagesICON(log_level=log_level)
+            icon_registrar.set_modality("ct")
             if (
                 number_of_registration_iterations is not None
                 and number_of_registration_iterations > 0
             ):
-                self.registrar.set_number_of_iterations(
+                icon_registrar.set_number_of_iterations(
                     number_of_registration_iterations
                 )
+            self.registrar = icon_registrar
 
         self.registrar.set_mask_dilation(5)
         self.contour_tools = ContourTools()
 
         # Data storage for processing pipeline
         self._num_time_points = 0
-        self._time_series_images = []
-        self._fixed_image = None
-        self._fixed_segmentation = None
-        self._time_series_transforms = []
-        self._reference_contours = {}
+        self._time_series_images: list[itk.Image] = []
+        self._fixed_image: Optional[itk.Image] = None
+        self._fixed_segmentation: Optional[dict[str, itk.Image]] = None
+        self._time_series_transforms: list[itk.Transform] = []
+        self._reference_contours: dict[str, pv.PolyData] = {}
 
     def process(self) -> str:
         """
@@ -150,7 +153,7 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         self.log_info("Processing pipeline completed successfully")
         return f"{self.project_name}.dynamic_anatomy_painted.usd"
 
-    def _load_time_series(self):
+    def _load_time_series(self) -> None:
         """Load and convert 4D data to time series images."""
         self.log_info("Loading time series data...")
 
@@ -186,23 +189,24 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
 
         self.log_info("Loaded %d time points", self._num_time_points)
 
-    def _segment_and_register_frames(self):
+    def _segment_and_register_frames(self) -> None:
         """Segment each frame and register to reference image."""
         self.log_info("Segmenting and registering frames...")
 
         # Segment reference image
         self.log_info("Segmenting reference image...")
+        assert self._fixed_image is not None, "Fixed image must be set"
         self._fixed_segmentation = self.segmenter.segment(
             self._fixed_image, contrast_enhanced_study=self.contrast_enhanced
         )
 
         # Create combined masks for registration
+        assert self._fixed_segmentation is not None, "Fixed segmentation must be set"
         labelmap_mask = self._fixed_segmentation["labelmap"]
         lung_mask = self._fixed_segmentation["lung"]
         heart_mask = self._fixed_segmentation["heart"]
         major_vessels_mask = self._fixed_segmentation["major_vessels"]
         bone_mask = self._fixed_segmentation["bone"]
-        soft_tissue_mask = self._fixed_segmentation["soft_tissue"]
         other_mask = self._fixed_segmentation["other"]
         contrast_mask = self._fixed_segmentation["contrast"]
         itk.imwrite(
@@ -228,7 +232,9 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
 
         # Set up registrar with fixed image
         self.registrar.set_fixed_image(self._fixed_image)
-        if self.registration_method == 'icon':
+        if self.registration_method == "icon" and isinstance(
+            self.registrar, RegisterImagesICON
+        ):
             if self.contrast_enhanced:
                 self.registrar.set_mass_preservation(False)
             else:
@@ -242,7 +248,7 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             moving_image = self._time_series_images[i]
 
             # Register without mask first
-            self.registrar.set_fixed_image_mask(None)
+            self.registrar.set_fixed_mask(None)
             result_all = self.registrar.register(moving_image)
             inverse_transform_all = result_all["inverse_transform"]
             forward_transform_all = result_all["forward_transform"]
@@ -266,7 +272,7 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
                 os.path.join(self.output_directory, f"slice_{i:03d}_dynamic_mask.mha"),
                 compression=True,
             )
-            self.registrar.set_fixed_image_mask(fixed_dynamic_mask)
+            self.registrar.set_fixed_mask(fixed_dynamic_mask)
             result_dynamic = self.registrar.register(moving_image, moving_dynamic_mask)
             inverse_transform_dynamic = result_dynamic["inverse_transform"]
             forward_transform_dynamic = result_dynamic["forward_transform"]
@@ -280,24 +286,24 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
                 os.path.join(self.output_directory, f"slice_{i:03d}_static_mask.mha"),
                 compression=True,
             )
-            self.registrar.set_fixed_image_mask(fixed_static_mask)
+            self.registrar.set_fixed_mask(fixed_static_mask)
             result_static = self.registrar.register(moving_image, moving_static_mask)
             inverse_transform_static = result_static["inverse_transform"]
             forward_transform_static = result_static["forward_transform"]
 
             # Store transforms
             transforms = {
-                'dynamic': {
-                    'inverse_transform': inverse_transform_dynamic,
-                    'forward_transform': forward_transform_dynamic,
+                "dynamic": {
+                    "inverse_transform": inverse_transform_dynamic,
+                    "forward_transform": forward_transform_dynamic,
                 },
-                'static': {
-                    'inverse_transform': inverse_transform_static,
-                    'forward_transform': forward_transform_static,
+                "static": {
+                    "inverse_transform": inverse_transform_static,
+                    "forward_transform": forward_transform_static,
                 },
-                'all': {
-                    'inverse_transform': inverse_transform_all,
-                    'forward_transform': forward_transform_all,
+                "all": {
+                    "inverse_transform": inverse_transform_all,
+                    "forward_transform": forward_transform_all,
                 },
             }
             itk.transformwrite(
@@ -322,20 +328,19 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             )
             self._time_series_transforms.append(transforms)
 
-    def _generate_reference_contours(self):
+    def _generate_reference_contours(self) -> None:
         """Generate contour meshes from reference segmentation."""
         self.log_info("Generating reference contours...")
 
-        (
-            labelmap_image,
-            lung_mask,
-            heart_mask,
-            major_vessels_mask,
-            bone_mask,
-            soft_tissue_mask,
-            other_mask,
-            contrast_mask,
-        ) = self._fixed_segmentation
+        assert self._fixed_segmentation is not None, "Fixed segmentation must be set"
+        labelmap_image = self._fixed_segmentation["labelmap"]
+        lung_mask = self._fixed_segmentation["lung"]
+        heart_mask = self._fixed_segmentation["heart"]
+        major_vessels_mask = self._fixed_segmentation["major_vessels"]
+        bone_mask = self._fixed_segmentation["bone"]
+        soft_tissue_mask = self._fixed_segmentation["soft_tissue"]
+        other_mask = self._fixed_segmentation["other"]
+        contrast_mask = self._fixed_segmentation["contrast"]
 
         # Generate all anatomy contours
         all_contours = self.contour_tools.extract_contours(labelmap_image)
@@ -371,16 +376,20 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
 
         # Store reference contours
         self._reference_contours = {
-            'all': all_contours,
-            'dynamic': dynamic_contours,
-            'static': static_contours,
+            "all": all_contours,
+            "dynamic": dynamic_contours,
+            "static": static_contours,
         }
 
-    def _transform_all_contours(self):
+    def _transform_all_contours(self) -> None:
         """Transform contours for all time points using registration transforms."""
         self.log_info("Transforming contours for all time points...")
 
-        self._transformed_contours = {'all': [], 'dynamic': [], 'static': []}
+        self._transformed_contours: dict[str, list[pv.PolyData]] = {
+            "all": [],
+            "dynamic": [],
+            "static": [],
+        }
 
         for i in range(self._num_time_points):
             self.log_progress(
@@ -388,10 +397,10 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             )
 
             frame_contours = {}
-            for anatomy_type in ['all', 'dynamic', 'static']:
+            for anatomy_type in ["all", "dynamic", "static"]:
                 # Get the forward transform for this anatomy type and frame
                 forward_transform = self._time_series_transforms[i][anatomy_type][
-                    'forward_transform'
+                    "forward_transform"
                 ]
 
                 # Transform the reference contours
@@ -404,12 +413,12 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
                 frame_contours[anatomy_type] = transformed_contours
                 self._transformed_contours[anatomy_type].append(transformed_contours)
 
-    def _create_usd_files(self):
+    def _create_usd_files(self) -> None:
         """Create painted USD files for all anatomy types."""
         self.log_info("Creating USD files...")
 
         # Create USD for each anatomy type
-        for anatomy_type in ['all', 'dynamic', 'static']:
+        for anatomy_type in ["all", "dynamic", "static"]:
             self.log_info("Creating %s anatomy USD...", anatomy_type)
 
             # Convert VTK contours to USD
@@ -434,106 +443,3 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             painter = USDAnatomyTools(stage)
             painter.enhance_meshes(self.segmenter)
             stage.Export(output_filename)
-
-
-def main():
-    """Command-line interface for Heart-gated CT processing."""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Process 4D cardiac CT images to dynamic USD models for Omniverse",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Process a single 4D NRRD file
-  physiomotion4d-heart-gated-ct input_4d.nrrd --contrast --output-dir ./results
-
-  # Process multiple 3D NRRD files as time series
-  physiomotion4d-heart-gated-ct frame_*.nrrd --output-dir ./results --project-name cardiac
-
-  # Specify reference image and registration iterations
-  physiomotion4d-heart-gated-ct input.nrrd --reference-image ref.mha --registration-iterations 50
-        """,
-    )
-
-    parser.add_argument(
-        "input_files", nargs='+', help="Path to 4D NRRD file or list of 3D NRRD files"
-    )
-    parser.add_argument(
-        "--output-dir",
-        default="./results",
-        help="Output directory for results (default: ./results)",
-    )
-    parser.add_argument(
-        "--project-name",
-        default="cardiac_model",
-        help="Project name for USD organization (default: cardiac_model)",
-    )
-    parser.add_argument(
-        "--contrast", action="store_true", help="Indicate if study is contrast enhanced"
-    )
-    parser.add_argument(
-        "--reference-image",
-        help="Path to reference image file (default: uses 70%% time point)",
-    )
-    parser.add_argument(
-        "--registration-iterations",
-        type=int,
-        default=1,
-        help="Number of registration iterations (default: 1)",
-    )
-    parser.add_argument(
-        "--registration-method",
-        choices=['ants', 'icon'],
-        default='icon',
-        help="Registration method to use: ants or icon (default: icon)",
-    )
-
-    args = parser.parse_args()
-
-    # Validate input files
-    for input_file in args.input_files:
-        if not os.path.exists(input_file):
-            print(f"Error: Input file not found: {input_file}")
-            return 1
-
-    # Initialize processor
-    print("Initializing Heart-gated CT processor...")
-    processor = WorkflowConvertHeartGatedCTToUSD(
-        input_filenames=args.input_files,
-        contrast_enhanced=args.contrast,
-        output_directory=args.output_dir,
-        project_name=args.project_name,
-        reference_image_filename=args.reference_image,
-        number_of_registration_iterations=args.registration_iterations,
-        registration_method=args.registration_method,
-    )
-
-    try:
-        # Execute complete workflow
-        print("\nStarting Heart-gated CT processing pipeline...")
-        print("=" * 60)
-        final_usd = processor.process()
-
-        print("\n" + "=" * 60)
-        print("Processing completed successfully!")
-        print(f"\nOutput files created in: {args.output_dir}")
-        print(f"  - {args.project_name}.dynamic_anatomy_painted.usd")
-        print(f"  - {args.project_name}.static_anatomy_painted.usd")
-        print(f"  - {args.project_name}.all_anatomy_painted.usd")
-        print("\nYou can now open these files in NVIDIA Omniverse.")
-
-        return 0
-
-    except Exception as e:
-        print(f"\nError during processing: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return 1
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.exit(main())

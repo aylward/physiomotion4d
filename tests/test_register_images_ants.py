@@ -25,18 +25,18 @@ class TestRegisterImagesANTs:
     def test_registrar_initialization(self, registrar_ants):
         """Test that RegisterImagesANTs initializes correctly."""
         assert registrar_ants is not None, "Registrar not initialized"
-        assert hasattr(registrar_ants, 'fixed_image'), "Missing fixed_image attribute"
-        assert hasattr(registrar_ants, 'fixed_mask'), "Missing fixed_mask attribute"
+        assert hasattr(registrar_ants, "fixed_image"), "Missing fixed_image attribute"
+        assert hasattr(registrar_ants, "fixed_mask"), "Missing fixed_mask attribute"
 
         print("\n✓ ANTs registrar initialized successfully")
 
     def test_set_modality(self, registrar_ants):
         """Test setting imaging modality."""
-        registrar_ants.set_modality('ct')
-        assert registrar_ants.modality == 'ct', "Modality not set correctly"
+        registrar_ants.set_modality("ct")
+        assert registrar_ants.modality == "ct", "Modality not set correctly"
 
-        registrar_ants.set_modality('mr')
-        assert registrar_ants.modality == 'mr', "Modality change failed"
+        registrar_ants.set_modality("mr")
+        assert registrar_ants.modality == "mr", "Modality change failed"
 
         print("\n✓ Modality setting works correctly")
 
@@ -65,7 +65,7 @@ class TestRegisterImagesANTs:
         print(f"  Fixed image: {itk.size(fixed_image)}")
         print(f"  Moving image: {itk.size(moving_image)}")
 
-        registrar_ants.set_modality('ct')
+        registrar_ants.set_modality("ct")
         registrar_ants.set_fixed_image(fixed_image)
 
         # Register
@@ -154,7 +154,7 @@ class TestRegisterImagesANTs:
         print(f"  Moving mask voxels: {np.sum(moving_mask_arr)}")
 
         # Set up registration with masks
-        registrar_ants.set_modality('ct')
+        registrar_ants.set_modality("ct")
         registrar_ants.set_fixed_image(fixed_image)
         registrar_ants.set_fixed_mask(fixed_mask)
 
@@ -198,7 +198,7 @@ class TestRegisterImagesANTs:
         moving_image = test_images[1]
 
         # Register
-        registrar_ants.set_modality('ct')
+        registrar_ants.set_modality("ct")
         registrar_ants.set_fixed_image(fixed_image)
         result = registrar_ants.register(moving_image=moving_image)
 
@@ -245,7 +245,7 @@ class TestRegisterImagesANTs:
         print(f"  Original spacing: {itk.spacing(test_image)}")
 
         # Preprocess
-        preprocessed = registrar_ants.preprocess(test_image, modality='ct')
+        preprocessed = registrar_ants.preprocess(test_image, modality="ct")
 
         assert preprocessed is not None, "Preprocessed image is None"
 
@@ -271,7 +271,7 @@ class TestRegisterImagesANTs:
         print("\nRegistering with initial transform...")
         print("  Initial offset: [-5.0, -5.0, -5.0]")
 
-        registrar_ants.set_modality('ct')
+        registrar_ants.set_modality("ct")
         registrar_ants.set_fixed_image(fixed_image)
 
         result = registrar_ants.register(
@@ -292,22 +292,22 @@ class TestRegisterImagesANTs:
 
         print("\nRunning multiple registrations...")
 
-        registrar_ants.set_modality('ct')
+        registrar_ants.set_modality("ct")
         registrar_ants.set_fixed_image(fixed_image)
 
         results = []
         for i in range(2):
-            print(f"  Registration {i+1}...")
+            print(f"  Registration {i + 1}...")
             result = registrar_ants.register(moving_image=moving_image)
             results.append(result)
 
-            assert isinstance(result, dict), f"Result {i+1} should be a dictionary"
-            assert (
-                "inverse_transform" in result
-            ), f"Missing inverse_transform in result {i+1}"
-            assert (
-                "forward_transform" in result
-            ), f"Missing forward_transform in result {i+1}"
+            assert isinstance(result, dict), f"Result {i + 1} should be a dictionary"
+            assert "inverse_transform" in result, (
+                f"Missing inverse_transform in result {i + 1}"
+            )
+            assert "forward_transform" in result, (
+                f"Missing forward_transform in result {i + 1}"
+            )
 
         print(f"✓ Multiple registrations complete: {len(results)} runs")
 
@@ -316,7 +316,7 @@ class TestRegisterImagesANTs:
         fixed_image = test_images[0]
         moving_image = test_images[1]
 
-        registrar_ants.set_modality('ct')
+        registrar_ants.set_modality("ct")
         registrar_ants.set_fixed_image(fixed_image)
         result = registrar_ants.register(moving_image=moving_image)
 
@@ -326,12 +326,12 @@ class TestRegisterImagesANTs:
         print("\nVerifying transform types...")
 
         # Check that transforms are CompositeTransform (ANTs returns composite)
-        assert isinstance(
-            inverse_transform, itk.CompositeTransform
-        ), f"inverse_transform should be CompositeTransform, got {type(inverse_transform)}"
-        assert isinstance(
-            forward_transform, itk.CompositeTransform
-        ), f"forward_transform should be CompositeTransform, got {type(forward_transform)}"
+        assert isinstance(inverse_transform, itk.CompositeTransform), (
+            f"inverse_transform should be CompositeTransform, got {type(inverse_transform)}"
+        )
+        assert isinstance(forward_transform, itk.CompositeTransform), (
+            f"forward_transform should be CompositeTransform, got {type(forward_transform)}"
+        )
 
         print("✓ Transform types verified")
         print(f"  inverse_transform: {type(inverse_transform).__name__}")
@@ -353,13 +353,13 @@ class TestRegisterImagesANTs:
         original_direction = itk.array_from_matrix(original_image.GetDirection())
 
         # Convert ITK -> ANTs
-        ants_image = registrar_ants._itk_to_ants_image(original_image, dtype='float')
+        ants_image = registrar_ants._itk_to_ants_image(original_image, dtype="float")
 
         # Verify ANTs image
         assert ants_image is not None, "ANTs image is None"
-        assert (
-            ants_image.dimension == 3
-        ), f"ANTs dimension should be 3, got {ants_image.dimension}"
+        assert ants_image.dimension == 3, (
+            f"ANTs dimension should be 3, got {ants_image.dimension}"
+        )
         print(f"  ANTs image shape: {ants_image.shape}")
 
         # Convert ANTs -> ITK
@@ -377,9 +377,9 @@ class TestRegisterImagesANTs:
         print(f"  Recovered image origin: {recovered_origin}")
 
         # Compare arrays
-        assert (
-            original_array.shape == recovered_array.shape
-        ), f"Array shape mismatch: {original_array.shape} vs {recovered_array.shape}"
+        assert original_array.shape == recovered_array.shape, (
+            f"Array shape mismatch: {original_array.shape} vs {recovered_array.shape}"
+        )
 
         # Check pixel values (allowing for float conversion tolerance)
         max_diff = np.max(
@@ -417,7 +417,7 @@ class TestRegisterImagesANTs:
 
         print("\nTesting image conversion cycle with different dtypes...")
 
-        dtypes = ['float', 'double', 'int', 'uint', 'uchar']
+        dtypes = ["float", "double", "int", "uint", "uchar"]
 
         for dtype in dtypes:
             print(f"  Testing dtype: {dtype}")
@@ -428,14 +428,14 @@ class TestRegisterImagesANTs:
 
             # Convert ANTs -> ITK
             recovered_image = registrar_ants._ants_to_itk_image(ants_image)
-            assert (
-                recovered_image is not None
-            ), f"Recovered image is None for dtype {dtype}"
+            assert recovered_image is not None, (
+                f"Recovered image is None for dtype {dtype}"
+            )
 
             # Verify dimensions match
-            assert itk.size(original_image) == itk.size(
-                recovered_image
-            ), f"Size mismatch for dtype {dtype}"
+            assert itk.size(original_image) == itk.size(recovered_image), (
+                f"Size mismatch for dtype {dtype}"
+            )
 
             print(f"    ✓ {dtype} conversion successful")
 
@@ -477,12 +477,12 @@ class TestRegisterImagesANTs:
         recovered_origin = [float(o) for o in itk.origin(recovered_image)]
 
         assert recovered_size == size, f"Size mismatch: {recovered_size} vs {size}"
-        assert np.allclose(
-            recovered_spacing, spacing, atol=1e-6
-        ), f"Spacing mismatch: {recovered_spacing} vs {spacing}"
-        assert np.allclose(
-            recovered_origin, origin, atol=1e-6
-        ), f"Origin mismatch: {recovered_origin} vs {origin}"
+        assert np.allclose(recovered_spacing, spacing, atol=1e-6), (
+            f"Spacing mismatch: {recovered_spacing} vs {spacing}"
+        )
+        assert np.allclose(recovered_origin, origin, atol=1e-6), (
+            f"Origin mismatch: {recovered_origin} vs {origin}"
+        )
 
         print("✓ Metadata preservation verified")
 
@@ -529,9 +529,9 @@ class TestRegisterImagesANTs:
             )
             assert len(transform_files) == 1, "Should return one transform file"
             # Note: The returned filename may have extension added/modified
-            assert os.path.exists(
-                transform_files[0]
-            ), f"Transform file not found: {transform_files[0]}"
+            assert os.path.exists(transform_files[0]), (
+                f"Transform file not found: {transform_files[0]}"
+            )
             print(f"  ANTs transform written to: {transform_files[0]}")
 
             # Read the transform to verify (use the actual written file)
@@ -635,9 +635,9 @@ class TestRegisterImagesANTs:
             )
             assert len(transform_files) == 1, "Should return one transform file"
             # Note: The returned filename may have extension added/modified
-            assert os.path.exists(
-                transform_files[0]
-            ), f"Transform file not found: {transform_files[0]}"
+            assert os.path.exists(transform_files[0]), (
+                f"Transform file not found: {transform_files[0]}"
+            )
             print(f"  ANTs transform written successfully to: {transform_files[0]}")
 
             # Convert back ANTs -> ITK
@@ -717,9 +717,9 @@ class TestRegisterImagesANTs:
             )
             assert len(transform_files) == 1, "Should return one transform file"
             # Note: The returned filename may have extension added/modified
-            assert os.path.exists(
-                transform_files[0]
-            ), f"Transform file not found: {transform_files[0]}"
+            assert os.path.exists(transform_files[0]), (
+                f"Transform file not found: {transform_files[0]}"
+            )
             print(f"  ANTs transform written to: {transform_files[0]}")
 
         # Test on sample points

@@ -29,8 +29,9 @@ Runs on every push and pull request to main branches. Includes:
   - Timeout: 30 minutes
 
 - **code-quality**: Static code analysis
-  - Black, isort, ruff, flake8 checks
-  - Does not fail the build (continue-on-error: true)
+  - Ruff formatting and linting checks
+  - mypy type checking (continue-on-error: true)
+  - Ruff checks will fail the build if code style issues are found
 
 ### `test-slow.yml` - Long-Running Tests
 

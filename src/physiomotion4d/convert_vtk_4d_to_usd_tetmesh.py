@@ -1,15 +1,20 @@
 """Converter for VTK UnstructuredGrid to USD TetMesh with volumetric meshes."""
 
+from typing import Optional, cast
+
 import numpy as np
 import pyvista as pv
 import vtk
-from pxr import Gf, Sdf, UsdGeom
+from pxr import Gf, Sdf, UsdGeom, Vt
 
 from .convert_vtk_4d_to_usd_base import (
     VTK_QUAD,
     VTK_TETRA,
     VTK_TRIANGLE,
     ConvertVTK4DToUSDBase,
+    MeshLabelData,
+    MeshTimeData,
+    RgbColor,
 )
 
 
@@ -26,14 +31,12 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
 
     Example Usage:
         >>> converter = ConvertVTK4DToUSDTetMesh(
-        ...     data_basename="VolumetricModel",
-        ...     input_polydata=ugrid_meshes,
-        ...     mask_ids=None
+        ...     data_basename='VolumetricModel', input_polydata=ugrid_meshes, mask_ids=None
         ... )
-        >>> stage = converter.convert("output.usd")
+        >>> stage = converter.convert('output.usd')
     """
 
-    def supports_mesh_type(self, mesh) -> bool:
+    def supports_mesh_type(self, mesh: pv.DataSet | vtk.vtkDataSet) -> bool:
         """
         Check if this converter supports the given mesh type.
 
@@ -50,7 +53,9 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             and not self.convert_to_surface
         )
 
-    def _process_mesh_data(self, mesh) -> dict:
+    def _process_mesh_data(
+        self, mesh: pv.DataSet | vtk.vtkDataSet
+    ) -> dict[str, MeshLabelData]:
         """
         Process mesh and extract geometry data.
 
@@ -62,14 +67,18 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
         """
         if not isinstance(mesh, (pv.UnstructuredGrid, vtk.vtkUnstructuredGrid)):
             raise TypeError(
-                f"TetMesh converter only supports UnstructuredGrid. "
-                f"Got: {type(mesh)}"
+                f"TetMesh converter only supports UnstructuredGrid. Got: {type(mesh)}"
             )
         return self._process_unstructured_grid(mesh)
 
     def _create_usd_mesh(
-        self, transform_path, label, mesh_time_data, label_colors, has_topology_change
-    ):
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+        has_topology_change: bool,
+    ) -> None:
         """
         Create USD mesh prim(s) for this label.
 
@@ -86,9 +95,9 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             has_topology_change: Whether topology varies over time
         """
         # Check mesh type from first timestep data
-        mesh_type = mesh_time_data[0][label].get('mesh_type', 'tetmesh')
+        mesh_type = mesh_time_data[0][label].get("mesh_type", "tetmesh")
 
-        if mesh_type == 'tetmesh':
+        if mesh_type == "tetmesh":
             if has_topology_change:
                 self.log_info(
                     "Creating time-varying UsdGeomTetMesh for label: %s (topology changes detected)",
@@ -106,11 +115,13 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             # Surface cells from UnstructuredGrid - treat as polymesh
             # Note: This is a fallback for UnstructuredGrid with only surface cells
             raise ValueError(
-                f"UnstructuredGrid contains surface cells, not tetrahedra. "
-                f"Use convert_to_surface=True with PolyMesh converter."
+                "UnstructuredGrid contains surface cells, not tetrahedra. "
+                "Use convert_to_surface=True with PolyMesh converter."
             )
 
-    def _process_unstructured_grid(self, ugrid) -> dict:
+    def _process_unstructured_grid(
+        self, ugrid: pv.UnstructuredGrid | vtk.vtkUnstructuredGrid
+    ) -> dict[str, MeshLabelData]:
         """
         Process UnstructuredGrid and extract tetrahedral and surface geometry.
 
@@ -130,13 +141,13 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
 
         # Get deformation magnitude if it exists
         def_mag = None
-        if 'DeformationMagnitude' in ugrid.point_data:
-            def_mag = ugrid.point_data['DeformationMagnitude']
+        if "DeformationMagnitude" in ugrid.point_data:
+            def_mag = ugrid.point_data["DeformationMagnitude"]
 
         # Get boundary labels if they exist
         boundary_labels = None
-        if self.mask_ids is not None and 'boundary_labels' in ugrid.cell_data:
-            label_array = ugrid.cell_data['boundary_labels']
+        if self.mask_ids is not None and "boundary_labels" in ugrid.cell_data:
+            label_array = ugrid.cell_data["boundary_labels"]
             boundary_labels = set()
             if label_array.ndim > 1:
                 # Multi-component array
@@ -168,17 +179,16 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
 
             # Get cell label if available
             cell_label = None
-            if boundary_labels is not None and 'boundary_labels' in ugrid.cell_data:
-                label_val = ugrid.cell_data['boundary_labels'][cell_id]
+            if boundary_labels is not None and "boundary_labels" in ugrid.cell_data:
+                label_val = ugrid.cell_data["boundary_labels"][cell_id]
                 if isinstance(label_val, (list, np.ndarray)):
                     # Multi-component, take first non-zero
                     for v in label_val:
                         if int(v) != 0:
                             cell_label = int(v)
                             break
-                else:
-                    if int(label_val) != 0:
-                        cell_label = int(label_val)
+                elif int(label_val) != 0:
+                    cell_label = int(label_val)
 
             if cell_type == VTK_TETRA:
                 tet_cells.append(cell_connectivity)
@@ -195,19 +205,23 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             return self._process_tetrahedral_mesh(
                 points, tet_cells, cell_labels, def_mag, boundary_labels
             )
-        elif len(surface_cells) > 0:
+        if len(surface_cells) > 0:
             # Process as surface mesh
             return self._process_surface_cells(
                 points, surface_cells, def_mag, boundary_labels
             )
-        else:
-            raise ValueError(
-                "UnstructuredGrid contains no supported cell types (tetrahedra or surface cells)"
-            )
+        raise ValueError(
+            "UnstructuredGrid contains no supported cell types (tetrahedra or surface cells)"
+        )
 
     def _process_tetrahedral_mesh(
-        self, points, tet_cells, cell_labels, def_mag, boundary_labels
-    ):
+        self,
+        points: np.ndarray,
+        tet_cells: list,
+        cell_labels: list,
+        def_mag: Optional[np.ndarray],
+        boundary_labels: Optional[set],
+    ) -> dict[str, MeshLabelData]:
         """
         Process tetrahedral cells for UsdGeomTetMesh export.
 
@@ -252,12 +266,12 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
         surface_face_indices = [Gf.Vec3i(f[0], f[1], f[2]) for f in surface_faces]
 
         result = {
-            'default': {
-                'mesh_type': 'tetmesh',
-                'points': points_usd,
-                'tet_indices': tet_indices_vec4,
-                'surface_face_indices': surface_face_indices,
-                'deformation_magnitude': (
+            "default": {
+                "mesh_type": "tetmesh",
+                "points": points_usd,
+                "tet_indices": tet_indices_vec4,
+                "surface_face_indices": surface_face_indices,
+                "deformation_magnitude": (
                     def_mag.tolist() if def_mag is not None else None
                 ),
             }
@@ -265,7 +279,13 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
 
         return result
 
-    def _process_surface_cells(self, points, surface_cells, def_mag, boundary_labels):
+    def _process_surface_cells(
+        self,
+        points: np.ndarray,
+        surface_cells: list,
+        def_mag: Optional[np.ndarray],
+        boundary_labels: Optional[set],
+    ) -> dict[str, MeshLabelData]:
         """
         Process surface cells (triangles/quads) for UsdGeomMesh export.
 
@@ -290,18 +310,24 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             face_vertex_indices.extend(cell_connectivity.tolist())
 
         return {
-            'default': {
-                'mesh_type': 'polymesh',
-                'points': points_usd,
-                'face_vertex_counts': face_vertex_counts,
-                'face_vertex_indices': face_vertex_indices,
-                'deformation_magnitude': (
+            "default": {
+                "mesh_type": "polymesh",
+                "points": points_usd,
+                "face_vertex_counts": face_vertex_counts,
+                "face_vertex_indices": face_vertex_indices,
+                "deformation_magnitude": (
                     def_mag.tolist() if def_mag is not None else None
                 ),
             }
         }
 
-    def _create_usd_tetmesh(self, transform_path, label, mesh_time_data, label_colors):
+    def _create_usd_tetmesh(
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+    ) -> None:
         """
         Create UsdGeomTetMesh for tetrahedral volume data with constant topology.
 
@@ -320,8 +346,8 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
         tetmesh = UsdGeom.TetMesh.Define(self.stage, mesh_path)
 
         # Set tetrahedral topology (assuming consistent topology across timesteps)
-        tetmesh.CreateTetVertexIndicesAttr(data['tet_indices'])
-        tetmesh.CreateSurfaceFaceVertexIndicesAttr(data['surface_face_indices'])
+        tetmesh.CreateTetVertexIndicesAttr(data["tet_indices"])
+        tetmesh.CreateSurfaceFaceVertexIndicesAttr(data["surface_face_indices"])
 
         # Set mesh attributes for Index renderer compatibility
         tetmesh.CreateDoubleSidedAttr(True)  # Ensure visibility from both sides
@@ -330,7 +356,7 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
         # For tetrahedral meshes, we need normals for the surface vertices
         if self.compute_normals:
             normals_attr = tetmesh.CreateNormalsAttr()
-            normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
+            normals_attr.SetMetadata("interpolation", UsdGeom.Tokens.vertex)
 
         # Assign a unique color to the mesh with proper primvar
         display_color = label_colors[label]
@@ -354,54 +380,59 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
 
             # Compute per-vertex normals for surface faces
             # For tetrahedral meshes, compute normals based on surface triangulation
-            # First, need to convert surface face indices to face vertex counts
-            surface_indices = time_data['surface_face_indices']
             # Surface faces are triangular, so each face has 3 vertices
-            face_vertex_counts = [3] * (len(surface_indices) // 3)
+            surface_indices_val = cast(list[int], time_data["surface_face_indices"])
+            face_vertex_counts = [3] * (len(surface_indices_val) // 3)
             if self.compute_normals:
-                vertex_normals = self._compute_vertex_normals(
-                    time_data['points'], face_vertex_counts, surface_indices
+                points_val = cast(list[Gf.Vec3f], time_data["points"])
+                vertex_normals = self._compute_facevarying_normals_tri(
+                    Vt.Vec3fArray(points_val),
+                    Vt.IntArray(face_vertex_counts),
+                    Vt.IntArray(surface_indices_val),
                 )
 
             # Set points first
             time_samples[time_code] = {
-                'points': time_data['points'],
-                'extent': UsdGeom.TetMesh.ComputeExtent(time_data['points']),
+                "points": time_data["points"],
+                "extent": UsdGeom.TetMesh.ComputeExtent(time_data["points"]),
             }
             if self.compute_normals:
-                time_samples[time_code]['normals'] = vertex_normals
+                time_samples[time_code]["normals"] = vertex_normals
 
         # Set points, extents, and normals with explicit time codes
         for t_code, time_data_dict in time_samples.items():
-            points_attr.Set(time_data_dict['points'], t_code)
-            extent_attr.Set(time_data_dict['extent'], t_code)
+            points_attr.Set(time_data_dict["points"], t_code)
+            extent_attr.Set(time_data_dict["extent"], t_code)
             if self.compute_normals:
-                normals_attr.Set(time_data_dict['normals'], t_code)
+                normals_attr.Set(time_data_dict["normals"], t_code)
 
         # Set initial values (non-timewarped)
-        points_attr.Set(time_samples[self.times[0]]['points'])
-        extent_attr.Set(time_samples[self.times[0]]['extent'])
+        points_attr.Set(time_samples[self.times[0]]["points"])
+        extent_attr.Set(time_samples[self.times[0]]["extent"])
         if self.compute_normals:
-            normals_attr.Set(time_samples[self.times[0]]['normals'])
+            normals_attr.Set(time_samples[self.times[0]]["normals"])
 
         # Set deformation magnitude if it exists
         if any(
-            mesh_time_data[time_idx][label]['deformation_magnitude'] is not None
+            mesh_time_data[time_idx][label]["deformation_magnitude"] is not None
             for time_idx in range(len(self.times))
         ):
-
             def_mag_attr = tetmesh.GetPrim().CreateAttribute(
                 "deformationMagnitude", Sdf.ValueTypeNames.FloatArray
             )
 
             for time_idx, t_code in enumerate(self.times):
-                def_mag = mesh_time_data[time_idx][label]['deformation_magnitude']
+                def_mag = mesh_time_data[time_idx][label]["deformation_magnitude"]
                 if def_mag is not None:
                     def_mag_attr.Set(def_mag, t_code)
 
     def _create_usd_tetmesh_varying(
-        self, transform_path, label, mesh_time_data, label_colors
-    ):
+        self,
+        transform_path: str,
+        label: str,
+        mesh_time_data: MeshTimeData,
+        label_colors: dict[str, RgbColor],
+    ) -> None:
         """
         Create separate UsdGeomTetMesh prims for each timestep with visibility control.
 
@@ -435,29 +466,32 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             tetmesh = UsdGeom.TetMesh.Define(self.stage, mesh_path)
 
             # Set topology (unique for this timestep)
-            tetmesh.CreateTetVertexIndicesAttr(time_data['tet_indices'])
+            tetmesh.CreateTetVertexIndicesAttr(time_data["tet_indices"])
             tetmesh.CreateSurfaceFaceVertexIndicesAttr(
-                time_data['surface_face_indices']
+                time_data["surface_face_indices"]
             )
-            tetmesh.CreatePointsAttr(time_data['points'])
+            tetmesh.CreatePointsAttr(time_data["points"])
 
             # Set mesh attributes for Index renderer compatibility
             tetmesh.CreateDoubleSidedAttr(True)
 
             # Compute and set normals
-            surface_indices = time_data['surface_face_indices']
-            face_vertex_counts = [3] * (len(surface_indices) // 3)
+            surface_indices_val = cast(list[int], time_data["surface_face_indices"])
+            face_vertex_counts = [3] * (len(surface_indices_val) // 3)
             if self.compute_normals:
-                vertex_normals = self._compute_vertex_normals(
-                    time_data['points'], face_vertex_counts, surface_indices
+                points_val = cast(list[Gf.Vec3f], time_data["points"])
+                vertex_normals = self._compute_facevarying_normals_tri(
+                    Vt.Vec3fArray(points_val),
+                    Vt.IntArray(face_vertex_counts),
+                    Vt.IntArray(surface_indices_val),
                 )
                 normals_attr = tetmesh.CreateNormalsAttr()
-                normals_attr.SetMetadata('interpolation', UsdGeom.Tokens.vertex)
+                normals_attr.SetMetadata("interpolation", UsdGeom.Tokens.vertex)
                 normals_attr.Set(vertex_normals)
 
             # Set extent
             extent_attr = tetmesh.CreateExtentAttr()
-            extent_attr.Set(UsdGeom.TetMesh.ComputeExtent(time_data['points']))
+            extent_attr.Set(UsdGeom.TetMesh.ComputeExtent(time_data["points"]))
 
             # Set display color
             display_color = label_colors[label]
@@ -467,11 +501,11 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
             display_color_primvar.Set([display_color])
 
             # Set deformation magnitude if exists
-            if time_data.get('deformation_magnitude') is not None:
+            if time_data.get("deformation_magnitude") is not None:
                 def_mag_attr = tetmesh.GetPrim().CreateAttribute(
                     "deformationMagnitude", Sdf.ValueTypeNames.FloatArray
                 )
-                def_mag_attr.Set(time_data['deformation_magnitude'])
+                def_mag_attr.Set(time_data["deformation_magnitude"])
 
             # Set visibility based on time code
             # Mesh is visible only at its specific time code

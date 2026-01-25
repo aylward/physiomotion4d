@@ -3,6 +3,7 @@ Tools for creating and manipulating contours.
 """
 
 import logging
+from typing import cast
 
 import itk
 import numpy as np
@@ -43,12 +44,15 @@ class ContourTools(PhysioMotion4DBase):
             pv.PolyData: The contours as a PyVista PolyData object
         """
         labels = pv.wrap(itk.vtk_image_from_image(mask_image))
-        contours = labels.contour_labels(
-            boundary_style="all",
-            pad_background=False,
-            smoothing=True,
-            smoothing_iterations=10,
-            output_mesh_type="triangles",
+        contours = cast(
+            pv.PolyData,
+            labels.contour_labels(
+                boundary_style="all",
+                pad_background=False,
+                smoothing=True,
+                smoothing_iterations=10,
+                output_mesh_type="triangles",
+            ),
         )
 
         contours.smooth_taubin(
@@ -87,7 +91,9 @@ class ContourTools(PhysioMotion4DBase):
 
         return new_contours
 
-    def merge_meshes(self, meshes):
+    def merge_meshes(
+        self, meshes: list[pv.PolyData]
+    ) -> tuple[pv.PolyData, list[pv.PolyData]]:
         """
         Merge multiple fixed meshes into a single mesh.
 
@@ -97,8 +103,9 @@ class ContourTools(PhysioMotion4DBase):
             Merged mesh
         """
         self.log_info("Merging meshes...")
-        if hasattr(meshes[0], 'n_faces_strict'):
-            meshes = [
+        trimesh_meshes: list[trimesh.Trimesh] = []
+        if hasattr(meshes[0], "n_faces_strict"):
+            trimesh_meshes = [
                 trimesh.Trimesh(
                     vertices=mesh.points,
                     faces=mesh.faces.reshape((mesh.n_faces_strict, 4))[:, 1:],
@@ -106,7 +113,7 @@ class ContourTools(PhysioMotion4DBase):
                 for mesh in meshes
             ]
         else:
-            meshes = [
+            trimesh_meshes = [
                 trimesh.Trimesh(
                     vertices=mesh.points, faces=mesh.faces.reshape(-1, 4)[:, 1:4]
                 )
@@ -114,22 +121,22 @@ class ContourTools(PhysioMotion4DBase):
             ]
 
         # Merge meshes
-        merged_mesh = trimesh.util.concatenate(meshes)
+        merged_trimesh = trimesh.util.concatenate(trimesh_meshes)
         flip_matrix = np.array(
             [[-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
         )
-        merged_mesh.apply_transform(flip_matrix)  # Apply flip transformation
-        for mesh in meshes:
+        merged_trimesh.apply_transform(flip_matrix)  # Apply flip transformation
+        for mesh in trimesh_meshes:
             mesh.apply_transform(flip_matrix)
 
-        merged_mesh = pv.wrap(merged_mesh)
-        pv_meshes = [pv.wrap(mesh) for mesh in meshes]
+        merged_mesh = pv.wrap(merged_trimesh)
+        pv_meshes = [pv.wrap(mesh) for mesh in trimesh_meshes]
 
         return merged_mesh, pv_meshes
 
     def create_reference_image(
         self,
-        mesh,
+        mesh: pv.DataSet,
         spatial_resolution: float = 0.5,
         buffer_factor: float = 0.25,
         ptype: type = itk.F,
@@ -158,13 +165,13 @@ class ContourTools(PhysioMotion4DBase):
 
     def create_mask_from_mesh(
         self,
-        mesh,
-        reference_image,
-    ):
+        mesh: pv.DataSet,
+        reference_image: itk.Image,
+    ) -> itk.Image:
         ref_spacing = np.array(reference_image.GetSpacing())
 
         # Create trimesh object with LPS coordinates
-        if hasattr(mesh, 'n_faces_strict'):
+        if hasattr(mesh, "n_faces_strict"):
             # PyVista PolyData
             faces = mesh.faces.reshape((mesh.n_faces_strict, 4))[:, 1:]
         else:
@@ -241,8 +248,8 @@ class ContourTools(PhysioMotion4DBase):
 
     def create_distance_map(
         self,
-        mesh,
-        reference_image,
+        mesh: pv.DataSet,
+        reference_image: itk.Image,
         squared_distance: bool = False,
         max_distance: float = 0.0,
         invert_distance_map: bool = False,
@@ -295,7 +302,7 @@ class ContourTools(PhysioMotion4DBase):
         point_displacements: np.ndarray,
         reference_image: itk.Image,
         blur_sigma: float = 2.5,
-        ptype=itk.D,
+        ptype: type = itk.D,
     ) -> itk.Image:
         """
         Create a displacement map from model points and displacements.

@@ -9,13 +9,14 @@ The module uses the antspyx package which provides Python bindings to the ANTs
 C++ library, offering robust and well-established registration algorithms.
 """
 
-import argparse
 import logging
 import os
+from typing import Optional, Union
 
 import ants
 import itk
 import numpy as np
+from numpy.typing import NDArray
 
 from physiomotion4d.register_images_base import RegisterImagesBase
 from physiomotion4d.transform_tools import TransformTools
@@ -61,7 +62,7 @@ class RegisterImagesANTs(RegisterImagesBase):
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> result = registrar.register(moving_image)
-        >>> inverse_transform = result["inverse_transform"]
+        >>> inverse_transform = result['inverse_transform']
     """
 
     def __init__(self, log_level: int | str = logging.INFO):
@@ -78,7 +79,7 @@ class RegisterImagesANTs(RegisterImagesBase):
         self.number_of_iterations = [40, 20, 10]
         self.transform_type = "Deformable"
 
-    def set_transform_type(self, transform_type):
+    def set_transform_type(self, transform_type: str) -> None:
         """Set the type of transform to use for registration.
 
         Args:
@@ -86,11 +87,11 @@ class RegisterImagesANTs(RegisterImagesBase):
                 Options: 'Deformable', 'Affine', 'Rigid'
         """
         self.transform_type = transform_type
-        if transform_type not in ['Deformable', 'Affine', 'Rigid']:
+        if transform_type not in ["Deformable", "Affine", "Rigid"]:
             self.log_error("Invalid transform type: %s", transform_type)
             raise ValueError(f"Invalid transform type: {transform_type}")
 
-    def _ants_to_itk_image(self, ants_image):
+    def _ants_to_itk_image(self, ants_image: ants.ANTsImage) -> itk.Image:
         """Convert ANTs image back to ITK format.
 
         Args:
@@ -108,7 +109,7 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         is_vector = ants_image.components > 1
 
-        data_reshaped = None
+        data_reshaped: NDArray[np.float64]
         if is_vector:
             # Vector images: ANTs gives (components, z, y, x) or (components, y, x)
             data_reshaped = data.transpose(
@@ -117,7 +118,7 @@ class RegisterImagesANTs(RegisterImagesBase):
         else:
             data_reshaped = data.transpose(list(range(image_dimension - 1, -1, -1)))
 
-        img_itk = None
+        img_itk: itk.Image
         if is_vector:
             img_itk = itk.GetImageFromArray(data_reshaped, is_vector=True)
         else:
@@ -125,9 +126,9 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         spacing = ants_image.spacing
         origin = ants_image.origin
-        direction_reshaped = np.asarray(ants_image.direction).reshape(
-            (image_dimension, image_dimension)
-        )
+        direction_reshaped: NDArray[np.floating] = np.asarray(
+            ants_image.direction
+        ).reshape((image_dimension, image_dimension))
 
         img_itk.SetSpacing(spacing)
         img_itk.SetOrigin(origin)
@@ -135,7 +136,9 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         return img_itk
 
-    def _itk_to_ants_image(self, itk_image, dtype='float'):
+    def _itk_to_ants_image(
+        self, itk_image: itk.Image, dtype: str = "float"
+    ) -> ants.ANTsImage:
         """Convert ITK image to ANTs format.
 
         Args:
@@ -150,15 +153,15 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         is_vector = itk_image.GetNumberOfComponentsPerPixel() > 1
 
-        if dtype == 'float':
+        if dtype == "float":
             data = itk.GetArrayFromImage(itk_image).astype(np.float32)
-        elif dtype == 'double':
+        elif dtype == "double":
             data = itk.GetArrayFromImage(itk_image).astype(np.float64)
-        elif dtype == 'int':
+        elif dtype == "int":
             data = itk.GetArrayFromImage(itk_image).astype(np.int32)
-        elif dtype == 'uint':
+        elif dtype == "uint":
             data = itk.GetArrayFromImage(itk_image).astype(np.uint32)
-        elif dtype == 'uchar':
+        elif dtype == "uchar":
             data = itk.GetArrayFromImage(itk_image).astype(np.uint8)
         else:
             raise ValueError(f"Unsupported dtype: {dtype}")
@@ -195,7 +198,9 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         return ants_image
 
-    def _antsfile_to_itk_affine_transform(self, ants_transform_file):
+    def _antsfile_to_itk_affine_transform(
+        self, ants_transform_file: str
+    ) -> itk.Transform:
         """Convert ANTs affine transform to ITK affine transform.
 
         ANTs affine transform has 12 parameters for 3D:
@@ -245,8 +250,8 @@ class RegisterImagesANTs(RegisterImagesBase):
         return affine_tfm
 
     def _antsfile_to_itk_displacement_field_transform(
-        self, ants_transform_file, ref_image
-    ):
+        self, ants_transform_file: str, ref_image: itk.Image
+    ) -> itk.Transform:
         """Create ITK displacement field from ANTs transform.
 
         Args:
@@ -257,11 +262,11 @@ class RegisterImagesANTs(RegisterImagesBase):
             itk.DisplacementFieldTransform: ITK displacement field transform
         """
         disp_field_tfm_ants = ants.read_transform(
-            ants_transform_file, precision='double'
+            ants_transform_file, precision="double"
         )
         disp_field_ants = ants.transform_to_displacement_field(
             disp_field_tfm_ants,
-            self._itk_to_ants_image(ref_image, dtype='float'),
+            self._itk_to_ants_image(ref_image, dtype="float"),
         )
 
         disp_field_itk_raw = self._ants_to_itk_image(disp_field_ants)
@@ -283,7 +288,9 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         return disp_tfm
 
-    def itk_affine_transform_to_ants_transform(self, itk_tfm):
+    def itk_affine_transform_to_ants_transform(
+        self, itk_tfm: itk.Transform
+    ) -> ants.ANTsTransform:
         """Convert ITK affine/rigid transform to ANTs affine transform.
 
         Converts an ITK MatrixOffsetTransformBase-derived transform (such as
@@ -322,9 +329,12 @@ class RegisterImagesANTs(RegisterImagesBase):
             )
 
         # Check if transform has a matrix (Translation transforms don't)
-        if hasattr(itk_tfm, 'GetMatrix'):
+        matrix_itk: NDArray[np.float64]
+        if hasattr(itk_tfm, "GetMatrix"):
             # Extract matrix (ITK matrix is row-major)
-            matrix_itk = np.asarray(itk_tfm.GetMatrix()).reshape(3, 3)
+            matrix_itk = (
+                np.asarray(itk_tfm.GetMatrix()).reshape(3, 3).astype(np.float64)
+            )
         else:
             # For transforms without matrix (e.g., TranslationTransform), use identity matrix
             matrix_itk = np.eye(3, dtype=np.float64)
@@ -332,11 +342,11 @@ class RegisterImagesANTs(RegisterImagesBase):
         # Extract translation and center based on transform type:
         # - MatrixOffsetTransformBase (Affine, Rigid): use GetTranslation() WITH GetCenter()
         # - TranslationTransform: use GetOffset() WITHOUT GetCenter()
-        if hasattr(itk_tfm, 'GetTranslation'):
+        if hasattr(itk_tfm, "GetTranslation"):
             # MatrixOffsetTransformBase-derived transforms
             translation_itk = np.asarray(itk_tfm.GetTranslation())
             center_itk = np.asarray(itk_tfm.GetCenter())
-        elif hasattr(itk_tfm, 'GetOffset'):
+        elif hasattr(itk_tfm, "GetOffset"):
             # TranslationTransform - use GetOffset() WITHOUT GetCenter()
             translation_itk = np.asarray(itk_tfm.GetOffset())
             center_itk = np.zeros(3, dtype=np.float64)  # No center for translation
@@ -362,9 +372,9 @@ class RegisterImagesANTs(RegisterImagesBase):
         # Create ANTs affine transform
         # Note: dimension must be integer 3, not float
         ants_tfm = ants.new_ants_transform(
-            precision='double',
-            transform_type='AffineTransform',
-            dimension=int(3),
+            precision="double",
+            transform_type="AffineTransform",
+            dimension=3,
             parameters=params.tolist(),  # Convert to list to ensure proper type
             fixed_parameters=fixed_params.tolist(),
         )
@@ -376,7 +386,7 @@ class RegisterImagesANTs(RegisterImagesBase):
         itk_tfm: itk.Transform,
         reference_image: itk.Image,
         output_filename: str,
-    ):
+    ) -> list[str]:
         """Convert ITK transform to ANTs transform file.
 
         This method converts any ITK transform (Affine, Rigid, DisplacementField, etc.)
@@ -406,14 +416,12 @@ class RegisterImagesANTs(RegisterImagesBase):
             >>> affine_itk = itk.AffineTransform[itk.D, 3].New()
             >>> affine_itk.SetIdentity()
             >>> transform_files = registrar.itk_transform_to_antsfile(
-            ...     affine_itk, reference_image, "initial_transform.mat"
+            ...     affine_itk, reference_image, 'initial_transform.mat'
             ... )
             >>>
             >>> # Use in registration
             >>> result = ants.registration(
-            ...     fixed=fixed_ants,
-            ...     moving=moving_ants,
-            ...     initial_transform=transform_files
+            ...     fixed=fixed_ants, moving=moving_ants, initial_transform=transform_files
             ... )
         """
         if isinstance(itk_tfm, itk.DisplacementFieldTransform) or isinstance(
@@ -428,17 +436,16 @@ class RegisterImagesANTs(RegisterImagesBase):
             )
 
             if "nii.gz" not in output_filename:
-                output_filename = os.path.splitext(output_filename)[0] + '.nii.gz'
+                output_filename = os.path.splitext(output_filename)[0] + ".nii.gz"
 
             # Write displacement field directly as nifti (ANTs can read this)
             itk.imwrite(disp_field_itk, output_filename, compression=True)
             self.log_info("Wrote ANTs displacement field to: %s", output_filename)
 
             return [output_filename]
-        else:
-            ants_tfm = self.itk_affine_transform_to_ants_transform(itk_tfm)
-            if ".mat" not in output_filename:
-                output_filename = os.path.splitext(output_filename)[0] + '.mat'
+        ants_tfm = self.itk_affine_transform_to_ants_transform(itk_tfm)
+        if ".mat" not in output_filename:
+            output_filename = os.path.splitext(output_filename)[0] + ".mat"
 
         # Write transform to file
         ants.write_transform(ants_tfm, output_filename)
@@ -448,10 +455,10 @@ class RegisterImagesANTs(RegisterImagesBase):
 
     def _antsfiles_to_itk_transforms(
         self,
-        ants_transforms,
-        reference_image,
-        inverse=False,
-    ):
+        ants_transforms: list[str],
+        reference_image: itk.Image,
+        inverse: bool = False,
+    ) -> itk.Transform:
         phi = itk.CompositeTransform[itk.D, 3].New()
         for ants_tfm_filename in ants_transforms:
             tfm = ants.read_transform(ants_tfm_filename)
@@ -476,11 +483,11 @@ class RegisterImagesANTs(RegisterImagesBase):
 
     def registration_method(
         self,
-        moving_image,
-        moving_mask=None,
-        moving_image_pre=None,
-        initial_forward_transform=None,
-    ):
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image] = None,
+        moving_image_pre: Optional[ants.ANTsImage] = None,
+        initial_forward_transform: Optional[itk.Transform] = None,
+    ) -> dict[str, Union[itk.Transform, float]]:
         """Register moving image to fixed image using ANTs registration algorithm.
 
         Implementation of the abstract register() method from RegisterImagesBase.
@@ -526,31 +533,24 @@ class RegisterImagesANTs(RegisterImagesBase):
         Example:
             >>> # Basic registration
             >>> result = registrar.register(moving_image)
-            >>> inverse_transform = result["inverse_transform"]
-            >>> forward_transform = result["forward_transform"]
+            >>> inverse_transform = result['inverse_transform']
+            >>> forward_transform = result['forward_transform']
             >>>
             >>> # Masked registration for cardiac structures
             >>> registrar.set_fixed_mask(heart_mask_fixed)
-            >>> result = registrar.register(
-            ...     moving_image, moving_mask=heart_mask_moving
-            ... )
+            >>> result = registrar.register(moving_image, moving_mask=heart_mask_moving)
             >>>
             >>> # Registration with initial transform
             >>> initial_tfm = itk.AffineTransform[itk.D, 3].New()
-            >>> result = registrar.register(
-            ...     moving_image, initial_forward_transform=initial_tfm
-            ... )
+            >>> result = registrar.register(moving_image, initial_forward_transform=initial_tfm)
         """
         if moving_image is not None:
             self.moving_image = moving_image
 
         if moving_image_pre is not None:
             self.moving_image_pre = moving_image_pre
-        else:
-            if self.moving_image is not None:
-                self.moving_image_pre = self.preprocess(
-                    self.moving_image, self.modality
-                )
+        elif self.moving_image is not None:
+            self.moving_image_pre = self.preprocess(self.moving_image, self.modality)
 
         if moving_mask is not None:
             self.moving_mask = moving_mask
@@ -559,7 +559,7 @@ class RegisterImagesANTs(RegisterImagesBase):
             self.fixed_image_pre = self.preprocess(self.fixed_image, self.modality)
 
         # Convert initial ITK transform to ANTs format if provided
-        initial_transform = "identity"
+        initial_transform: str | list[str] = "identity"
         if initial_forward_transform is not None:
             self.log_info("Converting initial ITK transform to ANTs format...")
             initial_transform = self.itk_transform_to_antsfile(
@@ -606,12 +606,12 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         # Convert ANTs transforms to ITK
         forward_reg = self._antsfiles_to_itk_transforms(
-            registration_result['fwdtransforms'],
+            registration_result["fwdtransforms"],
             inverse=False,
             reference_image=self.fixed_image,
         )
         inverse_reg = self._antsfiles_to_itk_transforms(
-            registration_result['invtransforms'],
+            registration_result["invtransforms"],
             inverse=True,
             reference_image=self.moving_image,
         )
@@ -656,7 +656,7 @@ class RegisterImagesANTs(RegisterImagesBase):
             # No initial transform, use registration results directly
             forward_transform = forward_reg
             inverse_transform = inverse_reg
-        moving_image_reg = registration_result['warpedmovout']
+        moving_image_reg = registration_result["warpedmovout"]
         loss = ants.image_similarity(
             self._itk_to_ants_image(self.fixed_image),
             moving_image_reg,
@@ -667,59 +667,3 @@ class RegisterImagesANTs(RegisterImagesBase):
             "inverse_transform": inverse_transform,
             "loss": loss,
         }
-
-
-def parse_args():
-    """Parse command line arguments for image registration.
-
-    Returns:
-        argparse.Namespace: Parsed arguments containing:
-            - fixed_image: Path to fixed/reference image
-            - moving_image: Path to moving image to register
-            - output_image: Path for registered output image
-            - modality: Image modality (e.g., 'ct', 'mri')
-            - transform_type: Type of transform (default: 'SyN')
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fixed_image", type=str, required=True)
-    parser.add_argument("--moving_image", type=str, required=True)
-    parser.add_argument("--output_image", type=str, required=True)
-    parser.add_argument("--modality", type=str, required=True)
-    parser.add_argument("--transform_type", type=str, default='SyN')
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    """Command line interface for ANTs-based image registration.
-
-    Example usage:
-        python register_images_ants.py \
-            --fixed_image reference.mha \
-            --moving_image timepoint_05.mha \
-            --output_image registered.mha \
-            --modality ct \
-            --transform_type SyN
-    """
-    args = parse_args()
-    registrar = RegisterImagesANTs()
-    registrar.set_modality(args.modality)
-    registrar.set_transform_type(args.transform_type)
-    registrar.set_fixed_image(itk.imread(args.fixed_image))
-    moving_image = itk.imread(args.moving_image)
-    result = registrar.register(moving_image=moving_image)
-    inverse_transform = result["inverse_transform"]
-    forward_transform = result["forward_transform"]
-
-    # Apply transform using ANTs
-    moving_image_ants = registrar.preprocess(moving_image, args.modality)
-    # forward_transform contains the forward transform (moving to fixed)
-    moving_image_reg_ants = ants.apply_transforms(
-        fixed=registrar.fixed_image_pre,
-        moving=moving_image_ants,
-        transformlist=forward_transform,
-    )
-
-    # Convert back to ITK and save
-    moving_image_reg = registrar._ants_to_itk_image(moving_image_reg_ants)
-    itk.imwrite(moving_image_reg, args.output_image, compression=True)
-    itk.imwrite(moving_image_reg, args.output_image, compression=True)
