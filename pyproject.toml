@@ -146,6 +146,8 @@ test = [
     "pytest-xdist>=3.0.0",
     "pytest-timeout>=2.0.0",
     "coverage[toml]>=7.0.0",
+    "nbformat>=5.0.0",
+    "nbconvert>=7.0.0",
 ]
 
 [project.urls]
@@ -251,7 +253,8 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "requires_gpu: marks tests that require GPU/CUDA support",
     "requires_data: marks tests that require external data download",
-    "experiment: marks tests that run experiment notebooks (extremely slow, manual only)"
+    "experiment: marks tests that run experiment notebooks (extremely slow, manual only)",
+    "xdist_group: marks tests to run in the same pytest-xdist worker (prevents parallel conflicts)"
 ]
 timeout = 900
 
