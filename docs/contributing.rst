@@ -286,9 +286,9 @@ Contributing Scripts vs Experiments
 
 When contributing new workflows or examples:
 
-**Production Code (scripts/ directory):**
+**Production Code (src/physiomotion4d/cli/):**
 
-* ✅ **DO contribute here** for production-ready implementations
+* ✅ **DO contribute here** for production-ready CLI implementations
 * Must include proper error handling and validation
 * Should follow all code style and testing requirements
 * Serves as definitive usage examples for users
@@ -300,9 +300,10 @@ When contributing new workflows or examples:
 * Can have hardcoded paths and minimal error handling
 * Should document what was learned and how it informed production code
 * Helps others understand adaptation possibilities for new domains
-* Should reference corresponding production implementation in ``scripts/``
+* Should reference corresponding production implementation in CLI commands or ``src/physiomotion4d/cli/``
 
-**Key Principle:** If users might copy your code for production use, it belongs in ``scripts/``.
+**Key Principle:** If users might copy your code for production use, it should use the CLI commands
+or extend the implementations in ``src/physiomotion4d/cli/``.
 If it's a proof-of-concept demonstrating what's possible, it belongs in ``experiments/``.
 
 Docstring Format
@@ -448,4 +449,3 @@ See Also
 * :doc:`architecture` - System architecture
 * :doc:`testing` - Testing guide
 * `GitHub Repository <https://github.com/aylward/PhysioMotion4d>`_
-

@@ -5,13 +5,18 @@ of the PhysioMotion4D library.
 
 **These are not examples of how to use the library**.
 
-## ⭐ For Production Workflows: See the `scripts/` Directory
+## ⭐ For Production Workflows: Use the CLI Commands and Library API
 
-**The `scripts/` directory is the definitive source for:**
+**The CLI commands and library API are the definitive resources for:**
 - Production-ready workflows and usage patterns
 - Proper class instantiation and method usage
 - Library capabilities and best practices
 - Command-line tools and parameter specifications
+
+See:
+- **CLI Commands**: Run `physiomotion4d-heart-gated-ct --help` and `physiomotion4d-register-heart-model --help`
+- **CLI Implementation**: `src/physiomotion4d/cli/` for Python API examples
+- **Library Classes**: `src/physiomotion4d/` for all workflow and utility classes
 
 The experiments here serve as **conceptual references** showing the research process
 and design explorations that can inform adaptation to new digital twin models and tasks.
@@ -30,8 +35,9 @@ The code in this folder and its subfolders represents:
 These experiments demonstrate key digital twin workflows that can be adapted to new
 anatomical regions, imaging modalities, and physiological motion tasks.
 
-> **Note:** For production implementations of these workflows, consult the `scripts/`
-> directory for proper class usage and parameter specifications.
+> **Note:** For production implementations of these workflows, use the CLI commands
+> (`physiomotion4d-heart-gated-ct`, `physiomotion4d-register-heart-model`) or consult
+> the CLI implementation in `src/physiomotion4d/cli/` for proper class usage and parameter specifications.
 
 ### `Reconstruct4DCT` - High-Resolution 4D Reconstruction
 
@@ -116,7 +122,7 @@ to handle diverse cases.
 - Real-time deformable registration for interventional guidance
 - Integration with simulation engines (PyAnsys, FEniCS, etc.)
 
-**Output:** Patient-specific USD models ready for physics simulation or AI training.  
+**Output:** Patient-specific USD models ready for physics simulation or AI training.
 
 ## Adapting to New Digital Twin Models and Tasks
 
@@ -126,7 +132,7 @@ to new anatomical regions, physiological processes, and digital twin application
 ### General Adaptation Strategy
 
 1. **Study the experiment conceptually** - Understand the workflow stages and data transformations
-2. **Consult the `scripts/` directory** - Identify production classes and methods that implement similar functionality
+2. **Consult the CLI implementation** - See `src/physiomotion4d/cli/` to identify production classes and methods that implement similar functionality
 3. **Identify customization points:**
    - Registration parameters (metrics, transforms, optimization)
    - Segmentation models (custom training, fine-tuning, label mappings)
@@ -138,8 +144,8 @@ to new anatomical regions, physiological processes, and digital twin application
 ### Key Takeaway
 
 These experiments are **starting points for exploration**, not copy-paste solutions.
-The **`scripts/` directory contains the production-quality implementations** you should
-use and extend for real-world digital twin projects.
+The **CLI commands and implementations in `src/physiomotion4d/cli/`** are the production-quality
+code you should use and extend for real-world digital twin projects.
 
 ## Automated Testing
 
@@ -220,27 +226,27 @@ Each subdirectory represents a different experimental domain:
 
 ### ✅ For Production Use, Consult:
 
-1. **`scripts/` directory** ⭐ **PRIMARY RESOURCE**
-   - Production-ready workflow implementations
-   - Proper class usage patterns and parameter specifications
-   - Complete error handling and validation
-   - Command-line interface examples
+1. **CLI Commands** ⭐ **PRIMARY RESOURCE**
+   - `physiomotion4d-heart-gated-ct` - Complete heart-gated CT workflow
+   - `physiomotion4d-register-heart-model` - Model-to-patient registration
+   - Run with `--help` for all options and parameter specifications
    - Tested on diverse datasets
 
-2. **Main library documentation**
+2. **CLI Implementation in `src/physiomotion4d/cli/`**
+   - Production-ready workflow code
+   - Proper class usage patterns and parameter specifications
+   - Complete error handling and validation
+   - Python API usage examples
+
+3. **Main library documentation**
    - API references and class documentation
    - Architecture explanations
    - Performance considerations
 
-3. **`tests/` directory**
+4. **`tests/` directory**
    - Unit tests demonstrating correct API usage
    - Edge case handling
    - Expected input/output formats
-
-4. **Command-line tools**
-   - Package-provided CLI utilities
-   - Production parameter defaults
-   - Integration with standard medical imaging formats
 
 ### Using Experiments as Inspiration
 
@@ -256,7 +262,7 @@ Each subdirectory represents a different experimental domain:
 - Paths and parameters are often hardcoded for specific datasets
 - Performance may not be optimized
 
-**INSTEAD:** Use the production implementations in `scripts/` and extend them for your needs.
+**INSTEAD:** Use the CLI commands or the production implementations in `src/physiomotion4d/cli/` and extend them for your needs.
 
 ## Development History
 
@@ -278,13 +284,14 @@ The typical evolution path was:
 1. **Experiment** - Proof of concept with specific dataset (this directory)
 2. **Refinement** - Generalization and parameterization
 3. **Testing** - Validation across diverse datasets
-4. **Production** - Documented, tested implementation in `scripts/` directory ⭐
+4. **Production** - Documented, tested CLI commands and library API ⭐
 
 When exploring new digital twin applications, you can follow a similar path:
 - Start by understanding relevant experiments here as conceptual references
-- Examine production implementations in `scripts/` for proper library usage
+- Examine CLI implementations in `src/physiomotion4d/cli/` for proper library usage
+- Use CLI commands (`physiomotion4d-heart-gated-ct`, `physiomotion4d-register-heart-model`) as starting points
 - Extend and adapt production code with your domain-specific requirements
 - Contribute back improvements and new capabilities to the community
 
-**Remember:** The `scripts/` directory is your source of truth for how to properly use
-PhysioMotion4D classes, workflows, and capabilities in production environments.
+**Remember:** The CLI commands and their implementations in `src/physiomotion4d/cli/` are your
+source of truth for how to properly use PhysioMotion4D classes, workflows, and capabilities in production environments.

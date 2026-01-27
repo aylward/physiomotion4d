@@ -71,8 +71,17 @@ class RegisterImagesICON(RegisterImagesBase):
         super().__init__(log_level=log_level)
 
         self.net = None
+        self.number_of_iterations: int = 50
         self.use_multi_modality: bool = False
         self.use_mass_preservation: bool = False
+
+    def set_number_of_iterations(self, number_of_iterations: int) -> None:
+        """Set the number of iterations for ICON registration.
+
+        Args:
+            number_of_iterations: Number of fine-tuning steps for ICON registration
+        """
+        self.number_of_iterations = number_of_iterations
 
     def set_multi_modality(self, enable: bool) -> None:
         """Enable or disable multi-modality registration.

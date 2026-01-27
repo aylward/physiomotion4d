@@ -16,17 +16,17 @@ the register() method with their specific algorithm (e.g., Icon, ANTs, etc.).
 """
 
 import logging
-from typing import Any, Optional, TypeAlias
+from typing import Any, Optional
 
 import itk
 import numpy as np
 from itk import TubeTK as ttk
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from physiomotion4d.transform_tools import TransformTools
 
 
 class RegisterImagesBase(PhysioMotion4DBase):
-    NumberOfIterations: TypeAlias = int | list[int] | list[int | list[int]]
     """Base class for deformable image registration algorithms.
 
     This class provides a common interface and shared functionality for
@@ -98,20 +98,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
 
         self.mask_dilation_mm: float = 5.0
 
-        self.number_of_iterations: RegisterImagesBase.NumberOfIterations = 10
-
-    def set_number_of_iterations(
-        self, number_of_iterations: NumberOfIterations
-    ) -> None:
-        """Set the number of iterations for registration.
-
-        Args:
-            number_of_iterations: Number of iterations to perform during registration.
-                - For single-stage registrars: int
-                - For multi-resolution registrars (e.g. ANTs): list[int]
-                - For combined workflows: list[int | list[int]]
-        """
-        self.number_of_iterations = number_of_iterations
+        self.forward_transform: Optional[itk.Transform] = None
+        self.inverse_transform: Optional[itk.Transform] = None
+        self.loss: Optional[float] = None
+        self.moving_image_registered: Optional[itk.Image] = None
 
     def set_modality(self, modality: str) -> None:
         """Set the imaging modality for registration optimization.
@@ -145,6 +135,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
         """
         self.fixed_image = fixed_image
         self.fixed_image_pre = None
+        self.forward_transform = None
+        self.inverse_transform = None
+        self.loss = None
+        self.moving_image_registered = None
 
     def set_mask_dilation(self, mask_dilation_mm: float) -> None:
         """Set the dilation of the fixed and moving image masks.
@@ -172,6 +166,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
             >>> registrar.set_fixed_mask(heart_mask)
         """
         self.fixed_image_pre = None
+        self.forward_transform = None
+        self.inverse_transform = None
+        self.loss = None
+        self.moving_image_registered = None
 
         if fixed_mask is None:
             self.fixed_mask = None
@@ -277,6 +275,11 @@ class RegisterImagesBase(PhysioMotion4DBase):
         Raises:
             NotImplementedError: This method must be implemented by subclasses
         """
+        self.moving_image_registered = None
+        self.forward_transform = None
+        self.inverse_transform = None
+        self.loss = None
+
         if self.fixed_image_pre is None:
             self.fixed_image_pre = self.preprocess(
                 self.fixed_image,
@@ -313,12 +316,25 @@ class RegisterImagesBase(PhysioMotion4DBase):
             initial_forward_transform=initial_forward_transform,
         )
 
-        forward_transform = result["forward_transform"]
-        inverse_transform = result["inverse_transform"]
-        loss = result["loss"]
+        self.forward_transform = result["forward_transform"]
+        self.inverse_transform = result["inverse_transform"]
+        self.loss = result["loss"]
 
         return {
-            "forward_transform": forward_transform,  # Warps moving → fixed
-            "inverse_transform": inverse_transform,  # Warps fixed → moving
-            "loss": loss,
+            "forward_transform": self.forward_transform,
+            "inverse_transform": self.inverse_transform,
+            "loss": self.loss,
         }
+
+    def get_registered_image(self) -> itk.Image:
+        """Get the registered image.
+
+        Returns:
+            itk.Image: The registered image
+        """
+        if self.moving_image_registered is None:
+            TfmTools = TransformTools()
+            self.moving_image_registered = TfmTools.transform_image(
+                self.moving_image, self.forward_transform, self.fixed_image
+            )
+        return self.moving_image_registered

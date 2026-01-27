@@ -10,7 +10,7 @@ CT where sequential frames need to be registered to a common frame.
 """
 
 import logging
-from typing import Optional, TypeAlias, Union, cast
+from typing import Optional, Union, cast
 
 import itk
 
@@ -21,7 +21,6 @@ from physiomotion4d.transform_tools import TransformTools
 
 
 class RegisterTimeSeriesImages(RegisterImagesBase):
-    NumberOfIterations: TypeAlias = RegisterImagesBase.NumberOfIterations
     """Register a time series of images to a fixed image.
 
     This class extends RegisterImagesBase to provide sequential registration of
@@ -53,7 +52,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         >>> registrar = RegisterTimeSeriesImages(registration_method='ants')
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(fixed_image)
-        >>> registrar.set_number_of_iterations([40, 20, 10])
+        >>> registrar.set_number_of_iterations_ants([40, 20, 10])
         >>>
         >>> # Register all time points to fixed image
         >>> result = registrar.register_time_series(
@@ -66,6 +65,13 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         >>> forward_tfms = result['forward_transforms']  # Moving → Fixed
         >>> inverse_tfms = result['inverse_transforms']  # Fixed → Moving
         >>> losses = result['losses']
+        >>>
+        >>> # Reconstruct time series with optional upsampling
+        >>> reconstructed = registrar.reconstruct_time_series(
+        ...     moving_images=time_series_images,
+        ...     inverse_transforms=inverse_tfms,
+        ...     upsample_to_fixed_resolution=True,
+        ... )
     """
 
     def __init__(
@@ -87,14 +93,12 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
 
         self.registrar_ants = RegisterImagesANTs(log_level=log_level)
         self.registrar_icon = RegisterImagesICON(log_level=log_level)
-        if self.registration_method_name == "ants":
-            self.number_of_iterations = [40, 20, 10]
-        elif self.registration_method_name == "icon":
-            self.number_of_iterations = 50
-        elif self.registration_method_name == "ants_icon":
-            iterations: list[int | list[int]] = [[40, 20, 10], 50]
-            self.number_of_iterations = iterations
-        else:
+
+        # Set default iterations based on registration method
+        self.number_of_iterations_ants: list[int] = [40, 20, 10]
+        self.number_of_iterations_icon: int = 50
+
+        if self.registration_method_name not in ["ants", "icon", "ants_icon"]:
             raise ValueError(
                 f"registration_method must be 'ants', 'icon' or 'ants_icon', got '{registration_method}'"
             )
@@ -103,19 +107,24 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
 
         self.smooth_prior_transform_sigma: float = 0.5
 
-    def set_number_of_iterations(
-        self, number_of_iterations: NumberOfIterations
+    def set_number_of_iterations_ants(
+        self, number_of_iterations_ants: list[int]
     ) -> None:
-        """Set the number of iterations for registration.
-
-        This passes through to the underlying registration method (ANTs or ICON).
+        """Set the number of iterations for ANTs registration.
 
         Args:
-            number_of_iterations: Number of iterations to perform.
-                For ANTs: list of int (e.g., [40, 20, 10] for multi-resolution)
-                For ICON: int (number of fine-tuning steps)
+            number_of_iterations_ants: List of iterations for ANTs multi-resolution
+                (e.g., [40, 20, 10] for three resolution levels)
         """
-        self.number_of_iterations = number_of_iterations
+        self.number_of_iterations_ants = number_of_iterations_ants
+
+    def set_number_of_iterations_icon(self, number_of_iterations_icon: int) -> None:
+        """Set the number of iterations for ICON registration.
+
+        Args:
+            number_of_iterations_icon: Number of fine-tuning steps for ICON
+        """
+        self.number_of_iterations_icon = number_of_iterations_icon
 
     def set_smooth_prior_transform_sigma(
         self, smooth_prior_transform_sigma: float
@@ -230,7 +239,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             >>> registrar = RegisterTimeSeriesImages(registration_method='ants')
             >>> registrar.set_fixed_image(fixed_image)
             >>> registrar.set_fixed_mask(fixed_mask)  # Optional
-            >>> registrar.set_number_of_iterations([30, 15, 5])
+            >>> registrar.set_number_of_iterations_ants([30, 15, 5])
             >>>
             >>> # Use new intuitive parameter names
             >>> result = registrar.register_time_series(
@@ -257,29 +266,24 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             self.registrar_ants.set_fixed_image(self.fixed_image)
             self.registrar_ants.set_modality(self.modality)
             self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_ants.set_number_of_iterations(self.number_of_iterations)
+            self.registrar_ants.set_number_of_iterations(self.number_of_iterations_ants)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
         elif self.registration_method_name == "icon":
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_icon.set_number_of_iterations(self.number_of_iterations)
+            self.registrar_icon.set_number_of_iterations(self.number_of_iterations_icon)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
         elif self.registration_method_name == "ants_icon":
             self.registrar_ants.set_fixed_image(self.fixed_image)
             self.registrar_ants.set_modality(self.modality)
             self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
-            assert isinstance(self.number_of_iterations, list)
-            ants_iterations = self.number_of_iterations[0]
-            icon_iterations = self.number_of_iterations[1]
-            assert isinstance(ants_iterations, list)
-            assert isinstance(icon_iterations, int)
-            self.registrar_ants.set_number_of_iterations(ants_iterations)
+            self.registrar_ants.set_number_of_iterations(self.number_of_iterations_ants)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_icon.set_number_of_iterations(icon_iterations)
+            self.registrar_icon.set_number_of_iterations(self.number_of_iterations_icon)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
 
         num_images = len(moving_images)
@@ -492,6 +496,136 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             "inverse_transforms": [t for t in inverse_transforms if t is not None],
             "losses": losses,
         }
+
+    def reconstruct_time_series(
+        self,
+        moving_images: list[itk.Image],
+        inverse_transforms: list[itk.Transform],
+        upsample_to_fixed_resolution: bool = False,
+    ) -> list[itk.Image]:
+        """Reconstruct time series images using inverse transforms.
+
+        This method applies the inverse transforms to reconstruct each moving image
+        in the fixed image space. If upsample_to_fixed_resolution is enabled,
+        the reconstructed images will use isotropic spacing (mean of fixed image's
+        X and Y spacing) while maintaining each moving image's original origin and direction.
+
+        Args:
+            moving_images (list[itk.Image]): List of moving images to reconstruct
+            inverse_transforms (list[itk.Transform]): List of inverse transforms
+                (one per moving image) from fixed space to moving space
+            upsample_to_fixed_resolution (bool, optional): If True, reconstructed
+                images will be upsampled to isotropic resolution (mean of fixed image's
+                X and Y spacing) while maintaining their original origin and direction.
+                Default: False
+
+        Returns:
+            list[itk.Image]: List of reconstructed images in fixed image space
+
+        Raises:
+            ValueError: If fixed_image is not set
+            ValueError: If lengths of moving_images and inverse_transforms don't match
+
+        Example:
+            >>> registrar = RegisterTimeSeriesImages(registration_method='ants')
+            >>> registrar.set_fixed_image(fixed_image)
+            >>>
+            >>> result = registrar.register_time_series(
+            ...     moving_images=time_series_images,
+            ...     reference_frame=0,
+            ... )
+            >>>
+            >>> reconstructed_images = registrar.reconstruct_time_series(
+            ...     moving_images=time_series_images,
+            ...     inverse_transforms=result['inverse_transforms'],
+            ...     upsample_to_fixed_resolution=True,
+            ... )
+        """
+        if self.fixed_image is None:
+            raise ValueError(
+                "Fixed image must be set before reconstructing time series"
+            )
+
+        if len(moving_images) != len(inverse_transforms):
+            raise ValueError(
+                f"Number of moving images ({len(moving_images)}) must match "
+                f"number of inverse transforms ({len(inverse_transforms)})"
+            )
+
+        reconstructed_images: list[itk.Image] = []
+
+        for moving_image, inverse_transform in zip(moving_images, inverse_transforms):
+            if upsample_to_fixed_resolution:
+                # Create a reference image with isotropic spacing (mean of fixed image's
+                # X and Y spacing) and moving image's origin and direction
+                reference_image = self._create_upsampled_reference(
+                    moving_image, self.fixed_image
+                )
+            else:
+                # Use fixed image as reference
+                reference_image = moving_image
+
+            # Transform the moving image to the reference space
+            reconstructed = self.transform_tools.transform_image(
+                self.fixed_image, inverse_transform, reference_image
+            )
+            reconstructed_images.append(reconstructed)
+
+        return reconstructed_images
+
+    def _create_upsampled_reference(
+        self, moving_image: itk.Image, fixed_image: itk.Image
+    ) -> itk.Image:
+        """Create a reference image with isotropic spacing and moving image origin/direction.
+
+        The spacing is calculated as the mean of the fixed image's X and Y spacing,
+        applied to all three dimensions (X, Y, Z) for isotropic resolution.
+
+        Args:
+            moving_image (itk.Image): Image providing origin and direction
+            fixed_image (itk.Image): Image providing spacing for X and Y dimensions
+
+        Returns:
+            itk.Image: Reference image with isotropic spacing and moving image's
+                origin and direction
+        """
+        # Get properties from both images
+        moving_origin = moving_image.GetOrigin()
+        moving_direction = moving_image.GetDirection()
+        moving_spacing = moving_image.GetSpacing()
+        moving_size = moving_image.GetLargestPossibleRegion().GetSize()
+
+        fixed_spacing = fixed_image.GetSpacing()
+
+        # Calculate mean of X and Y spacing for isotropic resolution
+        mean_xy_spacing = (fixed_spacing[0] + fixed_spacing[1]) / 2.0
+
+        # Create ITK Vector for spacing
+        isotropic_spacing = itk.Vector[itk.D, 3]()
+        isotropic_spacing[0] = mean_xy_spacing
+        isotropic_spacing[1] = mean_xy_spacing
+        isotropic_spacing[2] = mean_xy_spacing
+
+        # Calculate new size to cover the same physical extent with isotropic spacing
+        new_size = itk.Size[3]()
+        for i in range(3):
+            new_size[i] = int(
+                round((moving_size[i] * moving_spacing[i]) / isotropic_spacing[i])
+            )
+
+        # Create reference image with combined properties
+        ImageType = type(moving_image)
+        reference_image = ImageType.New()
+        reference_image.SetOrigin(moving_origin)
+        reference_image.SetDirection(moving_direction)
+        reference_image.SetSpacing(isotropic_spacing)
+
+        region = itk.ImageRegion[3]()
+        region.SetSize(new_size)
+        reference_image.SetRegions(region)
+        reference_image.Allocate()
+
+        return reference_image
 
     def registration_method(
         self,

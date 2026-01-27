@@ -75,12 +75,20 @@ class TestRegisterTimeSeriesImages:
 
     def test_set_number_of_iterations(self):
         """Test setting number of iterations."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
-        iterations = [30, 15, 5]
+        registrar_ants = RegisterTimeSeriesImages(registration_method="ants")
+        iterations_ants = [30, 15, 5]
 
-        registrar.set_number_of_iterations(iterations)
-        assert registrar.number_of_iterations == iterations, (
-            "Iterations not set correctly"
+        registrar_ants.set_number_of_iterations_ants(iterations_ants)
+        assert registrar_ants.number_of_iterations_ants == iterations_ants, (
+            "ANTs iterations not set correctly"
+        )
+
+        registrar_icon = RegisterTimeSeriesImages(registration_method="icon")
+        iterations_icon = 50
+
+        registrar_icon.set_number_of_iterations_icon(iterations_icon)
+        assert registrar_icon.number_of_iterations_icon == iterations_icon, (
+            "ICON iterations not set correctly"
         )
 
         print("\n✓ Number of iterations set successfully")
@@ -102,7 +110,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -165,7 +173,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -194,7 +202,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -220,7 +228,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         # Test starting from beginning, middle, and end
         for starting_index in [0, 2, 3]:
@@ -307,7 +315,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -350,7 +358,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="icon")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations(5)  # ICON uses single int
+        registrar.set_number_of_iterations_icon(5)  # ICON uses single int
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -395,7 +403,7 @@ class TestRegisterTimeSeriesImages:
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
         registrar.set_fixed_mask(fixed_mask)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -420,7 +428,7 @@ class TestRegisterTimeSeriesImages:
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations([20, 10, 2])
+        registrar.set_number_of_iterations_ants([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,

@@ -64,7 +64,7 @@ For more control, use the Python API:
 
    # Run complete workflow
    final_usd = processor.process()
-   
+
    print(f"USD model saved to: {final_usd}")
 
 That's it! The processor will:
@@ -83,26 +83,26 @@ For more control over individual steps:
 .. code-block:: python
 
    from physiomotion4d import ProcessHeartGatedCT
-   
+
    # Initialize processor
    processor = ProcessHeartGatedCT(
        input_filenames=["cardiac_4d.nrrd"],
        contrast_enhanced=True,
        output_directory="./results"
    )
-   
+
    # Step 1: Convert 4D to 3D frames
    processor.convert_4d_to_3d()
-   
+
    # Step 2: Register images
    processor.register_images()
-   
+
    # Step 3: Generate segmentation
    processor.segment_reference_image()
-   
+
    # Step 4: Transform contours
    processor.transform_contours()
-   
+
    # Step 5: Create USD models
    final_usd = processor.create_usd_models()
 
@@ -118,18 +118,18 @@ If you only need segmentation:
 
    from physiomotion4d import SegmentChestVista3D
    import itk
-   
+
    # Initialize segmenter
    segmenter = SegmentChestVista3D()
-   
+
    # Load and segment image
    image = itk.imread("chest_ct.nrrd")
    masks = segmenter.segment(image, contrast_enhanced_study=True)
-   
+
    # Extract individual anatomy masks
    heart_mask, vessels_mask, lungs_mask, bones_mask, \
    soft_tissue_mask, contrast_mask, all_mask, dynamic_mask = masks
-   
+
    # Save results
    itk.imwrite(heart_mask, "heart_mask.nrrd")
 
@@ -142,21 +142,21 @@ For standalone registration:
 
    from physiomotion4d.register_images_icon import RegisterImagesICON
    import itk
-   
+
    # Initialize registration
    registerer = RegisterImagesICON()
-   
+
    # Load images
    fixed_image = itk.imread("reference_frame.mha")
    moving_image = itk.imread("target_frame.mha")
-   
+
    # Configure registration
    registerer.set_modality('ct')
    registerer.set_fixed_image(fixed_image)
-   
+
    # Perform registration
    results = registerer.register(moving_image)
-   
+
    # Get transformation fields
    inverse_transform = results["inverse_transform"]  # Fixed to moving space
    forward_transform = results["forward_transform"]  # Moving to fixed space
@@ -169,17 +169,17 @@ Convert VTK time series to USD:
 .. code-block:: python
 
    from physiomotion4d import ConvertVTK4DToUSDPolyMesh
-   
+
    # Initialize converter
    converter = ConvertVTK4DToUSDPolyMesh()
-   
+
    # Set input VTK files (time series)
    vtk_files = [f"heart_frame_{i:03d}.vtp" for i in range(10)]
    converter.set_input_filenames(vtk_files)
-   
+
    # Set output USD file
    converter.set_output_filename("heart_animation.usd")
-   
+
    # Convert
    converter.convert()
 
@@ -193,10 +193,10 @@ Download Sample Cardiac CT Data
 
    import urllib.request
    import os
-   
+
    # Create data directory
    os.makedirs("sample_data", exist_ok=True)
-   
+
    # Download sample from Slicer-Heart-CT
    # (Replace with actual download link)
    url = "https://example.com/sample_cardiac_ct.nrrd"
@@ -207,7 +207,7 @@ Or use the DirLab lung dataset:
 .. code-block:: python
 
    from physiomotion4d.data import DirLab4DCT
-   
+
    # Download DirLab case
    downloader = DirLab4DCT()
    downloader.download_case(1)  # Downloads Case 1
@@ -239,7 +239,7 @@ For quick visualization of VTK meshes:
 .. code-block:: python
 
    import pyvista as pv
-   
+
    # Load and display
    mesh = pv.read("heart_frame_000.vtp")
    mesh.plot()
@@ -256,12 +256,13 @@ Now that you've completed your first workflow:
 * Check the :doc:`api/base` for advanced usage
 
 .. important::
-   
-   **About the Scripts and Experiments Directories:**
-   
-   * **scripts/** ⭐ **PRIMARY RESOURCE** - Production-ready workflows, proper class usage, and
-     definitive examples of library capabilities. Always refer to scripts for production implementations.
-   
+
+   **About CLI Commands and Experiments:**
+
+   * **CLI Commands** ⭐ **PRIMARY RESOURCE** - Production-ready workflows with proper class usage
+     (``physiomotion4d-heart-gated-ct``, ``physiomotion4d-register-heart-model``).
+     See ``src/physiomotion4d/cli/`` for implementation details.
+
    * **experiments/** - Research prototypes and design explorations. These demonstrate conceptual
      approaches for adapting workflows to new anatomical regions and digital twin applications,
      but may contain outdated APIs and should not be copied directly into production code.
@@ -288,4 +289,3 @@ Common Issues
 * Validate USD: ``usdchecker final_model.usd``
 
 See :doc:`troubleshooting` for more solutions.
-

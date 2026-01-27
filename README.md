@@ -143,10 +143,7 @@ physiomotion4d-heart-gated-ct cardiac.nrrd \
     --output-dir ./output
 ```
 
-**Alternative:** You can also run the Python scripts directly from the repository:
-```bash
-python scripts/convert_heart_gated_ct_to_usd.py cardiac_4d.nrrd --contrast
-```
+For Python API usage and advanced customization, see the examples below or refer to the CLI implementation in `src/physiomotion4d/cli/`.
 
 #### Heart Model to Patient Registration
 
@@ -172,7 +169,7 @@ physiomotion4d-register-heart-model \
     --output-dir ./results
 ```
 
-See the [scripts](scripts/) directory for more CLI usage examples.
+For implementation details and advanced usage, see the CLI modules in `src/physiomotion4d/cli/`.
 
 ### Python API - Basic Heart-Gated CT Processing
 

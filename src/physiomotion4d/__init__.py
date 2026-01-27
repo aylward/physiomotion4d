@@ -56,6 +56,7 @@ from .usd_tools import USDTools
 
 # Core workflow processor
 from .workflow_convert_heart_gated_ct_to_usd import WorkflowConvertHeartGatedCTToUSD
+from .workflow_reconstruct_highres_4d_ct import WorkflowReconstructHighres4DCT
 from .workflow_register_heart_model_to_patient import (
     WorkflowRegisterHeartModelToPatient,
 )
@@ -64,6 +65,7 @@ from .workflow_register_heart_model_to_patient import (
 __all__ = [
     # Workflow classes
     "WorkflowConvertHeartGatedCTToUSD",
+    "WorkflowReconstructHighres4DCT",
     "WorkflowRegisterHeartModelToPatient",
     # Segmentation classes
     "SegmentChestBase",

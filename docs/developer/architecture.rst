@@ -142,21 +142,21 @@ Example workflow structure:
 .. code-block:: python
 
    class MyWorkflow(PhysioMotion4DBase):
-       
+
        def process(self):
            """Execute complete workflow."""
            # Step 1: Load data
            images = self.load_data()
-           
+
            # Step 2: Segment
            segmentation = self.segment(images)
-           
+
            # Step 3: Register
            transforms = self.register(images)
-           
+
            # Step 4: Convert
            usd_file = self.convert_to_usd(segmentation, transforms)
-           
+
            return usd_file
 
 See :doc:`workflows` for detailed workflow documentation.
@@ -237,11 +237,13 @@ See :doc:`extending` for implementation guidance.
 Relationship to CLI Scripts
 ============================
 
-CLI scripts in ``scripts/`` directory are thin wrappers around workflow classes:
+CLI commands are implemented in ``src/physiomotion4d/cli/`` as wrappers around workflow classes:
 
 .. code-block:: text
 
-   scripts/heart_gated_ct_to_usd.py
+   CLI Command: physiomotion4d-heart-gated-ct
+           ↓ (implemented in)
+   src/physiomotion4d/cli/convert_heart_gated_ct_to_usd.py
            ↓ (uses)
    src/physiomotion4d/workflow_convert_heart_gated_ct_to_usd.py
            ↓ (orchestrates)

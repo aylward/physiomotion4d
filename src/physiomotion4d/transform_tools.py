@@ -12,6 +12,8 @@ are used to track anatomical motion over time.
 """
 
 import logging
+from collections.abc import Sequence
+from typing import TypeAlias
 
 import cupy as cp
 import itk
@@ -19,8 +21,6 @@ import numpy as np
 import pyvista as pv
 import SimpleITK as sitk
 import vtk
-from collections.abc import Sequence
-from typing import TypeAlias
 from numpy.typing import NDArray
 from pxr import Gf, Usd, UsdGeom
 
@@ -204,9 +204,7 @@ class TransformTools(PhysioMotion4DBase):
 
         # Create and configure filter
         field = None
-        if "DisplacementFieldTransform" in str(type(tfm)):
-            field = tfm.GetDisplacementField()
-        else:
+        if "DisplacementFieldTransform" not in str(type(tfm)):
             field_filter = itk.TransformToDisplacementFieldFilter[
                 itk.Image[itk.Vector[itk.F, 3], 3], TfmPrecision
             ].New()
@@ -215,6 +213,22 @@ class TransformTools(PhysioMotion4DBase):
             field_filter.SetUseReferenceImage(True)
             field_filter.Update()
             field = field_filter.GetOutput()
+        else:
+            field = tfm.GetDisplacementField()
+            field_arr = itk.array_view_from_image(tfm.GetDisplacementField())
+            reference_image_arr = itk.array_view_from_image(reference_image)
+            print(field_arr.shape)
+            print(field_arr.shape[:2])
+            print(reference_image_arr.shape)
+            if field_arr.shape[:2] != reference_image_arr.shape:
+                field_filter = itk.TransformToDisplacementFieldFilter[
+                    itk.Image[itk.Vector[itk.F, 3], 3], TfmPrecision
+                ].New()
+                field_filter.SetTransform(tfm)
+                field_filter.SetReferenceImage(reference_image)
+                field_filter.SetUseReferenceImage(True)
+                field_filter.Update()
+                field = field_filter.GetOutput()
 
         field_arr = itk.array_from_image(field)
         field_arr = field_arr.astype(np_component_type)

@@ -2,11 +2,11 @@
 
 import itertools
 import time
+from typing import cast
 
 import pyvista as pv
 import vtk
 from pxr import Gf, Sdf, UsdGeom
-from typing import cast
 
 from .convert_vtk_4d_to_usd_base import (
     ConvertVTK4DToUSDBase,
@@ -200,14 +200,6 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                 [connectivity.GetValue(j) for j in range(start_idx[i], end_idx[i])]
             )
 
-        # for i in range(offsets.GetNumberOfValues() - 1):
-        # start_idx = offsets.GetValue(i)
-        # end_idx = offsets.GetValue(i + 1)
-        # num_vertices = end_idx - start_idx
-        # face_vertex_counts.append(num_vertices)
-        # for j in range(start_idx, end_idx):
-        # face_vertex_indices.append(connectivity.GetValue(j))
-
         # Create objects for each cell based on its labels
         if boundary_labels:
             assert self.mask_ids is not None
@@ -243,17 +235,15 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
                     )
 
                 cell = polydata.GetCell(cell_id)
-                cell_labels = set()
 
                 # Get all labels for this cell
                 if label_array:
                     tuple_values = label_array.GetTuple(cell_id)
-                    labels = [
+                    cell_labels = [
                         self.mask_ids[int(label_id)]
                         for label_id in tuple_values
                         if int(label_id) != 0
                     ]
-                    cell_labels.update(labels)
 
                     # Get the points of this cell
                     n_points = cell.GetNumberOfPoints()

@@ -5,10 +5,10 @@ Architecture
 Overview of PhysioMotion4D's system architecture and design principles.
 
 .. note::
-   
+
    **Implementation References:**
-   
-   * **scripts/** - See production implementations of the architectural patterns described here
+
+   * **src/physiomotion4d/cli/** - See production implementations of the architectural patterns described here
    * **experiments/** - See research prototypes showing evolution of these design principles
 
 System Overview
@@ -18,7 +18,7 @@ PhysioMotion4D is designed as a modular pipeline for medical imaging processing:
 
 .. code-block:: text
 
-   Input (4D CT) → Preprocessing → Registration → Segmentation 
+   Input (4D CT) → Preprocessing → Registration → Segmentation
                                                      ↓
    USD (Omniverse) ← USD Export ← Transform ← Contour Extraction
 
@@ -60,4 +60,3 @@ Design Principles
 * **Error Handling**: Graceful degradation
 
 For implementation details, see the source code and :doc:`api/base`.
-

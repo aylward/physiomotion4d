@@ -5,21 +5,22 @@ CLI & Scripts Overview
 This section provides comprehensive guides for using PhysioMotion4D's command-line tools to process medical imaging data. These tools are designed for medical imaging experts and physiological simulation researchers who need efficient, reproducible pipelines for converting 4D medical images into dynamic anatomical models for NVIDIA Omniverse.
 
 .. important::
-   
-   **The scripts/ Directory: Your Definitive Resource** ⭐
-   
-   The examples and workflows documented here are based on production-ready code in the
-   ``scripts/`` directory. This is your **primary resource** for:
-   
+
+   **CLI Commands: Your Definitive Resource** ⭐
+
+   The examples and workflows documented here are based on production-ready CLI commands
+   (``physiomotion4d-heart-gated-ct``, ``physiomotion4d-register-heart-model``) and their
+   implementations in ``src/physiomotion4d/cli/``. These are your **primary resource** for:
+
    * Production-ready workflow implementations
    * Proper class usage patterns and parameter specifications
    * Complete error handling and validation
    * Tested, reliable processing pipelines
-   
+
    The repository also contains an ``experiments/`` directory with research prototypes. While these
    experiments demonstrate conceptual approaches for adapting workflows to new anatomical regions
    and digital twin applications, they should **not** be used as usage examples. Always refer to
-   the ``scripts/`` directory for proper implementation guidance.
+   the CLI commands and their implementations in ``src/physiomotion4d/cli/`` for proper guidance.
 
 Target Audience
 ===============

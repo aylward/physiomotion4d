@@ -52,11 +52,12 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 * **Clinical Planning**: Dynamic anatomical models for treatment planning
 
 .. tip::
-   
+
    **Getting Started with Code Examples:**
-   
-   This documentation uses examples from the ``scripts/`` directory, which contains
-   production-ready workflows and proper library usage patterns. The repository also includes
+
+   This documentation uses examples from the CLI commands (``physiomotion4d-heart-gated-ct``,
+   ``physiomotion4d-register-heart-model``) and their implementations in ``src/physiomotion4d/cli/``,
+   which contain production-ready workflows and proper library usage patterns. The repository also includes
    an ``experiments/`` directory with research prototypes that can inspire adaptations to
    new digital twin models and anatomical regions—see the experiments README for details on
    how to adapt these conceptual patterns to your own applications.

@@ -76,8 +76,17 @@ class RegisterImagesANTs(RegisterImagesBase):
         """
         super().__init__(log_level=log_level)
 
-        self.number_of_iterations = [40, 20, 10]
+        self.number_of_iterations: list[int] = [40, 20, 10]
         self.transform_type = "Deformable"
+
+    def set_number_of_iterations(self, number_of_iterations: list[int]) -> None:
+        """Set the number of iterations for ANTs registration.
+
+        Args:
+            number_of_iterations: List of iterations for multi-resolution registration
+                (e.g., [40, 20, 10] for three resolution levels)
+        """
+        self.number_of_iterations = number_of_iterations
 
     def set_transform_type(self, transform_type: str) -> None:
         """Set the type of transform to use for registration.

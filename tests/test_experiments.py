@@ -27,8 +27,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import nbformat
 import pytest
-
 
 # Base directories
 REPO_ROOT = Path(__file__).parent.parent
@@ -63,6 +63,48 @@ def get_notebooks_in_subdir(subdir_name: str) -> list[Path]:
 
     notebooks = sorted(subdir.glob("*.ipynb"))
     return notebooks
+
+
+def clear_notebook_outputs(notebook_path: Path) -> bool:
+    """
+    Clear all cell outputs from a Jupyter notebook.
+
+    This removes execution outputs, execution counts, and metadata from all cells
+    to keep the repository clean and avoid committing large output data.
+
+    Args:
+        notebook_path: Path to the notebook file
+
+    Returns:
+        True if outputs were successfully cleared, False otherwise
+    """
+    try:
+        print(f"Clearing outputs from: {notebook_path.name}")
+
+        # Read the notebook
+        with open(notebook_path, "r", encoding="utf-8") as f:
+            notebook = nbformat.read(f, as_version=4)
+
+        # Clear outputs and execution counts from all cells
+        for cell in notebook.cells:
+            if cell.cell_type == "code":
+                cell.outputs = []
+                cell.execution_count = None
+
+        # Clear notebook-level metadata
+        if "execution" in notebook.metadata:
+            del notebook.metadata["execution"]
+
+        # Write the cleaned notebook back
+        with open(notebook_path, "w", encoding="utf-8") as f:
+            nbformat.write(notebook, f)
+
+        print(f"✅ Cleared outputs from: {notebook_path.name}")
+        return True
+
+    except Exception as e:
+        print(f"⚠️ Failed to clear outputs from {notebook_path.name}: {e}")
+        return False
 
 
 def execute_notebook(notebook_path: Path, timeout: int = 3600) -> dict:
@@ -122,6 +164,10 @@ def execute_notebook(notebook_path: Path, timeout: int = 3600) -> dict:
 
         if success:
             print(f"✅ Successfully executed: {notebook_path.name}")
+
+            # Clear outputs from the notebook after successful execution
+            print("Clearing cell outputs to keep repository clean...")
+            clear_notebook_outputs(notebook_path)
         else:
             print(f"❌ Failed to execute: {notebook_path.name}")
             print(f"Return code: {result.returncode}")

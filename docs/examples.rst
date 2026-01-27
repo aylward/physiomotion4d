@@ -6,10 +6,11 @@ This page provides quick examples for common PhysioMotion4D use cases. For detai
 see the :doc:`cli_scripts/overview` section.
 
 .. note::
-   
-   **For Production Workflows:** The examples on this page and in the ``scripts/`` directory are the
-   definitive source for proper library usage, class instantiation, and best practices.
-   
+
+   **For Production Workflows:** The CLI commands (``physiomotion4d-heart-gated-ct``,
+   ``physiomotion4d-register-heart-model``) and their implementations in ``src/physiomotion4d/cli/``
+   are the definitive source for proper library usage, class instantiation, and best practices.
+
    The ``experiments/`` directory contains research prototypes that informed development but should
    **not** be used as usage examples. They may contain outdated APIs, hardcoded paths, and minimal
    error handling. Consult these experiments only as **conceptual references** when adapting
@@ -106,7 +107,7 @@ Advanced segmentation with user-provided points:
 
    # Define point prompts (x, y, z in voxel coordinates)
    heart_points = [(120, 150, 80), (130, 160, 85)]
-   
+
    masks = segmenter.segment(
        image,
        contrast_enhanced_study=True,
@@ -194,7 +195,7 @@ Register all cardiac phases to reference:
        moving = itk.imread(frame_file)
        results = registerer.register(moving)
        transforms.append(results["inverse_transform"])
-       
+
        print(f"Registered {frame_file}: similarity = {results['similarity_score']:.3f}")
 
 ANTs Multi-Stage Registration
@@ -258,7 +259,7 @@ Combine separate anatomical structures:
    # Merge USD files
    files = [
        "heart_dynamic.usd",
-       "lungs_dynamic.usd", 
+       "lungs_dynamic.usd",
        "vessels_static.usd",
        "bones_static.usd"
    ]
@@ -333,7 +334,7 @@ Propagate segmentation contours across time:
 
    # Load reference contour and transforms
    reference_mesh = pv.read("heart_t0.vtp")
-   
+
    # Transform to each time point
    for t in range(1, 10):
        phi = itk.imread(f"transform_t0_to_t{t}.mha")
@@ -387,7 +388,7 @@ Visualize meshes and images:
    # Visualize image slice
    image = itk.imread("ct_scan.nrrd")
    array = itk.array_from_image(image)
-   
+
    pl = pv.Plotter()
    pl.add_volume(array, cmap='bone')
    pl.show()
@@ -404,18 +405,18 @@ Create animation from mesh sequence:
 
    # Load mesh sequence
    mesh_files = sorted(glob.glob("heart_t*.vtp"))
-   
+
    # Create plotter
    pl = pv.Plotter()
-   
+
    # Animate
    meshes = [pv.read(f) for f in mesh_files]
-   
+
    for i in range(len(meshes)):
        pl.clear()
        pl.add_mesh(meshes[i], color='red')
        pl.write_frame()
-   
+
    pl.close()
 
 Batch Processing Examples
@@ -438,19 +439,19 @@ Batch process multiple datasets:
    for patient_dir in patient_dirs:
        patient_id = os.path.basename(patient_dir)
        input_file = os.path.join(patient_dir, "cardiac_4d.nrrd")
-       
+
        if not os.path.exists(input_file):
            continue
-       
+
        print(f"Processing {patient_id}...")
-       
+
        processor = ProcessHeartGatedCT(
            input_filenames=[input_file],
            contrast_enhanced=True,
            output_directory=f"results/{patient_id}",
            project_name=patient_id
        )
-       
+
        try:
            final_usd = processor.process()
            print(f"  ✓ Complete: {final_usd}")
@@ -473,7 +474,7 @@ Segment multiple images in parallel:
        segmenter = SegmentChestVista3D()
        image = itk.imread(filename)
        masks = segmenter.segment(image, contrast_enhanced_study=True)
-       
+
        # Save heart mask
        output_name = filename.replace('.nrrd', '_heart.nrrd')
        itk.imwrite(masks[0], output_name)
@@ -481,10 +482,10 @@ Segment multiple images in parallel:
 
    # Process in parallel
    image_files = glob.glob("data/*.nrrd")
-   
+
    with ProcessPoolExecutor(max_workers=4) as executor:
        results = list(executor.map(segment_image, image_files))
-   
+
    print(f"Segmented {len(results)} images")
 
 Data Download Examples
@@ -587,7 +588,7 @@ Mix and match different components:
    for frame in frames[1:]:
        results = registerer.register(frame)
        warped_mesh = transform_tools.apply_transform_to_contour(
-           reference_mesh, 
+           reference_mesh,
            results["inverse_transform"]
        )
        meshes.append(warped_mesh)
@@ -609,4 +610,3 @@ See Also
 * :doc:`api/index` - Complete API reference
 * :doc:`cli_scripts/heart_gated_ct` - Heart-gated CT guide
 * :doc:`troubleshooting` - Common issues and solutions
-
