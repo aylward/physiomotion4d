@@ -1,4 +1,4 @@
-"""Abstract base class for converting 4D VTK data to animated USD meshes."""
+"""Abstract base class for converting VTK data to animated USD meshes."""
 
 import logging
 import os
@@ -48,7 +48,7 @@ MeshLabelData: TypeAlias = dict[str, MeshValue]
 MeshTimeData: TypeAlias = dict[int, dict[str, MeshLabelData]]
 
 
-class ConvertVTK4DToUSDBase(PhysioMotion4DBase, ABC):
+class ConvertVTKToUSDBase(PhysioMotion4DBase, ABC):
     """
     Abstract base class for VTK to USD conversion.
 

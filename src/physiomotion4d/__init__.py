@@ -23,10 +23,10 @@ from .contour_tools import ContourTools
 
 # Data processing utilities
 from .convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
-from .convert_vtk_4d_to_usd import ConvertVTK4DToUSD
-from .convert_vtk_4d_to_usd_base import ConvertVTK4DToUSDBase
-from .convert_vtk_4d_to_usd_polymesh import ConvertVTK4DToUSDPolyMesh
-from .convert_vtk_4d_to_usd_tetmesh import ConvertVTK4DToUSDTetMesh
+from .convert_vtk_to_usd import ConvertVTKToUSD
+from .convert_vtk_to_usd_base import ConvertVTKToUSDBase
+from .convert_vtk_to_usd_polymesh import ConvertVTKToUSDPolyMesh
+from .convert_vtk_to_usd_tetmesh import ConvertVTKToUSDTetMesh
 
 # Utility classes
 from .image_tools import ImageTools
@@ -92,8 +92,8 @@ __all__ = [
     "USDAnatomyTools",
     # Data processing utilities
     "ConvertNRRD4DTo3D",
-    "ConvertVTK4DToUSD",
-    "ConvertVTK4DToUSDBase",
-    "ConvertVTK4DToUSDPolyMesh",
-    "ConvertVTK4DToUSDTetMesh",
+    "ConvertVTKToUSD",
+    "ConvertVTKToUSDBase",
+    "ConvertVTKToUSDPolyMesh",
+    "ConvertVTKToUSDTetMesh",
 ]

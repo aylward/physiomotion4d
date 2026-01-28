@@ -22,17 +22,17 @@ PhysioMotion4D provides comprehensive USD conversion capabilities:
 * **Anatomical Materials**: Organ-specific material painting
 * **Time-Varying Geometry**: 4D animation support
 
-All converters inherit from :class:`ConvertVTK4DToUSDBase`.
+All converters inherit from :class:`ConvertVTKToUSDBase`.
 
 Base Converter Class
 ====================
 
-ConvertVTK4DToUSDBase
+ConvertVTKToUSDBase
 ---------------------
 
 Abstract base class for USD conversion.
 
-.. autoclass:: physiomotion4d.ConvertVTK4DToUSDBase
+.. autoclass:: physiomotion4d.ConvertVTKToUSDBase
    :members:
    :undoc-members:
    :show-inheritance:
@@ -51,7 +51,7 @@ Polygon Mesh Converter
 
 Convert surface meshes (VTK PolyData) to USD.
 
-.. autoclass:: physiomotion4d.ConvertVTK4DToUSDPolyMesh
+.. autoclass:: physiomotion4d.ConvertVTKToUSDPolyMesh
    :members:
    :undoc-members:
    :show-inheritance:
@@ -66,10 +66,10 @@ Convert surface meshes (VTK PolyData) to USD.
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSDPolyMesh
+   from physiomotion4d import ConvertVTKToUSDPolyMesh
    
    # Initialize converter
-   converter = ConvertVTK4DToUSDPolyMesh(
+   converter = ConvertVTKToUSDPolyMesh(
        start_time=0,
        end_time=1.0,
        fps=30,
@@ -137,7 +137,7 @@ Tetrahedral Mesh Converter
 
 Convert volumetric meshes (VTK UnstructuredGrid) to USD.
 
-.. autoclass:: physiomotion4d.ConvertVTK4DToUSDTetMesh
+.. autoclass:: physiomotion4d.ConvertVTKToUSDTetMesh
    :members:
    :undoc-members:
    :show-inheritance:
@@ -152,10 +152,10 @@ Convert volumetric meshes (VTK UnstructuredGrid) to USD.
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSDTetMesh
+   from physiomotion4d import ConvertVTKToUSDTetMesh
    
    # Initialize for tetrahedral meshes
-   converter = ConvertVTK4DToUSDTetMesh(verbose=True)
+   converter = ConvertVTKToUSDTetMesh(verbose=True)
    
    # Convert volumetric mesh
    converter.convert(
@@ -263,10 +263,10 @@ Create animated USD files from 4D VTK sequences:
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSD
+   from physiomotion4d import ConvertVTKToUSD
    
    # Initialize with timing
-   converter = ConvertVTK4DToUSD(
+   converter = ConvertVTKToUSD(
        start_time=0.0,
        end_time=2.0,    # 2 second animation
        fps=30,          # 30 frames per second
@@ -290,7 +290,7 @@ Control temporal resolution:
 .. code-block:: python
 
    # High temporal resolution
-   converter = ConvertVTK4DToUSD(
+   converter = ConvertVTKToUSD(
        start_time=0,
        end_time=1.0,
        fps=60  # Smooth animation
@@ -300,7 +300,7 @@ Control temporal resolution:
    num_frames = len(vtk_files)
    cycle_duration = 1.0  # 1 second cardiac cycle
    
-   converter = ConvertVTK4DToUSD(
+   converter = ConvertVTKToUSD(
        start_time=0,
        end_time=cycle_duration,
        fps=num_frames / cycle_duration
@@ -316,9 +316,9 @@ Visualize scalar data on meshes:
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSDPolyMesh
+   from physiomotion4d import ConvertVTKToUSDPolyMesh
    
-   converter = ConvertVTK4DToUSDPolyMesh()
+   converter = ConvertVTKToUSDPolyMesh()
    
    # Available colormaps
    colormaps = [
@@ -423,7 +423,7 @@ Create multi-resolution meshes:
 
 .. code-block:: python
 
-   class LODConverter(ConvertVTK4DToUSDPolyMesh):
+   class LODConverter(ConvertVTKToUSDPolyMesh):
        """Converter with LOD support."""
        
        def create_lod_mesh(self, vtk_file, usd_file, lod_levels):
@@ -508,7 +508,7 @@ Convert multiple files efficiently:
    
    def batch_convert_to_usd(vtk_dir, usd_dir, num_workers=4):
        """Convert multiple VTK files to USD in parallel."""
-       converter = ConvertVTK4DToUSDPolyMesh()
+       converter = ConvertVTKToUSDPolyMesh()
        
        vtk_files = list(Path(vtk_dir).glob("*.vtk"))
        

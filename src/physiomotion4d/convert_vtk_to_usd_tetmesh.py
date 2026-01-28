@@ -7,18 +7,18 @@ import pyvista as pv
 import vtk
 from pxr import Gf, Sdf, UsdGeom, Vt
 
-from .convert_vtk_4d_to_usd_base import (
+from .convert_vtk_to_usd_base import (
     VTK_QUAD,
     VTK_TETRA,
     VTK_TRIANGLE,
-    ConvertVTK4DToUSDBase,
+    ConvertVTKToUSDBase,
     MeshLabelData,
     MeshTimeData,
     RgbColor,
 )
 
 
-class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
+class ConvertVTKToUSDTetMesh(ConvertVTKToUSDBase):
     """
     Converter for VTK UnstructuredGrid to USD TetMesh.
 
@@ -30,7 +30,7 @@ class ConvertVTK4DToUSDTetMesh(ConvertVTK4DToUSDBase):
     Requires OpenUSD v24.03+ for UsdGeomTetMesh support.
 
     Example Usage:
-        >>> converter = ConvertVTK4DToUSDTetMesh(
+        >>> converter = ConvertVTKToUSDTetMesh(
         ...     data_basename='VolumetricModel', input_polydata=ugrid_meshes, mask_ids=None
         ... )
         >>> stage = converter.convert('output.usd')

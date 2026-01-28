@@ -48,8 +48,8 @@ PhysioMotion4D is a sophisticated medical imaging package for generating anatomi
 | `workflow_register_heart_model_to_patient.py` | 745   | Model-to-patient registration workflow         |
 | `register_images_ants.py`                     | 725   | ANTs-based image registration                  |
 | `segment_chest_base.py`                       | 672   | Base class for chest segmentation              |
-| `convert_vtk_4d_to_usd_polymesh.py`           | 622   | Polymesh USD conversion                        |
-| `convert_vtk_4d_to_usd_base.py`               | 585   | Base USD conversion functionality              |
+| `convert_vtk_to_usd_polymesh.py`           | 622   | Polymesh USD conversion                        |
+| `convert_vtk_to_usd_base.py`               | 585   | Base USD conversion functionality              |
 | `workflow_convert_heart_gated_ct_to_usd.py`   | 539   | Heart CT to USD workflow                       |
 | `usd_tools.py`                                | 536   | USD file manipulation                          |
 | `register_time_series_images.py`              | 528   | Time series registration                       |

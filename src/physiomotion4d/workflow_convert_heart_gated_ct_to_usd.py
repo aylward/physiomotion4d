@@ -15,7 +15,7 @@ import pyvista as pv
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
-from physiomotion4d.convert_vtk_4d_to_usd import ConvertVTK4DToUSD
+from physiomotion4d.convert_vtk_to_usd import ConvertVTKToUSD
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_base import RegisterImagesBase
@@ -422,7 +422,7 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             self.log_info("Creating %s anatomy USD...", anatomy_type)
 
             # Convert VTK contours to USD
-            converter = ConvertVTK4DToUSD(
+            converter = ConvertVTKToUSD(
                 self.project_name,
                 self._transformed_contours[anatomy_type],
                 self.segmenter.all_mask_ids,

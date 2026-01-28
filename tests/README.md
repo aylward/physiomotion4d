@@ -28,7 +28,7 @@ This directory contains comprehensive test suites for the PhysioMotion4D package
 ### Geometry & Visualization Tests
 - **`test_contour_tools.py`** - PyVista mesh extraction and manipulation
 - **`test_transform_tools.py`** - ITK transform operations and visualization
-- **`test_convert_vtk_4d_to_usd_polymesh.py`** - VTK to USD conversion
+- **`test_convert_vtk_to_usd_polymesh.py`** - VTK to USD conversion
 
 ### USD Utility Tests
 - **`test_usd_merge.py`** - USD file merging with material preservation
@@ -127,7 +127,7 @@ test_convert_nrrd_4d_to_3d
     ↓                    ↓
 test_segment_chest_total_segmentator ────→ test_contour_tools
     ↓                                           ↓
-test_segment_chest_vista_3d                test_convert_vtk_4d_to_usd_polymesh
+test_segment_chest_vista_3d                test_convert_vtk_to_usd_polymesh
 ```
 
 Fixtures in `conftest.py` automatically manage these dependencies.

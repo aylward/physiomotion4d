@@ -46,7 +46,7 @@ Core Components
 
 5. **USD Export Module**
 
-   * :class:`ConvertVTK4DToUSD`: VTK to USD conversion
+   * :class:`ConvertVTKToUSD`: VTK to USD conversion
    * :class:`USDTools`: USD manipulation
    * :class:`USDAnatomyTools`: Material application
 

@@ -11,12 +11,12 @@ import pytest
 import pyvista as pv
 from pxr import UsdGeom
 
-from physiomotion4d.convert_vtk_4d_to_usd_polymesh import ConvertVTK4DToUSDPolyMesh
+from physiomotion4d.convert_vtk_to_usd_polymesh import ConvertVTKToUSDPolyMesh
 
 
 @pytest.mark.requires_data
 @pytest.mark.slow
-class TestConvertVTK4DToUSDPolyMesh:
+class TestConvertVTKToUSDPolyMesh:
     """Test suite for VTK to USD PolyMesh conversion."""
 
     @pytest.fixture(scope="class")
@@ -54,8 +54,8 @@ class TestConvertVTK4DToUSDPolyMesh:
         return meshes
 
     def test_converter_initialization(self):
-        """Test that ConvertVTK4DToUSDPolyMesh initializes correctly."""
-        converter = ConvertVTK4DToUSDPolyMesh(
+        """Test that ConvertVTKToUSDPolyMesh initializes correctly."""
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="TestModel", input_polydata=[], mask_ids=None
         )
 
@@ -68,7 +68,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         """Test that converter correctly identifies supported mesh types."""
         mesh = contour_meshes[0]
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="TestModel", input_polydata=[mesh], mask_ids=None
         )
 
@@ -89,7 +89,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         print("\nConverting single time point to USD...")
         print(f"  Mesh: {mesh.n_points} points, {mesh.n_cells} cells")
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="HeartSingle", input_polydata=[mesh], mask_ids=None
         )
 
@@ -117,7 +117,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         print("\nConverting multiple time points to USD...")
         print(f"  Time points: {len(contour_meshes)}")
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="HeartMulti", input_polydata=contour_meshes, mask_ids=None
         )
 
@@ -161,7 +161,7 @@ class TestConvertVTK4DToUSDPolyMesh:
 
         print("\nConverting mesh with deformation magnitude...")
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="HeartDeformation", input_polydata=[contours], mask_ids=None
         )
 
@@ -194,7 +194,7 @@ class TestConvertVTK4DToUSDPolyMesh:
 
         print("\nConverting mesh with colormap...")
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="HeartColormap", input_polydata=[mesh], mask_ids=None
         )
 
@@ -246,7 +246,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         print("\nConverting UnstructuredGrid to USD...")
         print(f"  Grid: {ugrid.n_points} points, {ugrid.n_cells} cells")
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="CubeSurface",
             input_polydata=[ugrid],
             mask_ids=None,
@@ -268,7 +268,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         usd_output_dir = output_dir / "usd_polymesh"
         usd_output_dir.mkdir(exist_ok=True)
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="HeartStructure",
             input_polydata=[contour_meshes[0]],
             mask_ids=None,
@@ -313,7 +313,7 @@ class TestConvertVTK4DToUSDPolyMesh:
         print(f"  Mesh 1: {mesh1.n_points} points, {mesh1.n_cells} cells")
         print(f"  Mesh 2: {mesh2.n_points} points, {mesh2.n_cells} cells")
 
-        converter = ConvertVTK4DToUSDPolyMesh(
+        converter = ConvertVTKToUSDPolyMesh(
             data_basename="HeartVarying", input_polydata=[mesh1, mesh2], mask_ids=None
         )
 
@@ -362,7 +362,7 @@ class TestConvertVTK4DToUSDPolyMesh:
 
             # Convert each anatomy separately
             for anatomy, mesh in meshes_dict.items():
-                converter = ConvertVTK4DToUSDPolyMesh(
+                converter = ConvertVTKToUSDPolyMesh(
                     data_basename=f"{anatomy.capitalize()}",
                     input_polydata=[mesh],
                     mask_ids=None,

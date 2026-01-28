@@ -70,7 +70,7 @@ test_convert_nrrd_4d_to_3d
     ↓                    ↓
 test_segment_chest_total_segmentator ────→ test_contour_tools
     ↓                                           ↓
-test_segment_chest_vista_3d                test_convert_vtk_4d_to_usd_polymesh
+test_segment_chest_vista_3d                test_convert_vtk_to_usd_polymesh
 ```
 
 ### Test Markers

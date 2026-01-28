@@ -8,15 +8,15 @@ import pyvista as pv
 import vtk
 from pxr import Gf, Sdf, UsdGeom
 
-from .convert_vtk_4d_to_usd_base import (
-    ConvertVTK4DToUSDBase,
+from .convert_vtk_to_usd_base import (
+    ConvertVTKToUSDBase,
     MeshLabelData,
     MeshTimeData,
     RgbColor,
 )
 
 
-class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
+class ConvertVTKToUSDPolyMesh(ConvertVTKToUSDBase):
     """
     Converter for VTK PolyData to USD Mesh.
 
@@ -27,7 +27,7 @@ class ConvertVTK4DToUSDPolyMesh(ConvertVTK4DToUSDBase):
     - Per-vertex colormap visualization
 
     Example Usage:
-        >>> converter = ConvertVTK4DToUSDPolyMesh(
+        >>> converter = ConvertVTKToUSDPolyMesh(
         ...     data_basename='SurfaceModel', input_polydata=meshes, mask_ids=None
         ... )
         >>> converter.set_colormap(color_by_array='pressure', colormap='rainbow')

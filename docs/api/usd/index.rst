@@ -47,9 +47,9 @@ Convert VTK to USD
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSD
+   from physiomotion4d import ConvertVTKToUSD
    
-   converter = ConvertVTK4DToUSD(
+   converter = ConvertVTKToUSD(
        output_file="animated_heart.usd",
        colormap="rainbow",
        verbose=True

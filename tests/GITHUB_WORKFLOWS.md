@@ -94,7 +94,7 @@ Tests that require downloading external data, executed in sequence with caching.
 
 4. **USD Conversion Tests**
    ```bash
-   pytest tests/test_convert_vtk_4d_to_usd_polymesh.py -v -m "not slow" --cov=src/physiomotion4d --cov-append --cov-report=xml
+   pytest tests/test_convert_vtk_to_usd_polymesh.py -v -m "not slow" --cov=src/physiomotion4d --cov-append --cov-report=xml
    ```
    - Tests VTK to USD conversion
    - Uses contour data

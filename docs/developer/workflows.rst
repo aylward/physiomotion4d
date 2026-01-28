@@ -251,7 +251,7 @@ Create new workflows by inheriting from :class:`PhysioMotion4DBase`:
    from physiomotion4d import PhysioMotion4DBase
    from physiomotion4d import SegmentChestTotalSegmentator
    from physiomotion4d import RegisterImagesICON
-   from physiomotion4d import ConvertVTK4DToUSD
+   from physiomotion4d import ConvertVTKToUSD
    
    class MyCustomWorkflow(PhysioMotion4DBase):
        """Custom medical imaging workflow."""

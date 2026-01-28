@@ -230,14 +230,14 @@ Convert VTK mesh sequence to animated USD:
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSDPolyMesh
+   from physiomotion4d import ConvertVTKToUSDPolyMesh
    import glob
 
    # Get VTK files
    vtk_files = sorted(glob.glob("heart_frame_*.vtp"))
 
    # Convert
-   converter = ConvertVTK4DToUSDPolyMesh()
+   converter = ConvertVTKToUSDPolyMesh()
    converter.set_input_filenames(vtk_files)
    converter.set_output_filename("heart_animation.usd")
    converter.set_frame_rate(30)  # FPS
@@ -561,7 +561,7 @@ Mix and match different components:
        SegmentChestVista3D,
        RegisterImagesICON,
        TransformTools,
-       ConvertVTK4DToUSDPolyMesh,
+       ConvertVTKToUSDPolyMesh,
        ContourTools
    )
    import itk
@@ -598,7 +598,7 @@ Mix and match different components:
        mesh.save(f"heart_{i:03d}.vtp")
 
    # Convert to USD
-   converter = ConvertVTK4DToUSDPolyMesh()
+   converter = ConvertVTKToUSDPolyMesh()
    converter.set_input_filenames([f"heart_{i:03d}.vtp" for i in range(10)])
    converter.set_output_filename("heart.usd")
    converter.convert()

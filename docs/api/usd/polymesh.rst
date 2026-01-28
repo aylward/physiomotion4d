@@ -9,7 +9,7 @@ Surface mesh (polygon mesh) representation in USD.
 Class Reference
 ===============
 
-.. autoclass:: ConvertVTK4DToUSDPolyMesh
+.. autoclass:: ConvertVTKToUSDPolyMesh
    :members:
    :undoc-members:
    :show-inheritance:

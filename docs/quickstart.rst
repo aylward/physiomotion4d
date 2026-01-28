@@ -168,10 +168,10 @@ Convert VTK time series to USD:
 
 .. code-block:: python
 
-   from physiomotion4d import ConvertVTK4DToUSDPolyMesh
+   from physiomotion4d import ConvertVTKToUSDPolyMesh
 
    # Initialize converter
-   converter = ConvertVTK4DToUSDPolyMesh()
+   converter = ConvertVTKToUSDPolyMesh()
 
    # Set input VTK files (time series)
    vtk_files = [f"heart_frame_{i:03d}.vtp" for i in range(10)]

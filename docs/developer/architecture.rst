@@ -69,10 +69,10 @@ The package is organized into functional modules:
    │       └── register_models_pca.py             PCA-based
    │
    ├── USD Generation
-   │   ├── convert_vtk_4d_to_usd_base.py          Base converter
-   │   ├── convert_vtk_4d_to_usd_polymesh.py      Polygon meshes
-   │   ├── convert_vtk_4d_to_usd_tetmesh.py       Tetrahedral meshes
-   │   └── convert_vtk_4d_to_usd.py               Main converter
+   │   ├── convert_vtk_to_usd_base.py          Base converter
+   │   ├── convert_vtk_to_usd_polymesh.py      Polygon meshes
+   │   ├── convert_vtk_to_usd_tetmesh.py       Tetrahedral meshes
+   │   └── convert_vtk_to_usd.py               Main converter
    │
    └── Utilities
        ├── image_tools.py                          Image manipulation
@@ -107,9 +107,9 @@ Most PhysioMotion4D classes inherit from :class:`PhysioMotion4DBase`:
    │   │   └── RegisterImagesICON
    │   └── (Model registration classes)
    └── Conversion Classes
-       └── ConvertVTK4DToUSDBase
-           ├── ConvertVTK4DToUSDPolyMesh
-           └── ConvertVTK4DToUSDTetMesh
+       └── ConvertVTKToUSDBase
+           ├── ConvertVTKToUSDPolyMesh
+           └── ConvertVTKToUSDTetMesh
 
 The base class provides:
 

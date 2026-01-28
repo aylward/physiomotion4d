@@ -221,7 +221,7 @@ jobs:
 
     - name: Run USD conversion tests
       run: |
-        pytest tests/test_convert_vtk_4d_to_usd_polymesh.py -v -m "not slow" --cov=physiomotion4d --cov-append --cov-report=xml
+        pytest tests/test_convert_vtk_to_usd_polymesh.py -v -m "not slow" --cov=physiomotion4d --cov-append --cov-report=xml
       continue-on-error: true
 
     - name: Run USD utility tests

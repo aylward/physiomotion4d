@@ -54,7 +54,7 @@ Start with this template for new workflows:
    from physiomotion4d import PhysioMotion4DBase
    from physiomotion4d import SegmentChestTotalSegmentator
    from physiomotion4d import RegisterImagesICON
-   from physiomotion4d import ConvertVTK4DToUSDPolyMesh
+   from physiomotion4d import ConvertVTKToUSDPolyMesh
 
    class MyCustomWorkflow(PhysioMotion4DBase):
        """
@@ -95,7 +95,7 @@ Start with this template for new workflows:
            """Initialize processing components."""
            self.segmentator = SegmentChestTotalSegmentator(verbose=self.verbose)
            self.registrator = RegisterImagesICON(device="cuda:0")
-           self.usd_converter = ConvertVTK4DToUSDPolyMesh(verbose=self.verbose)
+           self.usd_converter = ConvertVTKToUSDPolyMesh(verbose=self.verbose)
 
        def process(self):
            """Execute complete workflow."""
@@ -146,7 +146,7 @@ Complete example of a custom workflow:
    from physiomotion4d import PhysioMotion4DBase
    from physiomotion4d.image_tools import read_image, write_image
    from physiomotion4d.contour_tools import extract_surface_mesh
-   from physiomotion4d import ConvertVTK4DToUSD
+   from physiomotion4d import ConvertVTKToUSD
    import SimpleITK as sitk
 
    class BrainVesselWorkflow(PhysioMotion4DBase):
@@ -189,7 +189,7 @@ Complete example of a custom workflow:
 
            # Convert to USD
            usd_file = f"{self.output_directory}/brain_vessels.usd"
-           converter = ConvertVTK4DToUSD()
+           converter = ConvertVTKToUSD()
            converter.convert(
                vtk_file=vessel_mesh,
                usd_file=usd_file,

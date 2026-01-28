@@ -100,7 +100,7 @@ By Category
 **USD Tools**
    * :mod:`~physiomotion4d.usd_tools` - USD file utilities
    * :mod:`~physiomotion4d.usd_anatomy_tools` - Anatomical structure tools
-   * :class:`~physiomotion4d.ConvertVTK4DToUSD` - VTK to USD conversion
+   * :class:`~physiomotion4d.ConvertVTKToUSD` - VTK to USD conversion
 
 Module Index
 ============

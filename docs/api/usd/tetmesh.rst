@@ -9,7 +9,7 @@ Tetrahedral mesh representation in USD for volumetric models.
 Class Reference
 ===============
 
-.. autoclass:: ConvertVTK4DToUSDTetMesh
+.. autoclass:: ConvertVTKToUSDTetMesh
    :members:
    :undoc-members:
    :show-inheritance:

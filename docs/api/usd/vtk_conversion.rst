@@ -9,7 +9,7 @@ Convert VTK mesh files to USD format with animation support.
 Class Reference
 ===============
 
-.. autoclass:: ConvertVTK4DToUSD
+.. autoclass:: ConvertVTKToUSD
    :members:
    :undoc-members:
    :show-inheritance:

@@ -62,7 +62,7 @@ Specific Test Modules
 
    # Data conversion (fast)
    pytest tests/test_convert_nrrd_4d_to_3d.py -v
-   pytest tests/test_convert_vtk_4d_to_usd_polymesh.py -v
+   pytest tests/test_convert_vtk_to_usd_polymesh.py -v
 
    # Image tools (fast)
    pytest tests/test_image_tools.py -v
@@ -114,7 +114,7 @@ Tests are organized by functionality:
    │   ├── test_contour_tools.py                 # Mesh extraction and manipulation
    │   ├── test_transform_tools.py               # Transform operations
    │   ├── test_image_tools.py                   # Image processing utilities
-   │   └── test_convert_vtk_4d_to_usd_polymesh.py # VTK to USD conversion
+   │   └── test_convert_vtk_to_usd_polymesh.py # VTK to USD conversion
    │
    └── USD Utility Tests
        ├── test_usd_merge.py                     # USD file merging

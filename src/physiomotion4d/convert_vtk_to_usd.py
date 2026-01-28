@@ -8,22 +8,22 @@ import pyvista as pv
 import vtk
 from pxr import Usd
 
-from .convert_vtk_4d_to_usd_base import ConvertVTK4DToUSDBase
-from .convert_vtk_4d_to_usd_polymesh import ConvertVTK4DToUSDPolyMesh
-from .convert_vtk_4d_to_usd_tetmesh import ConvertVTK4DToUSDTetMesh
+from .convert_vtk_to_usd_base import ConvertVTKToUSDBase
+from .convert_vtk_to_usd_polymesh import ConvertVTKToUSDPolyMesh
+from .convert_vtk_to_usd_tetmesh import ConvertVTKToUSDTetMesh
 from .physiomotion4d_base import PhysioMotion4DBase
 
 
-class ConvertVTK4DToUSD(PhysioMotion4DBase):
+class ConvertVTKToUSD(PhysioMotion4DBase):
     """
     Unified converter supporting both PolyData and UnstructuredGrid.
 
     Automatically routes meshes to appropriate specialized converter:
-    - PolyData → ConvertVTK4DToUSDPolyMesh
-    - UnstructuredGrid (volumetric) → ConvertVTK4DToUSDTetMesh
-    - UnstructuredGrid (surface) → ConvertVTK4DToUSDPolyMesh
+    - PolyData → ConvertVTKToUSDPolyMesh
+    - UnstructuredGrid (volumetric) → ConvertVTKToUSDTetMesh
+    - UnstructuredGrid (surface) → ConvertVTKToUSDPolyMesh
 
-    Maintains API compatibility with original ConvertVTK4DToUSD class.
+    Maintains API compatibility with original ConvertVTKToUSD class.
 
     Supports:
     - PolyData: Surface meshes exported as UsdGeomMesh
@@ -39,7 +39,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
 
     Example Usage:
         >>> # Create converter with meshes
-        >>> converter = ConvertVTK4DToUSDAll(
+        >>> converter = ConvertVTKToUSD(
         ...     data_basename='CardiacModel', input_polydata=meshes, mask_ids=None
         ... )
         >>>
@@ -106,7 +106,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
                   Metadata includes: 'n_components', 'dtype', 'range', 'present_in_steps'
         """
         # Create temporary converter to analyze arrays
-        temp_converter = ConvertVTK4DToUSDPolyMesh(
+        temp_converter = ConvertVTKToUSDPolyMesh(
             self.data_basename, self.input_polydata, self.mask_ids
         )
         return temp_converter.list_available_arrays()
@@ -116,7 +116,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         color_by_array: Optional[str] = None,
         colormap: str = "plasma",
         intensity_range: Optional[tuple[float, float]] = None,
-    ) -> "ConvertVTK4DToUSD":
+    ) -> "ConvertVTKToUSD":
         """
         Configure colormap settings for vertex coloring.
 
@@ -153,9 +153,9 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         Convert meshes to USD, automatically routing by mesh type.
 
         Analyzes input meshes and routes to appropriate specialized converter:
-        1. Only PolyData → ConvertVTK4DToUSDPolyMesh
-        2. Only UnstructuredGrid (volumetric) → ConvertVTK4DToUSDTetMesh
-        3. Only UnstructuredGrid (surface mode) → ConvertVTK4DToUSDPolyMesh
+        1. Only PolyData → ConvertVTKToUSDPolyMesh
+        2. Only UnstructuredGrid (volumetric) → ConvertVTKToUSDTetMesh
+        3. Only UnstructuredGrid (surface mode) → ConvertVTKToUSDPolyMesh
         4. Mixed types → NotImplementedError (use original class)
 
         Args:
@@ -193,7 +193,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         # Case 1: Only PolyData (or surface-converted UGrid)
         if has_polydata and not has_ugrid:
             self.log_info("Routing to PolyMesh converter (surface meshes)")
-            poly_converter = ConvertVTK4DToUSDPolyMesh(
+            poly_converter = ConvertVTKToUSDPolyMesh(
                 self.data_basename,
                 self.input_polydata,
                 self.mask_ids,
@@ -209,7 +209,7 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
         # Case 2: Only UnstructuredGrid (tetmesh)
         if has_ugrid and not has_polydata:
             self.log_info("Routing to TetMesh converter (volumetric meshes)")
-            tet_converter: ConvertVTK4DToUSDBase = ConvertVTK4DToUSDTetMesh(
+            tet_converter: ConvertVTKToUSDBase = ConvertVTKToUSDTetMesh(
                 self.data_basename,
                 self.input_polydata,
                 self.mask_ids,
@@ -227,8 +227,8 @@ class ConvertVTK4DToUSD(PhysioMotion4DBase):
             raise NotImplementedError(
                 "Mixed PolyData and UnstructuredGrid not yet supported in "
                 "refactored version. Please use one of the following solutions:\n"
-                "1. Use the original ConvertVTK4DToUSD class from "
-                "convert_vtk_4d_to_usd.py\n"
+                "1. Use the original ConvertVTKToUSD class from "
+                "convert_vtk_to_usd.py\n"
                 "2. Separate your meshes by type and convert in two passes\n"
                 "3. Convert all UnstructuredGrid to surface with convert_to_surface=True"
             )
