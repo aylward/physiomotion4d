@@ -1,5 +1,17 @@
 # KCL Heart Model Dataset
 
+## ⚠️ Manual Download Required
+
+**This data is NOT automatically downloaded.** Users must manually download and preprocess the required files.
+
+### Required Files for PhysioMotion4D
+
+The following files must be present in this directory for VTK to USD conversion:
+- `average_surface.vtp` - Mean heart surface mesh (VTK PolyData format)
+- `average_mesh.vtk` - Mean heart volume mesh (VTK UnstructuredGrid format)
+
+These files can be generated from the KCL dataset using conversion tools provided in this directory.
+
 ## Overview
 
 This directory contains data from the King's College London (KCL) four-chamber heart model dataset, which provides a virtual cohort of adult healthy heart meshes derived from CT images.
@@ -74,4 +86,3 @@ For questions about the dataset, contact the original authors:
 - Pablo Lamata, King's College London
 
 For questions about SlicerSALT, contact: beatriz.paniagua@kitware.com
-

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Test for VTK to USD PolyMesh conversion.
+Test for VTK to USD conversion.
 
 This test depends on test_contour_tools and uses the extracted contours
 to test USD conversion functionality.
@@ -11,12 +11,12 @@ import pytest
 import pyvista as pv
 from pxr import UsdGeom
 
-from physiomotion4d.convert_vtk_to_usd_polymesh import ConvertVTKToUSDPolyMesh
+from physiomotion4d import ConvertVTKToUSD
 
 
 @pytest.mark.requires_data
 @pytest.mark.slow
-class TestConvertVTKToUSDPolyMesh:
+class TestConvertVTKToUSD:
     """Test suite for VTK to USD PolyMesh conversion."""
 
     @pytest.fixture(scope="class")
@@ -54,8 +54,8 @@ class TestConvertVTKToUSDPolyMesh:
         return meshes
 
     def test_converter_initialization(self):
-        """Test that ConvertVTKToUSDPolyMesh initializes correctly."""
-        converter = ConvertVTKToUSDPolyMesh(
+        """Test that ConvertVTKToUSD initializes correctly."""
+        converter = ConvertVTKToUSD(
             data_basename="TestModel", input_polydata=[], mask_ids=None
         )
 
@@ -68,7 +68,7 @@ class TestConvertVTKToUSDPolyMesh:
         """Test that converter correctly identifies supported mesh types."""
         mesh = contour_meshes[0]
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="TestModel", input_polydata=[mesh], mask_ids=None
         )
 
@@ -89,7 +89,7 @@ class TestConvertVTKToUSDPolyMesh:
         print("\nConverting single time point to USD...")
         print(f"  Mesh: {mesh.n_points} points, {mesh.n_cells} cells")
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="HeartSingle", input_polydata=[mesh], mask_ids=None
         )
 
@@ -117,7 +117,7 @@ class TestConvertVTKToUSDPolyMesh:
         print("\nConverting multiple time points to USD...")
         print(f"  Time points: {len(contour_meshes)}")
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="HeartMulti", input_polydata=contour_meshes, mask_ids=None
         )
 
@@ -132,10 +132,10 @@ class TestConvertVTKToUSDPolyMesh:
         prim = stage.GetPrimAtPath("/World/HeartMulti")
         assert prim.IsValid(), "Root prim not found at /World/HeartMulti"
 
-        # Check that mesh exists (checking the Transform group)
-        transform_path = "/World/HeartMulti/Transform_heart_multi_time"
-        transform_prim = stage.GetPrimAtPath(transform_path)
-        assert transform_prim.IsValid(), f"Transform not found at {transform_path}"
+        # Check that mesh exists
+        mesh_path = "/World/HeartMulti/Mesh"
+        mesh_prim = stage.GetPrimAtPath(mesh_path)
+        assert mesh_prim.IsValid(), f"Mesh not found at {mesh_path}"
 
         print("Multiple time points converted to USD")
         print(f"  Output: {output_file}")
@@ -161,7 +161,7 @@ class TestConvertVTKToUSDPolyMesh:
 
         print("\nConverting mesh with deformation magnitude...")
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="HeartDeformation", input_polydata=[contours], mask_ids=None
         )
 
@@ -171,10 +171,10 @@ class TestConvertVTKToUSDPolyMesh:
         assert stage is not None, "USD stage not created"
         assert output_file.exists(), "USD file not created"
 
-        # Check that transform was created (actual path includes /World prefix)
-        transform_path = "/World/HeartDeformation/Transform_heart_with_deformation"
-        transform_prim = stage.GetPrimAtPath(transform_path)
-        assert transform_prim.IsValid(), f"Transform not found at {transform_path}"
+        # Check that mesh was created (actual path includes /World prefix)
+        mesh_path = "/World/HeartDeformation/Mesh"
+        mesh_prim = stage.GetPrimAtPath(mesh_path)
+        assert mesh_prim.IsValid(), f"Mesh not found at {mesh_path}"
 
         print("Mesh with deformation converted to USD")
         print(f"  Output: {output_file}")
@@ -194,7 +194,7 @@ class TestConvertVTKToUSDPolyMesh:
 
         print("\nConverting mesh with colormap...")
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="HeartColormap", input_polydata=[mesh], mask_ids=None
         )
 
@@ -207,10 +207,10 @@ class TestConvertVTKToUSDPolyMesh:
         assert stage is not None, "USD stage not created"
         assert output_file.exists(), "USD file not created"
 
-        # Verify transform was created (actual path includes /World prefix)
-        transform_path = "/World/HeartColormap/Transform_heart_with_colormap"
-        transform_prim = stage.GetPrimAtPath(transform_path)
-        assert transform_prim.IsValid(), f"Transform not found at {transform_path}"
+        # Verify mesh was created (actual path includes /World prefix)
+        mesh_path = "/World/HeartColormap/Mesh"
+        mesh_prim = stage.GetPrimAtPath(mesh_path)
+        assert mesh_prim.IsValid(), f"Mesh not found at {mesh_path}"
 
         print("Mesh with colormap converted to USD")
         print("  Colormap: plasma")
@@ -246,7 +246,7 @@ class TestConvertVTKToUSDPolyMesh:
         print("\nConverting UnstructuredGrid to USD...")
         print(f"  Grid: {ugrid.n_points} points, {ugrid.n_cells} cells")
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="CubeSurface",
             input_polydata=[ugrid],
             mask_ids=None,
@@ -268,7 +268,7 @@ class TestConvertVTKToUSDPolyMesh:
         usd_output_dir = output_dir / "usd_polymesh"
         usd_output_dir.mkdir(exist_ok=True)
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="HeartStructure",
             input_polydata=[contour_meshes[0]],
             mask_ids=None,
@@ -284,17 +284,13 @@ class TestConvertVTKToUSDPolyMesh:
         assert root_prim.IsValid(), "Root prim not found at /World/HeartStructure"
         assert UsdGeom.Xform(root_prim), "Root should be an Xform"
 
-        # Check transform/mesh structure
-        transform_prim = stage.GetPrimAtPath(
-            "/World/HeartStructure/Transform_heart_structure_test"
-        )
-        assert transform_prim.IsValid(), (
-            "Transform prim not found at /World/HeartStructure/Transform_heart_structure_test"
-        )
+        # Check mesh structure
+        mesh_prim = stage.GetPrimAtPath("/World/HeartStructure/Mesh")
+        assert mesh_prim.IsValid(), "Mesh prim not found at /World/HeartStructure/Mesh"
 
         print("USD file structure verified")
         print(f"  Root: {root_prim.GetPath()}")
-        print(f"  Transform: {transform_prim.GetPath()}")
+        print(f"  Mesh: {mesh_prim.GetPath()}")
 
     def test_time_varying_topology(self, contour_meshes, test_directories):
         """Test handling of time-varying topology."""
@@ -313,7 +309,7 @@ class TestConvertVTKToUSDPolyMesh:
         print(f"  Mesh 1: {mesh1.n_points} points, {mesh1.n_cells} cells")
         print(f"  Mesh 2: {mesh2.n_points} points, {mesh2.n_cells} cells")
 
-        converter = ConvertVTKToUSDPolyMesh(
+        converter = ConvertVTKToUSD(
             data_basename="HeartVarying", input_polydata=[mesh1, mesh2], mask_ids=None
         )
 
@@ -362,7 +358,7 @@ class TestConvertVTKToUSDPolyMesh:
 
             # Convert each anatomy separately
             for anatomy, mesh in meshes_dict.items():
-                converter = ConvertVTKToUSDPolyMesh(
+                converter = ConvertVTKToUSD(
                     data_basename=f"{anatomy.capitalize()}",
                     input_polydata=[mesh],
                     mask_ids=None,

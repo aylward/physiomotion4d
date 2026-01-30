@@ -13,9 +13,9 @@ import itk
 import numpy as np
 import pyvista as pv
 
+from physiomotion4d import ConvertVTKToUSD
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
-from physiomotion4d.convert_vtk_to_usd import ConvertVTKToUSD
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_base import RegisterImagesBase

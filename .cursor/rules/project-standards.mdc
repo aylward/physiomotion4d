@@ -1,0 +1,80 @@
+---
+description: PhysioMotion4D project standards and workflow preferences
+alwaysApply: true
+---
+
+# PhysioMotion4D Project Standards
+
+## File Operations
+
+**ALWAYS use git commands for file operations in this repository:**
+
+```bash
+# Moving files
+git mv old_path new_path
+
+# Deleting files
+git rm file_path
+
+# Renaming files
+git mv old_name.py new_name.py
+```
+
+❌ **Don't use**: `mv`, `rm`, `cp` directly
+✅ **Do use**: `git mv`, `git rm` to maintain git history
+
+## Documentation
+
+**Do NOT create extra documentation files** describing what was done:
+
+❌ **Don't create**:
+- `MIGRATION.md`
+- `CHANGES.md`
+- `UPDATE_SUMMARY.md`
+- `MODERNIZATION_*.md`
+- Similar meta-documentation files
+
+✅ **Do document**:
+- In-code docstrings
+- README files for new modules
+- Inline comments for complex logic
+- API documentation in existing docs
+
+## Backward Compatibility
+
+**Backward compatibility is NOT a priority** for this project:
+
+- Feel free to make breaking changes to improve code quality
+- Remove deprecated code without extensive migration paths
+- Update APIs for clarity and consistency
+- Prioritize modern, clean design over legacy support
+
+## Code Style
+
+- Use descriptive variable and function names
+- Add type hints to Python functions
+- Keep functions focused and small
+- Use `logging` module instead of `print` statements
+- Follow PEP 8 for Python code
+
+## Testing
+
+- Test new functionality with Jupyter notebooks in `experiments/`
+- Update existing tests when changing APIs
+- Use meaningful test names that describe what is being tested
+
+## Git Workflow
+
+**Do NOT stage files automatically:**
+
+❌ **Don't use**: `git add`, `git stage`
+✅ **Do use**: `git status` to show what changed
+✅ **User will**: Stage files themselves when ready
+
+The user prefers to review and stage changes manually.
+
+**Other git guidelines:**
+- Use `git rm` and `git mv` for file operations
+- Make atomic commits with clear messages
+- Don't commit large binary files (add to `.gitignore`)
+- Use `git status` to verify changes before committing

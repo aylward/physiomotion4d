@@ -107,8 +107,16 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 - **Utility Classes**: Tools for data manipulation and conversion
   - `TransformTools`: Comprehensive transform manipulation utilities
   - `USDTools`: USD file manipulation for Omniverse integration
+  - `USDAnatomyTools`: Apply surgical materials to anatomy meshes
   - `ImageTools`: Medical image processing utilities
   - `ContourTools`: Mesh extraction and contour manipulation
+- **USD Conversion**: VTK to USD conversion for Omniverse visualization
+  - `ConvertVTKToUSD`: High-level converter for PyVista/VTK objects with colormap support
+  - `vtk_to_usd` module: File-based conversion library
+    - `VTKToUSDConverter`: Core converter with time-series support
+    - `read_vtk_file()`: Read VTK/VTP/VTU files into MeshData
+    - `ConversionSettings`: Configurable conversion parameters
+    - `MaterialData`: USD material definitions
 
 ### Key Dependencies
 
@@ -260,6 +268,80 @@ transforms = time_series_reg.register_time_series(
 inverse_transform = results["inverse_transform"]  # Fixed to moving
 forward_transform = results["forward_transform"]  # Moving to fixed
 ```
+
+### VTK to USD Conversion
+
+PhysioMotion4D provides two APIs for converting VTK data to USD for NVIDIA Omniverse visualization:
+
+#### Option 1: High-Level ConvertVTKToUSD (for PyVista/VTK objects)
+
+```python
+from physiomotion4d import ConvertVTKToUSD
+import pyvista as pv
+
+# Load VTK data
+meshes = [pv.read(f"cardiac_frame_{i:03d}.vtp") for i in range(20)]
+
+# Convert to animated USD with anatomical labels
+converter = ConvertVTKToUSD(
+    data_basename='CardiacModel',
+    input_polydata=meshes,
+    mask_ids={1: 'ventricle', 2: 'atrium', 3: 'vessels'},
+    compute_normals=True
+)
+
+# Optional: Apply colormap visualization
+converter.set_colormap(
+    color_by_array='transmembrane_potential',
+    colormap='rainbow',
+    intensity_range=(-80.0, 20.0)
+)
+
+stage = converter.convert('cardiac_motion.usd')
+```
+
+#### Option 2: File-Based vtk_to_usd Library
+
+```python
+from physiomotion4d.vtk_to_usd import (
+    VTKToUSDConverter,
+    ConversionSettings,
+    MaterialData,
+    convert_vtk_file,
+)
+
+# Simple single-file conversion
+stage = convert_vtk_file('mesh.vtp', 'output.usd')
+
+# Advanced: Custom settings and materials
+settings = ConversionSettings(
+    triangulate_meshes=True,
+    compute_normals=True,
+    meters_per_unit=0.001,  # mm to meters
+    times_per_second=60.0,
+)
+
+material = MaterialData(
+    name="cardiac_tissue",
+    diffuse_color=(0.9, 0.3, 0.3),
+    roughness=0.4,
+)
+
+converter = VTKToUSDConverter(settings)
+stage = converter.convert_file('heart.vtp', 'heart.usd', material=material)
+
+# Time-series conversion
+files = ['frame_000.vtp', 'frame_001.vtp', 'frame_002.vtp']
+time_codes = [0.0, 0.1, 0.2]
+stage = converter.convert_sequence(files, 'animated.usd', time_codes=time_codes)
+```
+
+Features:
+- Automatic coordinate system conversion (RAS to Y-up)
+- Material system with UsdPreviewSurface
+- Preserves all VTK data arrays as USD primvars
+- Time-series animation support
+- Supports VTP, VTK, and VTU file formats
 
 ### Logging and Debug Control
 

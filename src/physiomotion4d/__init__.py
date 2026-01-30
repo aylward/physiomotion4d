@@ -19,14 +19,14 @@ Main Components:
 
 __version__ = "2025.05.0"
 
+# VTK to USD library
+# VTK to USD library (new modular implementation)
+from . import vtk_to_usd
 from .contour_tools import ContourTools
 
 # Data processing utilities
 from .convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
 from .convert_vtk_to_usd import ConvertVTKToUSD
-from .convert_vtk_to_usd_base import ConvertVTKToUSDBase
-from .convert_vtk_to_usd_polymesh import ConvertVTKToUSDPolyMesh
-from .convert_vtk_to_usd_tetmesh import ConvertVTKToUSDTetMesh
 
 # Utility classes
 from .image_tools import ImageTools
@@ -61,7 +61,6 @@ from .workflow_register_heart_model_to_patient import (
     WorkflowRegisterHeartModelToPatient,
 )
 
-
 __all__ = [
     # Workflow classes
     "WorkflowConvertHeartGatedCTToUSD",
@@ -93,7 +92,6 @@ __all__ = [
     # Data processing utilities
     "ConvertNRRD4DTo3D",
     "ConvertVTKToUSD",
-    "ConvertVTKToUSDBase",
-    "ConvertVTKToUSDPolyMesh",
-    "ConvertVTKToUSDTetMesh",
+    # VTK to USD library
+    "vtk_to_usd",
 ]

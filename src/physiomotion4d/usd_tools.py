@@ -11,6 +11,7 @@ anatomical structures need to be organized and visualized together.
 """
 
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -98,6 +99,10 @@ class USDTools(PhysioMotion4DBase):
                 bbox = UsdGeom.Boundable.ComputeExtentFromPlugins(
                     UsdGeom.Boundable(current_prim), Usd.TimeCode.Default()
                 )
+                # Skip if bbox computation returned None
+                if bbox is None or len(bbox) != 2:
+                    return
+
                 if first_bbox:
                     bbox_min = bbox[0]
                     bbox_max = bbox[1]
@@ -111,6 +116,11 @@ class USDTools(PhysioMotion4DBase):
                 traverse_prim(child)
 
         traverse_prim(prim)
+
+        # If no valid bounding boxes were found, return default values
+        if first_bbox:
+            self.log_warning(f"No valid bounding box found for prim: {prim.GetPath()}")
+            return np.array([0, 0, 0]), np.array([0, 0, 0])
 
         return bbox_min, bbox_max
 
@@ -203,32 +213,36 @@ class USDTools(PhysioMotion4DBase):
                     )
                     xform_op.Set(translate, Usd.TimeCode.Default())
 
-            for prim in source_stage.Traverse():
-                if prim.IsA(UsdGeom.Mesh):
-                    bindingAPI = UsdShade.MaterialBindingAPI(prim)
-                    mesh_material = bindingAPI.ComputeBoundMaterial()
-                    if bool(mesh_material):
-                        material_path = (
-                            str(mesh_material[0].GetPath())
-                            if isinstance(mesh_material, tuple)
-                            and len(mesh_material) > 0
-                            else str(mesh_material.GetPath())
-                        )
-                        self.log_debug(
-                            "   Mesh %s has material %s",
-                            prim.GetPrimPath(),
-                            material_path,
-                        )
-                        new_prim = new_stage.GetPrimAtPath(prim.GetPrimPath())
-                        material = UsdShade.Material.Get(new_stage, material_path)
-                        if new_prim is not None and new_prim.IsValid():
-                            binding_api = UsdShade.MaterialBindingAPI.Apply(new_prim)
-                            binding_api.Bind(material)
-                        else:
-                            self.log_warning(
-                                "      Cannot bind. No new prim found for %s",
-                                prim.GetPrimPath(),
-                            )
+            # Note: Material bindings are preserved through references/payloads,
+            # so we don't need to explicitly rebind them. The code below is
+            # commented out to avoid cross-layer material binding issues.
+            #
+            # for prim in source_stage.Traverse():
+            #     if prim.IsA(UsdGeom.Mesh):
+            #         bindingAPI = UsdShade.MaterialBindingAPI(prim)
+            #         mesh_material = bindingAPI.ComputeBoundMaterial()
+            #         if bool(mesh_material):
+            #             material_path = (
+            #                 str(mesh_material[0].GetPath())
+            #                 if isinstance(mesh_material, tuple)
+            #                 and len(mesh_material) > 0
+            #                 else str(mesh_material.GetPath())
+            #             )
+            #             self.log_debug(
+            #                 "   Mesh %s has material %s",
+            #                 prim.GetPrimPath(),
+            #                 material_path,
+            #             )
+            #             new_prim = new_stage.GetPrimAtPath(prim.GetPrimPath())
+            #             material = UsdShade.Material.Get(new_stage, material_path)
+            #             if new_prim is not None and new_prim.IsValid() and material:
+            #                 binding_api = UsdShade.MaterialBindingAPI.Apply(new_prim)
+            #                 binding_api.Bind(material)
+            #             else:
+            #                 self.log_warning(
+            #                     "      Cannot bind. No new prim found for %s",
+            #                     prim.GetPrimPath(),
+            #                 )
 
         self.log_info("Exporting stage...")
         new_stage.Export(new_stage_name)
@@ -320,7 +334,15 @@ class USDTools(PhysioMotion4DBase):
 
                         # Copy default value if it exists
                         if attr.HasValue():
-                            new_attr.Set(attr.Get())
+                            value = attr.Get()
+                            # Skip if value is None or invalid
+                            if value is not None:
+                                try:
+                                    new_attr.Set(value)
+                                except Exception as e:
+                                    self.log_warning(
+                                        f"Failed to copy attribute {attr.GetName()}: {e}"
+                                    )
 
                         # Copy all time samples for time-varying attributes
                         time_samples = attr.GetTimeSamples()
@@ -338,7 +360,9 @@ class USDTools(PhysioMotion4DBase):
                         new_rel = new_prim.CreateRelationship(
                             rel.GetName(), custom=rel.IsCustom()
                         )
-                        new_rel.SetTargets(rel.GetTargets())
+                        targets = rel.GetTargets()
+                        if targets:
+                            new_rel.SetTargets(targets)
 
                     # Copy transforms if applicable
                     if src_prim.IsA(UsdGeom.Xformable):
@@ -538,3 +562,637 @@ class USDTools(PhysioMotion4DBase):
         # Export the flattened layer with corrected metadata
         self.log_info("Exporting to %s", output_filename)
         output_stage.Export(output_filename)
+
+    def list_mesh_primvars(
+        self,
+        stage_or_path: Usd.Stage | str,
+        mesh_path: str,
+        time_code: float | None = None,
+    ) -> list[dict]:
+        """
+        List all primvars on a USD mesh with metadata.
+
+        Inspects a mesh and returns information about each primvar including
+        name, type, interpolation, time samples, and value range when feasible.
+        This is useful for understanding what simulation data is available on
+        the mesh for visualization.
+
+        Args:
+            stage_or_path: USD Stage or path to USD file
+            mesh_path: Path to mesh prim (e.g., "/World/Meshes/MyMesh")
+            time_code: Optional time code to sample values. If None, uses default.
+
+        Returns:
+            list[dict]: List of primvar metadata dictionaries containing:
+                - name: Primvar name
+                - type_name: USD type name (e.g., "float[]", "color3f[]")
+                - interpolation: Interpolation mode ("vertex", "uniform", "constant")
+                - num_time_samples: Number of time samples (0 if static)
+                - elements: Number of elements in the array
+                - range: Tuple (min, max) for numeric arrays, None otherwise
+
+        Example:
+            >>> usd_tools = USDTools()
+            >>> primvars = usd_tools.list_mesh_primvars("valve.usd", "/World/Meshes/Valve")
+            >>> for pv in primvars:
+            ...     print(f"{pv['name']}: {pv['interpolation']}, {pv['elements']} elements")
+        """
+        # Open stage if needed
+        if isinstance(stage_or_path, str):
+            stage = Usd.Stage.Open(stage_or_path)
+        else:
+            stage = stage_or_path
+
+        # Get mesh prim
+        mesh_prim = stage.GetPrimAtPath(mesh_path)
+        if not mesh_prim.IsValid():
+            raise ValueError(f"Invalid mesh prim at path: {mesh_path}")
+
+        if not mesh_prim.IsA(UsdGeom.Mesh):
+            raise ValueError(f"Prim at {mesh_path} is not a Mesh")
+
+        mesh = UsdGeom.Mesh(mesh_prim)
+        primvars_api = UsdGeom.PrimvarsAPI(mesh)
+        primvars = primvars_api.GetPrimvars()
+
+        # Use provided time code or default
+        tc = (
+            Usd.TimeCode(time_code) if time_code is not None else Usd.TimeCode.Default()
+        )
+
+        result = []
+        for primvar in primvars:
+            pv_info = {
+                "name": primvar.GetPrimvarName(),
+                "type_name": str(primvar.GetTypeName()),
+                "interpolation": primvar.GetInterpolation(),
+                "num_time_samples": primvar.GetAttr().GetNumTimeSamples(),
+                "elements": 0,
+                "range": None,
+            }
+
+            # Get value at time code
+            try:
+                value = primvar.Get(tc)
+                if value is not None:
+                    pv_info["elements"] = len(value) if hasattr(value, "__len__") else 1
+
+                    # Compute range for numeric types
+                    if hasattr(value, "__iter__") and len(value) > 0:
+                        try:
+                            # Convert to numpy for easy min/max
+                            arr = np.asarray(value)
+                            if np.issubdtype(arr.dtype, np.number):
+                                pv_info["range"] = (
+                                    float(np.min(arr)),
+                                    float(np.max(arr)),
+                                )
+                        except (TypeError, ValueError):
+                            pass  # Skip range for non-numeric data
+            except Exception as e:
+                self.log_debug(
+                    f"Could not get value for primvar {pv_info['name']}: {e}"
+                )
+
+            result.append(pv_info)
+
+        return result
+
+    def pick_color_primvar(
+        self,
+        primvar_infos: list[dict[str, Any]],
+        keywords: tuple[str, ...] = ("strain", "stress"),
+    ) -> str | None:
+        """
+        Select a primvar for coloring based on keywords and preferences.
+
+        Examines a list of primvar metadata and picks the best candidate for
+        default coloring visualization. Prefers primvars containing keywords
+        like "strain" or "stress" that are commonly used in biomechanical
+        simulations.
+
+        Selection priority:
+        1. Name contains first keyword ("strain") over later keywords ("stress")
+        2. Vertex interpolation preferred over uniform (face) interpolation
+        3. Alphabetically first if multiple candidates tie
+
+        Args:
+            primvar_infos: List of primvar metadata dicts (from list_mesh_primvars)
+            keywords: Tuple of keywords to search for in primvar names (case-insensitive)
+
+        Returns:
+            str | None: Name of selected primvar, or None if no candidates found
+
+        Example:
+            >>> primvars = usd_tools.list_mesh_primvars("valve.usd", "/World/Meshes/Valve")
+            >>> color_primvar = usd_tools.pick_color_primvar(primvars)
+            >>> print(f"Selected for coloring: {color_primvar}")
+        """
+        candidates: list[tuple[dict[str, Any], int]] = []
+
+        for pv in primvar_infos:
+            name_lower = pv["name"].lower()
+            for keyword_idx, keyword in enumerate(keywords):
+                if keyword in name_lower:
+                    candidates.append((pv, keyword_idx))
+                    break
+
+        if not candidates:
+            return None
+
+        # Sort by: keyword index, interpolation (vertex=0, else=1), name
+        def sort_key(item: tuple[dict[str, Any], int]) -> tuple[int, int, str]:
+            pv, kw_idx = item
+            interp_priority = 0 if str(pv.get("interpolation")) == "vertex" else 1
+            return (int(kw_idx), int(interp_priority), str(pv.get("name")))
+
+        candidates.sort(key=sort_key)
+        name_obj = candidates[0][0].get("name")
+        if name_obj is None:
+            return None
+        return str(name_obj)
+
+    def apply_colormap_from_primvar(
+        self,
+        stage_or_path: Usd.Stage | str,
+        mesh_path: str,
+        source_primvar: str,
+        *,
+        cmap: str = "viridis",
+        time_codes: list[float] | None = None,
+        write_default_at_t0: bool = True,
+        bind_vertex_color_material: bool = True,
+    ) -> None:
+        """
+        Apply colormap visualization by converting a primvar to displayColor.
+
+        Reads numeric data from a source primvar (like vtk_cell_stress or
+        vtk_point_displacement) and generates RGB vertex colors using a matplotlib
+        colormap. Writes these colors to the mesh's displayColor primvar and
+        optionally binds a material that uses vertex colors for rendering.
+
+        This is especially useful for post-processing USD files to add default
+        visualization colors based on simulation data like stress or strain fields.
+
+        Key features:
+        - Handles multi-component data (vectors/tensors) by computing magnitude
+        - Converts uniform (per-face) data to vertex data by averaging
+        - Computes global value range across all time samples for consistent coloring
+        - Writes both default and time-sampled displayColor for Omniverse compatibility
+
+        Args:
+            stage_or_path: USD Stage or path to USD file
+            mesh_path: Path to mesh prim (e.g., "/World/Meshes/MyMesh")
+            source_primvar: Name of primvar to visualize (e.g., "vtk_cell_stress")
+            cmap: Matplotlib colormap name (default: "viridis")
+            time_codes: List of time codes to process. If None, uses stage time range.
+            write_default_at_t0: If True, also write default value at t=0
+            bind_vertex_color_material: If True, create/bind material using displayColor
+
+        Raises:
+            ValueError: If mesh or primvar not found
+            ImportError: If matplotlib is not available
+
+        Example:
+            >>> usd_tools = USDTools()
+            >>> usd_tools.apply_colormap_from_primvar(
+            ...     "valve.usd",
+            ...     "/World/Meshes/Valve",
+            ...     "vtk_cell_stress",
+            ...     cmap="plasma"
+            ... )
+        """
+        # Check matplotlib availability
+        try:
+            from matplotlib import colormaps as mpl_colormaps
+        except ImportError:
+            raise ImportError(
+                "matplotlib is required for colormap coloring. "
+                "Install with: pip install matplotlib"
+            )
+
+        # Open stage if needed
+        if isinstance(stage_or_path, str):
+            stage = Usd.Stage.Open(stage_or_path)
+            stage_path = stage_or_path
+        else:
+            stage = stage_or_path
+            stage_path = None
+
+        # Get mesh prim
+        mesh_prim = stage.GetPrimAtPath(mesh_path)
+        if not mesh_prim.IsValid():
+            raise ValueError(f"Invalid mesh prim at path: {mesh_path}")
+
+        if not mesh_prim.IsA(UsdGeom.Mesh):
+            raise ValueError(f"Prim at {mesh_path} is not a Mesh")
+
+        mesh = UsdGeom.Mesh(mesh_prim)
+
+        # Get source primvar
+        primvars_api = UsdGeom.PrimvarsAPI(mesh)
+        source_pv = primvars_api.GetPrimvar(source_primvar)
+        if not source_pv:
+            raise ValueError(
+                f"Primvar '{source_primvar}' not found on mesh {mesh_path}"
+            )
+
+        # Determine time codes to process
+        if time_codes is None:
+            # Prefer the source primvar's authored samples (avoid inventing in-between frames).
+            pv_samples = list(source_pv.GetAttr().GetTimeSamples())
+            if pv_samples:
+                time_codes = pv_samples
+            else:
+                # Fallback to points samples; last resort is default time.
+                pts_samples = list(mesh.GetPointsAttr().GetTimeSamples())
+                if pts_samples:
+                    time_codes = pts_samples
+                elif stage.HasAuthoredTimeCodeRange():
+                    time_codes = [float(stage.GetStartTimeCode())]
+                else:
+                    time_codes = [Usd.TimeCode.Default().GetValue()]
+
+        # Get mesh topology (needed for uniform->vertex conversion)
+        # For time-varying meshes, get topology at the first time code
+        first_time = (
+            Usd.TimeCode(time_codes[0]) if time_codes else Usd.TimeCode.Default()
+        )
+        face_vertex_counts = mesh.GetFaceVertexCountsAttr().Get(first_time)
+        face_vertex_indices = mesh.GetFaceVertexIndicesAttr().Get(first_time)
+        points_attr = mesh.GetPointsAttr()
+        points_data = points_attr.Get(first_time)
+        if points_data is None:
+            self.log_error(f"Cannot get points data for mesh at {mesh_path}")
+            return
+        n_points = len(points_data)
+
+        source_interp = source_pv.GetInterpolation()
+        element_size = int(source_pv.GetElementSize() or 1)
+
+        # Process all time samples to compute global range
+        self.log_info(
+            f"Processing {len(time_codes)} time samples for primvar '{source_primvar}'"
+        )
+        scalar_samples: list[tuple[float, np.ndarray]] = []
+        n_faces = len(face_vertex_counts) if face_vertex_counts is not None else 0
+
+        for tc in time_codes:
+            time_code = Usd.TimeCode(tc)
+            values = source_pv.Get(time_code)
+
+            if values is None:
+                self.log_warning(
+                    f"No values for primvar '{source_primvar}' at time {tc}"
+                )
+                continue
+
+            # Convert to numpy array
+            arr = np.asarray(values)
+
+            # If the primvar is stored as a flattened array with an elementSize, reshape it
+            # back to (N, elementSize) so multi-component reduction works.
+            if arr.ndim == 1:
+                inferred = None
+                if element_size > 1 and len(arr) % element_size == 0:
+                    inferred = element_size
+                else:
+                    # Try to infer element size from expected element count.
+                    expected = n_points if source_interp == "vertex" else n_faces
+                    if expected and len(arr) % expected == 0 and len(arr) != expected:
+                        inferred = len(arr) // expected
+                if inferred and inferred > 1 and len(arr) % inferred == 0:
+                    arr = arr.reshape(-1, int(inferred))
+
+            # Reduce multi-component to scalar magnitude
+            if arr.ndim == 2 and arr.shape[1] > 1:
+                scalar = np.linalg.norm(arr, axis=1)
+            elif arr.ndim == 1:
+                scalar = arr
+            else:
+                scalar = arr.flatten()
+
+            # Convert uniform (per-face) to vertex (per-point)
+            if source_interp == "uniform":
+                if len(scalar) != n_faces:
+                    self.log_warning(
+                        f"Skipping time {tc} for primvar '{source_primvar}': "
+                        f"size mismatch (got {len(scalar)}, expected {n_faces} faces)"
+                    )
+                    continue
+                vertex_scalar = self._uniform_to_vertex_scalar(
+                    scalar, face_vertex_counts, face_vertex_indices, n_points
+                )
+            elif source_interp == "vertex":
+                if len(scalar) != n_points:
+                    self.log_warning(
+                        f"Skipping time {tc} for primvar '{source_primvar}': "
+                        f"size mismatch (got {len(scalar)}, expected {n_points} points)"
+                    )
+                    continue
+                vertex_scalar = scalar
+            else:
+                raise ValueError(
+                    f"Unsupported interpolation '{source_interp}' for primvar '{source_primvar}'"
+                )
+
+            scalar_samples.append(
+                (float(tc), np.asarray(vertex_scalar, dtype=np.float32))
+            )
+
+        if not scalar_samples:
+            raise ValueError(f"No valid data found for primvar '{source_primvar}'")
+
+        # Compute global value range
+        all_values = np.concatenate([s for _, s in scalar_samples])
+        vmin = float(np.min(all_values))
+        vmax = float(np.max(all_values))
+        self.log_info(f"Value range: {vmin:.6g} to {vmax:.6g}")
+
+        # Apply colormap to each time sample
+        try:
+            cmap_obj = mpl_colormaps[cmap]
+        except KeyError:
+            raise ValueError(
+                f"Colormap '{cmap}' not found. "
+                f"Available: {', '.join(list(mpl_colormaps.keys())[:10])}..."
+            )
+
+        # Create or get displayColor primvar
+        from pxr import Gf, Sdf, Vt
+
+        display_color_pv = primvars_api.CreatePrimvar(
+            "displayColor", Sdf.ValueTypeNames.Color3fArray, UsdGeom.Tokens.vertex
+        )
+        # If we're rewriting displayColor, clear any previously-authored time samples first.
+        # This prevents leaving behind stale/corrupt samples at times we no longer author.
+        try:
+            dc_attr = display_color_pv.GetAttr()
+            for t in list(dc_attr.GetTimeSamples()):
+                dc_attr.ClearAtTime(t)
+        except Exception:
+            pass
+
+        for idx, (tc, scalar) in enumerate(scalar_samples):
+            # Normalize to [0, 1]
+            if vmax > vmin:
+                normalized = (scalar - vmin) / (vmax - vmin)
+            else:
+                normalized = np.full_like(scalar, 0.5)
+            normalized = np.clip(normalized, 0.0, 1.0)
+
+            # Apply colormap
+            rgba = cmap_obj(normalized)
+            rgb = rgba[:, :3].astype(np.float32)
+            if len(rgb) != n_points:
+                self.log_warning(
+                    f"Skipping displayColor write at time {tc}: "
+                    f"color length {len(rgb)} != n_points {n_points}"
+                )
+                continue
+
+            # Convert to USD Vec3f array
+            color_array = Vt.Vec3fArray(
+                [Gf.Vec3f(float(c[0]), float(c[1]), float(c[2])) for c in rgb]
+            )
+
+            time_code = Usd.TimeCode(tc)
+
+            # Write default at t=0 for Omniverse compatibility
+            if write_default_at_t0 and idx == 0:
+                display_color_pv.Set(color_array)
+
+            # Write time sample
+            display_color_pv.Set(color_array, time_code)
+
+        self.log_info(f"Wrote displayColor primvar with {len(time_codes)} time samples")
+
+        # Bind vertex color material if requested
+        if bind_vertex_color_material:
+            self._ensure_vertex_color_material(stage, mesh_prim)
+
+        # Save stage if we opened it from a path
+        if stage_path:
+            stage.Save()
+            self.log_info(f"Saved USD file: {stage_path}")
+
+    def repair_mesh_primvar_element_sizes(
+        self,
+        stage_or_path: Usd.Stage | str,
+        mesh_path: str,
+        *,
+        time_code: float | None = None,
+        save: bool = True,
+    ) -> dict:
+        """
+        Repair missing/incorrect primvar elementSize metadata for a mesh.
+
+        Some multi-component primvars (e.g. 9-component stress tensors) may be authored
+        as a flat array (float[]) but require primvar elementSize > 1 so that viewers
+        interpret them as tuples-per-point rather than extra points. This can prevent
+        Omniverse/Hydra crashes during animation evaluation.
+
+        Heuristic:
+        - For vertex primvars: infer elementSize if raw_len % n_points == 0
+        - For uniform primvars: infer elementSize if raw_len % n_faces == 0
+        - Only updates when inferred elementSize > 1
+
+        Returns:
+            dict with keys: updated (list), skipped (list)
+        """
+        if isinstance(stage_or_path, str):
+            stage = Usd.Stage.Open(stage_or_path)
+            stage_path = stage_or_path
+        else:
+            stage = stage_or_path
+            stage_path = None
+
+        mesh_prim = stage.GetPrimAtPath(mesh_path)
+        if not mesh_prim.IsValid() or not mesh_prim.IsA(UsdGeom.Mesh):
+            raise ValueError(f"Invalid mesh prim at path: {mesh_path}")
+
+        mesh = UsdGeom.Mesh(mesh_prim)
+        tc = (
+            Usd.TimeCode(time_code) if time_code is not None else Usd.TimeCode.Default()
+        )
+
+        pts = mesh.GetPointsAttr().Get(tc)
+        if pts is None:
+            samples = mesh.GetPointsAttr().GetTimeSamples()
+            if samples:
+                pts = mesh.GetPointsAttr().Get(Usd.TimeCode(samples[0]))
+        n_points = len(pts) if pts is not None else 0
+
+        face_counts = mesh.GetFaceVertexCountsAttr().Get()
+        n_faces = len(face_counts) if face_counts is not None else 0
+
+        updated: list[dict] = []
+        skipped: list[dict] = []
+
+        api = UsdGeom.PrimvarsAPI(mesh)
+        for pv in api.GetPrimvars():
+            interp = pv.GetInterpolation()
+            if interp not in ("vertex", "uniform"):
+                skipped.append({"name": pv.GetName(), "reason": f"interp={interp}"})
+                continue
+
+            exp = n_points if interp == "vertex" else n_faces
+            if exp <= 0:
+                skipped.append({"name": pv.GetName(), "reason": "no topology"})
+                continue
+
+            ts = pv.GetAttr().GetTimeSamples()
+            t0 = Usd.TimeCode(ts[0]) if ts else tc
+            v = pv.Get(t0)
+            if v is None:
+                skipped.append({"name": pv.GetName(), "reason": "no value"})
+                continue
+
+            raw_len = len(v)
+            current_elem = int(pv.GetElementSize() or 1)
+            eff_len = raw_len // current_elem if current_elem else raw_len
+
+            if eff_len == exp:
+                skipped.append({"name": pv.GetName(), "reason": "already consistent"})
+                continue
+
+            if raw_len % exp != 0:
+                skipped.append(
+                    {
+                        "name": pv.GetName(),
+                        "reason": f"not divisible (raw={raw_len}, exp={exp})",
+                    }
+                )
+                continue
+
+            inferred = raw_len // exp
+            if inferred <= 1:
+                skipped.append({"name": pv.GetName(), "reason": "inferred<=1"})
+                continue
+
+            try:
+                pv.SetElementSize(int(inferred))
+                updated.append(
+                    {
+                        "name": pv.GetName(),
+                        "interp": interp,
+                        "raw_len": raw_len,
+                        "exp": exp,
+                        "old_elementSize": current_elem,
+                        "new_elementSize": int(inferred),
+                    }
+                )
+            except Exception as e:
+                skipped.append(
+                    {"name": pv.GetName(), "reason": f"SetElementSize failed: {e}"}
+                )
+
+        if stage_path and save:
+            stage.Save()
+            self.log_info(f"Saved USD file: {stage_path}")
+
+        return {"updated": updated, "skipped": skipped}
+
+    def _uniform_to_vertex_scalar(
+        self,
+        face_scalar: np.ndarray,
+        face_vertex_counts: Sequence[int] | np.ndarray,
+        face_vertex_indices: Sequence[int] | np.ndarray,
+        n_points: int,
+    ) -> np.ndarray:
+        """
+        Convert per-face scalar data to per-vertex by averaging incident faces.
+
+        Args:
+            face_scalar: Scalar value per face
+            face_vertex_counts: Number of vertices per face
+            face_vertex_indices: Flattened vertex indices for all faces
+            n_points: Total number of vertices in mesh
+
+        Returns:
+            np.ndarray: Scalar value per vertex
+        """
+        from typing import cast
+
+        # (mypy) numpy stubs often treat np.asarray(...) as Any, so cast explicitly.
+        counts_arr = cast(np.ndarray, np.asarray(face_vertex_counts, dtype=np.int32))
+        indices_arr = cast(np.ndarray, np.asarray(face_vertex_indices, dtype=np.int32))
+
+        # Create face ID for each vertex reference
+        face_ids = np.repeat(np.arange(len(counts_arr)), counts_arr)
+
+        # Accumulate values at each vertex
+        acc = np.zeros(n_points, dtype=np.float64)
+        cnt = np.zeros(n_points, dtype=np.int32)
+
+        np.add.at(acc, indices_arr, face_scalar[face_ids])
+        np.add.at(cnt, indices_arr, 1)
+
+        # Average
+        vertex_scalar = acc / np.maximum(cnt, 1)
+        return cast(np.ndarray, vertex_scalar.astype(np.float32))
+
+    def _ensure_vertex_color_material(
+        self, stage: Usd.Stage, mesh_prim: Usd.Prim
+    ) -> None:
+        """
+        Create or reuse a vertex color material and bind it to the mesh.
+
+        Creates a UsdPreviewSurface material that reads displayColor via
+        UsdPrimvarReader_float3, following Omniverse best practices.
+
+        Args:
+            stage: USD Stage
+            mesh_prim: Mesh prim to bind material to
+        """
+        from pxr import Sdf
+
+        material_name = "VertexColorMaterial"
+        material_path = f"/World/Looks/{material_name}"
+
+        # Check if material already exists
+        material_prim = stage.GetPrimAtPath(material_path)
+        if material_prim.IsValid() and material_prim.IsA(UsdShade.Material):
+            material = UsdShade.Material(material_prim)
+            self.log_debug(f"Reusing existing material: {material_path}")
+        else:
+            # Create material scope if needed
+            looks_prim = stage.GetPrimAtPath("/World/Looks")
+            if not looks_prim.IsValid():
+                stage.DefinePrim("/World/Looks", "Scope")
+
+            # Create material
+            material = UsdShade.Material.Define(stage, material_path)
+
+            # Create PreviewSurface shader
+            shader_path = f"{material_path}/PreviewSurface"
+            shader = UsdShade.Shader.Define(stage, shader_path)
+            shader.CreateIdAttr("UsdPreviewSurface")
+
+            # Create PrimvarReader for displayColor
+            reader_path = f"{material_path}/PrimvarReader_displayColor"
+            reader = UsdShade.Shader.Define(stage, reader_path)
+            reader.CreateIdAttr("UsdPrimvarReader_float3")
+            reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("displayColor")
+
+            # Connect reader output to shader diffuseColor input
+            reader_output = reader.CreateOutput("result", Sdf.ValueTypeNames.Color3f)
+            diffuse_input = shader.CreateInput(
+                "diffuseColor", Sdf.ValueTypeNames.Color3f
+            )
+            diffuse_input.ConnectToSource(reader_output)
+
+            # Set other shader properties
+            shader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.5)
+            shader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(0.0)
+
+            # Connect shader to material surface
+            surface_output = shader.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+            material.CreateSurfaceOutput().ConnectToSource(surface_output)
+
+            self.log_info(f"Created vertex color material: {material_path}")
+
+        # Bind material to mesh
+        binding_api = UsdShade.MaterialBindingAPI.Apply(mesh_prim)
+        binding_api.Bind(material)
+        self.log_debug(f"Bound material to mesh: {mesh_prim.GetPath()}")
