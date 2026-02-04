@@ -251,8 +251,9 @@ class ContourTools(PhysioMotion4DBase):
         mesh: pv.DataSet,
         reference_image: itk.Image,
         squared_distance: bool = False,
-        max_distance: float = 0.0,
-        invert_distance_map: bool = False,
+        negative_inside: bool = True,
+        zero_inside: bool = False,
+        norm_to_max_distance: float = 0.0,
     ) -> itk.Image:
         self.log_info("Computing signed distance map...")
 
@@ -264,33 +265,33 @@ class ContourTools(PhysioMotion4DBase):
 
         tmp_arr = np.zeros(size, dtype=np.int32)
         itk_point = itk.Point[itk.D, 3]()
-        for i, point in enumerate(points):
+        for point in points:
             itk_point[0] = float(point[0])
             itk_point[1] = float(point[1])
             itk_point[2] = float(point[2])
             indx = reference_image.TransformPhysicalPointToIndex(itk_point)
-            tmp_arr[indx[2], indx[1], indx[0]] = i
-        tmp_binary_arr = (tmp_arr > 0).astype(np.float32)
-        tmp_binary_image = itk.GetImageFromArray(tmp_binary_arr)
+            tmp_arr[indx[2], indx[1], indx[0]] = 1
+        tmp_binary_image = itk.GetImageFromArray(tmp_arr.astype(np.uint8))
         tmp_binary_image.CopyInformation(reference_image)
 
-        distance_filter = itk.DanielssonDistanceMapImageFilter.New(
+        distance_filter = itk.SignedMaurerDistanceMapImageFilter.New(
             Input=tmp_binary_image
         )
-        distance_filter.SetSquaredDistance(squared_distance)
+        distance_filter.SetSquaredDistance(False)
         distance_filter.SetUseImageSpacing(True)
-        distance_filter.SetInputIsBinary(True)
         distance_filter.Update()
         distance_image = distance_filter.GetOutput()
 
         distance_arr = itk.GetArrayFromImage(distance_image).astype(np.float32)
-        if max_distance == 0.0:
-            max_val = distance_arr.max()
-        else:
-            max_val = max_distance
-            distance_arr = np.clip(distance_arr, 0.0, max_val)
-        if invert_distance_map:
-            distance_arr = max_distance - distance_arr
+        if zero_inside:
+            distance_arr = np.clip(distance_arr, 0.0, None)
+        if not negative_inside:
+            distance_arr = np.abs(distance_arr)
+        if squared_distance:
+            distance_arr = np.sign(distance_arr) * distance_arr**2
+        if norm_to_max_distance != 0.0:
+            distance_arr = distance_arr / norm_to_max_distance
+            distance_arr = np.clip(distance_arr, -1.0, 1.0)
         distance_image = itk.GetImageFromArray(distance_arr)
         distance_image.CopyInformation(reference_image)
 

@@ -18,7 +18,6 @@ and supports both local inference and NVIDIA NIM deployment modes.
 
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from typing import Optional
@@ -357,7 +356,9 @@ class SegmentChestVista3D(SegmentChestBase):
         Example:
             >>> labelmap = segmenter.segmentation_method(preprocessed_ct)
         """
-        sys.path.append(self.bundle_path)
+        # Add bundle_path to sys.path only if not already present to avoid duplicates
+        if self.bundle_path not in sys.path:
+            sys.path.append(self.bundle_path)
 
         from hugging_face_pipeline import HuggingFacePipelineHelper
 
@@ -372,39 +373,38 @@ class SegmentChestVista3D(SegmentChestBase):
             ),
         )
 
-        tmp_dir = tempfile.mkdtemp()
-        tmp_input_file_name = os.path.join(tmp_dir, "tmp.nii.gz")
-        itk.imwrite(preprocessed_image, tmp_input_file_name, compression=True)
+        # Use TemporaryDirectory context manager for exception-safe cleanup
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_input_file_name = os.path.join(tmp_dir, "tmp.nii.gz")
+            itk.imwrite(preprocessed_image, tmp_input_file_name, compression=True)
 
-        hf_inputs: list[dict[str, str | int | list[int]]] = [
-            {"image": tmp_input_file_name}
-        ]
-        if self.label_prompt is None:
-            hf_inputs[0].update(
-                {
-                    "label_prompt": hf_pipeline.EVERYTHING_LABEL,
-                }
-            )
-        else:
-            hf_inputs[0].update(
-                {
-                    "label_prompt": self.label_prompt,
-                }
-            )
+            hf_inputs: list[dict[str, str | int | list[int]]] = [
+                {"image": tmp_input_file_name}
+            ]
+            if self.label_prompt is None:
+                hf_inputs[0].update(
+                    {
+                        "label_prompt": hf_pipeline.EVERYTHING_LABEL,
+                    }
+                )
+            else:
+                hf_inputs[0].update(
+                    {
+                        "label_prompt": self.label_prompt,
+                    }
+                )
 
-        hf_pipeline(hf_inputs, output_dir=tmp_dir)
+            hf_pipeline(hf_inputs, output_dir=tmp_dir)
 
-        output_itk: Optional[itk.image] = None
-        for file_name in os.listdir(os.path.join(tmp_dir, "tmp")):
-            if file_name.endswith(".nii.gz"):
-                output_itk = itk.imread(os.path.join(tmp_dir, "tmp", file_name))
-                output_itk.CopyInformation(preprocessed_image)
-                break
+            output_itk: Optional[itk.image] = None
+            for file_name in os.listdir(os.path.join(tmp_dir, "tmp")):
+                if file_name.endswith(".nii.gz"):
+                    output_itk = itk.imread(os.path.join(tmp_dir, "tmp", file_name))
+                    output_itk.CopyInformation(preprocessed_image)
+                    break
 
-        if output_itk is None:
-            raise ValueError("No output image found")
-
-        shutil.rmtree(tmp_dir)
+            if output_itk is None:
+                raise ValueError("No output image found")
 
         output_itk = self.segment_soft_tissue(preprocessed_image, output_itk)
 

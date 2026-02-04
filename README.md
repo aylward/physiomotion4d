@@ -413,17 +413,30 @@ Direct VTK time series to USD conversion for cardiac data:
 - **`0-download_and_convert_4d_to_3d.ipynb`**: Data preparation
 - **`1-heart_vtkseries_to_usd.ipynb`**: VTK series to USD conversion
 
-### 🧠 Heart Model to Patient (`experiments/Heart-Model_To_Patient/`)
+### 🧠 Heart Create Statistical Model (`experiments/Heart-Create_Statistical_Model/`)
 
-Advanced registration between generic anatomical models and patient-specific data:
+Create PCA statistical shape models from population meshes using the KCL Heart Model dataset:
 
-- **`heart_model_to_patient.ipynb`**: Complete model-to-patient registration workflow
+- **`1-input_meshes_to_input_surfaces.ipynb`**: Convert meshes to surfaces
+- **`2-input_surfaces_to_surfaces_aligned.ipynb`**: Align population meshes
+- **`3-registration_based_correspondence.ipynb`**: Compute point correspondences
+- **`4-surfaces_aligned_correspond_to_pca_inputs.ipynb`**: Prepare PCA inputs
+- **`5-compute_pca_model.ipynb`**: Compute PCA model using sklearn
+
+**⚠️ Complete this experiment FIRST** before attempting `Heart-Statistical_Model_To_Patient`.
+
+### 🧠 Heart Statistical Model to Patient (`experiments/Heart-Statistical_Model_To_Patient/`)
+
+Advanced registration between generic anatomical models and patient-specific data using PCA:
+
+- **`heart_model_to_model_icp_itk.ipynb`**: ICP registration for initial alignment
 - **`heart_model_to_model_registration_pca.ipynb`**: PCA-based statistical shape model registration
+- **`heart_model_to_patient.ipynb`**: Complete model-to-patient registration workflow
 
 Uses the `WorkflowRegisterHeartModelToPatient` class for three-stage registration:
 1. ICP-based rough alignment
 2. Mask-to-mask deformable registration
-3. Optional mask-to-image refinement
+3. Optional PCA-constrained shape fitting
 
 ### 🔬 4D CT Reconstruction (`experiments/Reconstruct4DCT/`)
 

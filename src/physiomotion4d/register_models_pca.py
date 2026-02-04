@@ -1,15 +1,13 @@
 import json
 import logging
 from pathlib import Path
-
 from typing import Optional
-
-from typing_extensions import Self
 
 import itk
 import numpy as np
 import pyvista as pv
 from scipy.optimize import minimize
+from typing_extensions import Self
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
@@ -41,7 +39,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         pca_number_of_modes (int): Number of PCA modes available
         pca_coefficients (np.ndarray): Optimized PCA coefficients
         registered_model (pv.UnstructuredGrid): Final registered and deformed model
-        post_pca_transform (itk.Transform): Transform to apply after PCA registration
+        pre_pca_transform (itk.Transform): Transform to apply after PCA registration
         forward_point_transform (itk.DisplacementFieldTransform): Forward displacement field transform
             (Does not include the post-PCA transform)
         inverse_point_transform (itk.DisplacementFieldTransform): Inverse displacement field transform
@@ -81,7 +79,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         pca_std_deviations: np.ndarray,
         pca_number_of_modes: int = 0,
         pca_template_model_point_subsample: int = 4,
-        post_pca_transform: Optional[itk.Transform] = None,
+        pre_pca_transform: Optional[itk.Transform] = None,
         fixed_distance_map: Optional[itk.Image] = None,
         fixed_model: Optional[pv.UnstructuredGrid] = None,
         reference_image: Optional[itk.Image] = None,
@@ -98,7 +96,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 These are the square roots of pca_eigenvalues
             pca_number_of_modes: Number of PCA modes to use. Default: -1 (use all)
             pca_template_model_point_subsample: Step size for subsampling model points. Default: 4
-            post_pca_transform: Optional ITK transform to apply after PCA registration.
+            pre_pca_transform: Optional ITK transform to apply after PCA registration.
                 Default: None
             fixed_distance_map: ITK image providing the distance map.
                 Default: None
@@ -118,7 +116,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self.pca_eigenvectors: np.ndarray = pca_eigenvectors
         self.pca_std_deviations: np.ndarray = pca_std_deviations
 
-        self.post_pca_transform = post_pca_transform
+        self.pre_pca_transform = pre_pca_transform
 
         self._contour_tools = ContourTools()
 
@@ -133,6 +131,9 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 fixed_model,
                 reference_image,
                 squared_distance=True,
+                negative_inside=False,
+                zero_inside=True,
+                norm_to_max_distance=200.0,
             )
         elif self.fixed_distance_map is not None and (
             fixed_model is not None or reference_image is not None
@@ -176,8 +177,10 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         ] = None
 
         # Image interpolator (created when needed)
-        self._interpolator: Optional[itk.LinearInterpolateImageFunction] = None
-        self._max_distance: float = 0.0
+        self._fixed_distance_map_interpolator: Optional[
+            itk.LinearInterpolateImageFunction
+        ] = None
+        self._fixed_distance_map_max_distance: float = 0.0
 
         self._metric_call_count: int = 0
 
@@ -186,37 +189,38 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self._create_itk_points()
 
     @classmethod
-    def from_slicersalt(
+    def from_json(
         cls,
         pca_template_model: pv.UnstructuredGrid,
         pca_json_filename: str,
-        pca_group_key: str = "All",
         pca_number_of_modes: int = 0,
         pca_template_model_point_subsample: int = 4,
-        post_pca_transform: Optional[itk.Transform] = None,
+        pre_pca_transform: Optional[itk.Transform] = None,
         fixed_distance_map: Optional[itk.Image] = None,
         fixed_model: Optional[pv.UnstructuredGrid] = None,
         reference_image: Optional[itk.Image] = None,
         log_level: int | str = logging.INFO,
     ) -> Self:
-        """Read PCA model data from SlicerSALT format JSON file.
+        """Create RegisterModelsPCA from PCA model JSON file.
 
         This method reads PCA statistical shape model data from a JSON file
-        created by SlicerSALT, including the mean model, pca_eigenvalues, and
-        pca_eigenvector components.
+        containing eigenvalues and principal component vectors.
 
-        The method expects:
-        - A JSON file (e.g., 'pca.json') containing eigenvalues and components
+        The JSON file must contain:
+        - 'eigenvalues': Array of eigenvalues (variance) for each component
+        - 'components': Array of principal component vectors (flattened shape deformations)
 
         Args:
-            pca_json_filename: Path to the SlicerSALT PCA JSON file
-            pca_group_key: Key for the PCA group to extract from JSON. Default: 'All'
+            pca_template_model: Mean surface mesh to use as template
+            pca_json_filename: Path to the PCA model JSON file
             pca_number_of_modes: Number of PCA modes to use. Default: 0 (use all)
             pca_template_model_point_subsample: Step size for subsampling model points. Default: 4
-            post_pca_transform: Optional ITK transform to apply after PCA registration.
+            pre_pca_transform: Optional ITK transform to apply after PCA registration.
                 Default: None
             fixed_distance_map: ITK image providing the distance values
                 for registration. If None, must be set later before registration.
+            fixed_model: Target surface mesh to register to. Default: None
+            reference_image: Reference image defining coordinate space. Default: None
             log_level: Logging level (logging.DEBUG, logging.INFO, logging.WARNING).
                 Default: logging.INFO
 
@@ -224,21 +228,19 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             RegisterModelsPCA instance
 
         Raises:
-            FileNotFoundError: If JSON or VTK model file not found
-            KeyError: If pca_group_key not found in JSON
-            ValueError: If data format is invalid
+            FileNotFoundError: If JSON file not found
+            ValueError: If data format is invalid or required fields are missing
 
         Example:
-            >>> registrar = RegisterModelsPCA.from_slicersalt(
+            >>> registrar = RegisterModelsPCA.from_json(
             ...     pca_template_model=pca_template_model,
-            ...     pca_json_filename='path/to/pca.json',
-            ...     pca_group_key='All',
+            ...     pca_json_filename='path/to/pca_model.json',
             ...     fixed_model=fixed_model,
             ...     reference_image=reference_image,
             ... )
         """
-        # Create a logger for the classmethod since superclassclasss hasn'tt
-        #      been initialized yet.
+        # Create a logger for the classmethod since superclass hasn't
+        # been initialized yet.
         logger = logging.getLogger("PhysioMotion4D")
 
         json_path = Path(pca_json_filename)
@@ -248,52 +250,38 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             logger.error(f"PCA JSON file not found: {pca_json_filename}")
             raise FileNotFoundError(f"PCA JSON file not found: {pca_json_filename}")
 
-        logger.info("Loading PCA data from SlicerSALT format...")
+        logger.info("Loading PCA model data...")
         logger.info(f"  JSON file: {json_path}")
-        logger.info(f"  Group key: {pca_group_key}")
 
         # Load PCA data from JSON
         logger.info("Reading JSON file...")
         with open(json_path, encoding="utf-8") as f:
             pca_data = json.load(f)
 
-        # Extract PCA group data
-        if pca_group_key not in pca_data:
-            available_keys = list(pca_data.keys())
-            raise KeyError(
-                f"Group key '{pca_group_key}' not found in JSON. "
-                f"Available keys: {available_keys}"
-            )
+        # Extract eigenvalues and convert to standard deviations
+        if "eigenvalues" not in pca_data:
+            raise ValueError("'eigenvalues' field not found in JSON data")
+        pca_std_deviations = np.sqrt(np.array(pca_data["eigenvalues"]))
+        logger.info("  Loaded %d eigenvalues", len(pca_std_deviations))
 
-        pca_group_data = pca_data[pca_group_key]
+        # Extract principal component vectors
+        if "components" not in pca_data:
+            raise ValueError("'components' field not found in JSON data")
+        pca_eigenvectors = np.array(pca_data["components"], dtype=np.float64)
+        logger.info(f"  Loaded components with shape {pca_eigenvectors.shape}")
 
-        # Extract data_projection_std
-        if "data_projection_std" not in pca_group_data:
-            raise ValueError(
-                f"'data_projection_std' field not found in group '{pca_group_key}' data"
-            )
-        pca_std_deviations = np.array(pca_group_data["data_projection_std"])
-        logger.info("  Loaded %d standard deviations", len(pca_std_deviations))
-
-        # Extract pca_eigenvector components
-        if "components" not in pca_group_data:
-            raise ValueError(
-                f"'components' field not found in group '{pca_group_key}' data"
-            )
-        pca_eigenvectors = np.array(pca_group_data["components"], dtype=np.float64)
-        logger.info(f"  Loaded pca_eigenvectors with shape {pca_eigenvectors.shape}")
-
+        # Validate dimensions
         expected_pca_eigenvector_size = pca_template_model.n_points * 3
         actual_pca_eigenvector_size = pca_eigenvectors.shape[1]
         if actual_pca_eigenvector_size != expected_pca_eigenvector_size:
             raise ValueError(
-                f"pca_Eigenvector dimension mismatch: "
+                f"Component dimension mismatch: "
                 f"Expected {expected_pca_eigenvector_size} (3 × {pca_template_model.n_points} model points), "
                 f"got {actual_pca_eigenvector_size}"
             )
 
         logger.info("  ✓ Data validation successful!")
-        logger.info("SlicerSALT PCA data loaded successfully!")
+        logger.info("PCA model data loaded successfully!")
 
         return cls(
             pca_template_model=pca_template_model,
@@ -301,7 +289,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             pca_std_deviations=pca_std_deviations,
             pca_number_of_modes=pca_number_of_modes,
             pca_template_model_point_subsample=pca_template_model_point_subsample,
-            post_pca_transform=post_pca_transform,
+            pre_pca_transform=pre_pca_transform,
             fixed_distance_map=fixed_distance_map,
             fixed_model=fixed_model,
             reference_image=reference_image,
@@ -343,8 +331,11 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             fixed_model,
             reference_image,
             squared_distance=True,
+            negative_inside=False,
+            zero_inside=True,
+            norm_to_max_distance=200.0,
         )
-        self._interpolator = None
+        self._fixed_distance_map_interpolator = None
 
     def set_fixed_distance_map(self, fixed_distance_map: Optional[itk.Image]) -> None:
         """Set the reference image for registration.
@@ -355,7 +346,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             fixed_distance_map: ITK image providing distance data
         """
         self.fixed_distance_map = fixed_distance_map
-        self._interpolator = None
+        self._fixed_distance_map_interpolator = None
 
     def set_pca_template_model(self, pca_template_model: pv.UnstructuredGrid) -> None:
         """Set the average model for registration.
@@ -390,19 +381,21 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         pca_deformation = self._compute_pca_deformation(params)
 
         # Create interpolator if not already cached (inline creation)
-        if self._interpolator is None:
+        if self._fixed_distance_map_interpolator is None:
             if self.fixed_distance_map is None:
                 self.log_error("Distance map is not set.")
                 raise ValueError("Distance map must be set before registering.")
             ImageType = type(self.fixed_distance_map)
-            self._interpolator = itk.LinearInterpolateImageFunction[
+            self._fixed_distance_map_interpolator = itk.LinearInterpolateImageFunction[
                 ImageType, itk.D
             ].New()
-            self._interpolator.SetInputImage(self.fixed_distance_map)
+            self._fixed_distance_map_interpolator.SetInputImage(self.fixed_distance_map)
             fixed_distance_map_array = itk.GetArrayFromImage(self.fixed_distance_map)
-            self._max_distance = fixed_distance_map_array.max()
+            self._fixed_distance_map_max_distance = fixed_distance_map_array.max()
             self.log_debug("Interpolator created")
-            self.log_debug("   Max distance = %s", self._max_distance)
+            self.log_debug(
+                "   Max distance = %s", self._fixed_distance_map_max_distance
+            )
 
         self.log_debug("Evaluating params = %s", params)
         self.log_debug("   Max displacement = %s", pca_deformation.max(axis=0))
@@ -426,13 +419,13 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             point[1] = base_point[1]
             point[2] = base_point[2]
 
+            if self.pre_pca_transform is not None:
+                point = self.pre_pca_transform.TransformPoint(point)
+
             # Add PCA deformation if provided
             point[0] += pca_deformation[i, 0]
             point[1] += pca_deformation[i, 1]
             point[2] += pca_deformation[i, 2]
-
-            if self.post_pca_transform is not None:
-                point = self.post_pca_transform.TransformPoint(point)
 
             # Check if point is inside image bounds
 
@@ -447,12 +440,16 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 center[0] += point[0]
                 center[1] += point[1]
                 center[2] += point[2]
-                distance = self._interpolator.EvaluateAtContinuousIndex(coord_index)
+                distance = (
+                    self._fixed_distance_map_interpolator.EvaluateAtContinuousIndex(
+                        coord_index
+                    )
+                )
                 total_distance += distance
                 n_valid_points += 1
             else:
                 self.log_warning("   Point %d is outside image bounds (%s)", i, point)
-                return self._max_distance
+                return self._fixed_distance_map_max_distance
 
         # Compute mean distance
         mean_distance = total_distance / n_valid_points
@@ -622,13 +619,13 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             point[1] = float(self.pca_template_model.points[i][1])
             point[2] = float(self.pca_template_model.points[i][2])
 
+            if self.pre_pca_transform is not None:
+                point = self.pre_pca_transform.TransformPoint(point)
+
             # Add PCA deformation
             point[0] += self.register_model_pca_deformation[i, 0]
             point[1] += self.register_model_pca_deformation[i, 1]
             point[2] += self.register_model_pca_deformation[i, 2]
-
-            if self.post_pca_transform is not None:
-                point = self.post_pca_transform.TransformPoint(point)
 
             # Store result
             final_points[i, 0] = point[0]
@@ -648,7 +645,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
     def transform_point(
         self,
         point: itk.Point,
-        include_post_pca_transform: bool = True,
+        include_pre_pca_transform: bool = True,
     ) -> itk.Point:
         """Transform an arbitrary point using nearest neighbor interpolation.
 
@@ -710,6 +707,9 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         assert self._deformation_field_interpolator_z is not None, (
             "Interpolator z must be initialized"
         )
+        if include_pre_pca_transform and self.pre_pca_transform is not None:
+            point = self.pre_pca_transform.TransformPoint(point)
+
         cindx = self._template_model_pca_deformation_field_image.TransformPhysicalPointToContinuousIndex(
             point
         )
@@ -739,12 +739,6 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         transformed_point[0] = float(point[0] + deformation_x)
         transformed_point[1] = float(point[1] + deformation_y)
         transformed_point[2] = float(point[2] + deformation_z)
-
-        if include_post_pca_transform:
-            assert self.post_pca_transform is not None, "post_pca_transform must be set"
-            transformed_point = self.post_pca_transform.TransformPoint(
-                transformed_point
-            )
 
         return transformed_point
 
@@ -788,9 +782,9 @@ class RegisterModelsPCA(PhysioMotion4DBase):
     def register(
         self,
         pca_number_of_modes: int = 0,
-        pca_coefficient_bounds: float = 3.0,
+        pca_coefficient_bounds: float = 3.5,
         method: str = "L-BFGS-B",
-        max_iterations: int = 50,
+        max_iterations: int = 100,
     ) -> dict:
         """Optimize PCA coefficients to deform the model to better match
         low values in the distance map.

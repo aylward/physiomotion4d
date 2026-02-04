@@ -214,26 +214,13 @@ class UsdMeshConverter:
             if array.num_components > 4:
                 try:
                     data = np.asarray(array.data)
-                    if data.ndim == 1:
-                        if (
-                            array.num_components <= 0
-                            or (len(data) % array.num_components) != 0
-                        ):
-                            logger.warning(
-                                "Skipping primvar %s: cannot reshape flat data len=%d into (%s, %d)",
-                                array.name,
-                                len(data),
-                                "?",
-                                array.num_components,
-                            )
-                            continue
-                        data = data.reshape(-1, array.num_components)
-
+                    # Data should already be normalized to 2D by GenericArray.__post_init__
+                    # (or 1D for scalar arrays with num_components=1, but we're in num_components>4 branch)
                     if data.ndim != 2 or data.shape[1] != array.num_components:
                         logger.warning(
                             "Skipping primvar %s: unexpected shape %s for num_components=%d",
                             array.name,
-                            getattr(data, "shape", None),
+                            data.shape,
                             array.num_components,
                         )
                         continue

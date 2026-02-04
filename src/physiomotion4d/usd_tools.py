@@ -931,6 +931,8 @@ class USDTools(PhysioMotion4DBase):
             for t in list(dc_attr.GetTimeSamples()):
                 dc_attr.ClearAtTime(t)
         except Exception:
+            # Silently ignore errors (e.g., if attribute doesn't exist yet or has no samples).
+            # This is expected on first-time creation or when no time samples are present.
             pass
 
         for idx, (tc, scalar) in enumerate(scalar_samples):

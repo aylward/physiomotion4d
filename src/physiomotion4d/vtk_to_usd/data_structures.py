@@ -40,17 +40,38 @@ class GenericArray:
     interpolation: str = "vertex"  # 'vertex', 'uniform' (per-face), 'constant'
 
     def __post_init__(self) -> None:
-        """Validate data shape."""
-        if self.data.ndim == 1 and self.num_components == 1:
-            # Scalar array
-            pass
-        elif self.data.ndim == 2 and self.data.shape[1] == self.num_components:
-            # Vector/multi-component array
-            pass
+        """Validate and normalize data shape.
+
+        Handles three cases:
+        1. 1D array with num_components=1: kept as-is (scalar)
+        2. 1D array with num_components>1: reshaped to 2D if length is divisible
+        3. 2D array: validated that shape[1] matches num_components
+        """
+        if self.data.ndim == 1:
+            if self.num_components == 1:
+                # Scalar array - keep as 1D
+                pass
+            elif self.num_components > 1:
+                # Flat multi-component array - reshape to 2D
+                if len(self.data) % self.num_components != 0:
+                    raise ValueError(
+                        f"Data length {len(self.data)} not divisible by "
+                        f"num_components={self.num_components}"
+                    )
+                self.data = self.data.reshape(-1, self.num_components)
+            else:
+                raise ValueError(
+                    f"num_components must be >= 1, got {self.num_components}"
+                )
+        elif self.data.ndim == 2:
+            if self.data.shape[1] != self.num_components:
+                raise ValueError(
+                    f"Data shape {self.data.shape} incompatible with "
+                    f"num_components={self.num_components}"
+                )
         else:
             raise ValueError(
-                f"Data shape {self.data.shape} incompatible with "
-                f"num_components={self.num_components}"
+                f"Data must be 1D or 2D array, got shape {self.data.shape}"
             )
 
 

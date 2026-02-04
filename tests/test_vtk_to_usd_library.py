@@ -16,11 +16,15 @@ Note: These tests require manually downloaded data:
 
 from pathlib import Path
 
+import numpy as np
 import pytest
+import pyvista as pv
 from pxr import UsdGeom, UsdShade
 
 from physiomotion4d.vtk_to_usd import (
     ConversionSettings,
+    DataType,
+    GenericArray,
     MaterialData,
     VTKToUSDConverter,
     read_vtk_file,
@@ -38,9 +42,8 @@ def get_data_dir():
 def check_kcl_heart_data():
     """Check if KCL Heart Model data is available."""
     data_dir = get_data_dir() / "KCL-Heart-Model"
-    vtp_file = data_dir / "average_surface.vtp"
     vtk_file = data_dir / "average_mesh.vtk"
-    return vtp_file.exists() and vtk_file.exists()
+    return vtk_file.exists()
 
 
 def check_valve4d_data():
@@ -50,19 +53,166 @@ def check_valve4d_data():
     return alterra_dir.exists() and any(alterra_dir.glob("*.vtk"))
 
 
+def get_or_create_average_surface(test_directories):
+    """
+    Get or create average_surface.vtp from average_mesh.vtk.
+
+    This function extracts the surface from the volumetric mesh and caches it
+    in the test output directory for reuse across test runs.
+
+    Args:
+        test_directories: Dictionary with 'output' key pointing to test output directory
+
+    Returns:
+        Path to the average_surface.vtp file
+    """
+    output_dir = test_directories["output"]
+    surface_file = output_dir / "average_surface.vtp"
+
+    # If surface file already exists, return it
+    if surface_file.exists():
+        print(f"\n✓ Using cached surface file: {surface_file}")
+        return surface_file
+
+    # Create surface from volumetric mesh
+    data_dir = get_data_dir() / "KCL-Heart-Model"
+    vtk_file = data_dir / "average_mesh.vtk"
+
+    print(f"\n⚙ Creating surface from: {vtk_file}")
+
+    # Load volumetric mesh
+    vtk_mesh = pv.read(str(vtk_file))
+
+    # Extract surface
+    surface = vtk_mesh.extract_surface()
+
+    # Save to output directory
+    surface.save(str(surface_file))
+
+    print(f"✓ Created and saved surface: {surface_file}")
+    print(f"  Points: {surface.n_points:,}")
+    print(f"  Faces: {surface.n_faces:,}")
+
+    return surface_file
+
+
+@pytest.fixture(scope="session")
+def kcl_average_surface(test_directories):
+    """
+    Fixture providing the KCL average heart surface.
+
+    Generates average_surface.vtp from average_mesh.vtk if needed,
+    caching the result for subsequent test runs.
+
+    Returns:
+        Path to average_surface.vtp file
+    """
+    if not check_kcl_heart_data():
+        pytest.skip("KCL-Heart-Model data not available (must be manually downloaded)")
+
+    return get_or_create_average_surface(test_directories)
+
+
+class TestGenericArray:
+    """Test GenericArray data structure validation and reshaping."""
+
+    def test_scalar_1d_array(self):
+        """Test that 1D scalar arrays (num_components=1) are kept as-is."""
+        data = np.array([1.0, 2.0, 3.0, 4.0])
+        array = GenericArray(
+            name="test_scalar",
+            data=data,
+            num_components=1,
+            data_type=DataType.FLOAT,
+        )
+        assert array.data.ndim == 1
+        assert len(array.data) == 4
+        np.testing.assert_array_equal(array.data, data)
+
+    def test_flat_multicomponent_array_reshape(self):
+        """Test that flat 1D arrays with num_components>1 are reshaped to 2D."""
+        # 12 values that should reshape to (4, 3)
+        data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], dtype=float)
+        array = GenericArray(
+            name="test_vector",
+            data=data,
+            num_components=3,
+            data_type=DataType.FLOAT,
+        )
+        assert array.data.ndim == 2
+        assert array.data.shape == (4, 3)
+        # Verify data is preserved correctly
+        expected = data.reshape(-1, 3)
+        np.testing.assert_array_equal(array.data, expected)
+
+    def test_2d_array_valid(self):
+        """Test that 2D arrays with correct shape are accepted."""
+        data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=float)
+        array = GenericArray(
+            name="test_vector",
+            data=data,
+            num_components=3,
+            data_type=DataType.FLOAT,
+        )
+        assert array.data.ndim == 2
+        assert array.data.shape == (4, 3)
+        np.testing.assert_array_equal(array.data, data)
+
+    def test_flat_array_not_divisible_raises_error(self):
+        """Test that flat arrays with length not divisible by num_components raise error."""
+        data = np.array([1, 2, 3, 4, 5], dtype=float)  # 5 values, not divisible by 3
+        with pytest.raises(ValueError, match="not divisible by num_components"):
+            GenericArray(
+                name="test_invalid",
+                data=data,
+                num_components=3,
+                data_type=DataType.FLOAT,
+            )
+
+    def test_2d_array_wrong_shape_raises_error(self):
+        """Test that 2D arrays with wrong shape raise error."""
+        data = np.array([[1, 2], [3, 4], [5, 6]], dtype=float)  # Shape (3, 2)
+        with pytest.raises(ValueError, match="incompatible with num_components"):
+            GenericArray(
+                name="test_invalid",
+                data=data,
+                num_components=3,  # Expects shape[1] == 3, got 2
+                data_type=DataType.FLOAT,
+            )
+
+    def test_3d_array_raises_error(self):
+        """Test that 3D arrays are rejected."""
+        data = np.ones((2, 3, 4), dtype=float)
+        with pytest.raises(ValueError, match="must be 1D or 2D"):
+            GenericArray(
+                name="test_invalid",
+                data=data,
+                num_components=3,
+                data_type=DataType.FLOAT,
+            )
+
+    def test_flat_array_large_components(self):
+        """Test reshaping with large num_components (e.g., 9 for 3x3 tensors)."""
+        # 18 values that should reshape to (2, 9)
+        data = np.arange(18, dtype=float)
+        array = GenericArray(
+            name="test_tensor",
+            data=data,
+            num_components=9,
+            data_type=DataType.FLOAT,
+        )
+        assert array.data.ndim == 2
+        assert array.data.shape == (2, 9)
+        np.testing.assert_array_equal(array.data, data.reshape(-1, 9))
+
+
 @pytest.mark.requires_data
 class TestVTKReader:
     """Test VTK file reading capabilities."""
 
-    def test_read_vtp_file(self):
+    def test_read_vtp_file(self, kcl_average_surface):
         """Test reading VTP (PolyData) files."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         assert vtp_file.exists(), f"VTP file not found: {vtp_file}"
 
@@ -108,15 +258,9 @@ class TestVTKReader:
         print(f"  Faces: {len(mesh_data.face_vertex_counts):,}")
         print(f"  Data arrays: {len(mesh_data.generic_arrays)}")
 
-    def test_generic_arrays_preserved(self):
+    def test_generic_arrays_preserved(self, kcl_average_surface):
         """Test that generic data arrays are preserved during reading."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         mesh_data = read_vtk_file(vtp_file)
 
@@ -141,19 +285,13 @@ class TestVTKReader:
 class TestVTKToUSDConversion:
     """Test VTK to USD conversion capabilities."""
 
-    def test_single_file_conversion(self, test_directories):
+    def test_single_file_conversion(self, test_directories, kcl_average_surface):
         """Test converting a single VTK file to USD."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Get test data
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         # Convert to USD
         output_usd = output_dir / "heart_surface.usd"
@@ -183,18 +321,12 @@ class TestVTKToUSDConversion:
         print(f"  Output: {output_usd}")
         print(f"  Points: {len(points):,}")
 
-    def test_conversion_with_material(self, test_directories):
+    def test_conversion_with_material(self, test_directories, kcl_average_surface):
         """Test conversion with custom material."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         # Create custom material
         material = MaterialData(
@@ -230,18 +362,12 @@ class TestVTKToUSDConversion:
         print(f"  Material: {material.name}")
         print(f"  Color: {material.diffuse_color}")
 
-    def test_conversion_settings(self, test_directories):
+    def test_conversion_settings(self, test_directories, kcl_average_surface):
         """Test conversion with custom settings."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         # Create custom settings
         settings = ConversionSettings(
@@ -267,18 +393,12 @@ class TestVTKToUSDConversion:
         print(f"  Up axis: {settings.up_axis}")
         print(f"  Compute normals: {settings.compute_normals}")
 
-    def test_primvar_preservation(self, test_directories):
+    def test_primvar_preservation(self, test_directories, kcl_average_surface):
         """Test that VTK data arrays are preserved as USD primvars."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         # Read to check arrays
         mesh_data = read_vtk_file(vtp_file)
@@ -310,18 +430,12 @@ class TestVTKToUSDConversion:
 class TestTimeSeriesConversion:
     """Test time-series conversion capabilities."""
 
-    def test_time_series_conversion(self, test_directories):
+    def test_time_series_conversion(self, test_directories, kcl_average_surface):
         """Test converting multiple VTK files as time series."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         # Use same file multiple times to simulate time series
         vtk_files = [vtp_file] * 3
@@ -362,18 +476,12 @@ class TestTimeSeriesConversion:
 class TestIntegration:
     """Integration tests combining multiple features."""
 
-    def test_end_to_end_conversion(self, test_directories):
+    def test_end_to_end_conversion(self, test_directories, kcl_average_surface):
         """Test complete conversion workflow with all features."""
-        if not check_kcl_heart_data():
-            pytest.skip(
-                "KCL-Heart-Model data not available (must be manually downloaded)"
-            )
-
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        data_dir = get_data_dir() / "KCL-Heart-Model"
-        vtp_file = data_dir / "average_surface.vtp"
+        vtp_file = kcl_average_surface
 
         # Configure everything
         settings = ConversionSettings(

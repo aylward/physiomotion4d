@@ -98,20 +98,65 @@ OpenUSD, preserving colormaps and visualization properties where possible.
 **Note:** VTK-to-USD mapping is complex and may require refinement for specific use cases.
 This experiment provides a foundation to build upon.
 
-### `Heart-Model_To_Patient` - Foundation for Patient-Specific Digital Twins
+### `Heart-Create_Statistical_Model` - Statistical Shape Model Generation with PCA
+
+**What it demonstrates:** Creating a Principal Component Analysis (PCA) statistical shape
+model from a population of anatomical meshes using the KCL Heart Model dataset and SlicerSALT.
+
+**Key benefit:** Statistical shape models capture natural anatomical variation and enable:
+- Patient-specific model fitting with anatomically plausible constraints
+- Population-based shape analysis and hypothesis testing
+- Efficient parameterization of complex 3D anatomy
+- Data augmentation for AI training with realistic shape variations
+
+**Technologies:**
+- Population mesh alignment and preprocessing
+- **SlicerSALT** for interactive correspondence computation (manual steps)
+- **SlicerSALT** for PCA analysis (manual steps)
+- VTK/ITK for mesh and image processing
+- Template mask generation for registration
+
+**Pipeline stages:**
+1. Convert volumetric meshes to surfaces (automated)
+2. Align population meshes (automated)
+3. Compute point correspondences (manual - SlicerSALT)
+4. Prepare PCA inputs (automated)
+5. Perform PCA analysis (manual - SlicerSALT)
+6. Generate template mask (automated)
+
+**Adaptation potential:** This workflow can be adapted to:
+- Any anatomical structure (liver, brain, bones, organs)
+- Multi-structure shape models (combined organ systems)
+- Time-varying shape models (4D motion patterns)
+- Disease-specific shape analysis (pathology vs. normal)
+- Surgical planning with shape prediction
+
+**⚠️ Required first**: Complete this experiment BEFORE `Heart-Statistical_Model_To_Patient`
+as it generates the PCA model files needed for patient-specific registration.
+
+**Output:** PCA model files (eigenvectors, eigenvalues, mean shape, template mask) for
+use in patient registration workflows.
+
+### `Heart-Statistical_Model_To_Patient` - Patient-Specific Digital Twin Registration
 
 **What it demonstrates:** Fitting a simulation-ready or AI-ready anatomical model to
-patient-specific imaging data, creating a consistent architecture across subjects.
+patient-specific imaging data, creating a consistent architecture across subjects. Uses
+PCA statistical shape models to constrain deformation to anatomically plausible variations.
 
 **Key benefit:** Using consistent model topology across patients dramatically improves
 cross-patient robustness of AI models for physiological motion, enabling a single model
 to handle diverse cases.
 
 **Technologies:**
-- ICP (Iterative Closest Point) registration
-- Mask-based deformable registration
-- PCA (Principal Component Analysis) shape modeling
+- ICP (Iterative Closest Point) registration for initial alignment
+- Mask-based deformable registration for anatomical fitting
+- PCA (Principal Component Analysis) shape modeling for shape constraints
+- Three-stage registration pipeline (ICP → Mask-to-Mask → Mask-to-Image)
 - Computationally intensive (>1 hour on typical PC)
+
+**Prerequisites:**
+- Complete `Heart-Create_Statistical_Model` experiment first to generate PCA model
+- Or use pre-computed PCA model from KCL dataset
 
 **Adaptation potential:** This foundational approach can be extended to:
 - Any anatomical structure with consistent topology (liver, brain, vessels)
@@ -200,7 +245,8 @@ Each subdirectory represents a different experimental domain:
 ### Cardiac Imaging
 - `Heart-GatedCT_To_USD/` - Complete cardiac 4D CT pipeline from images to animated USD models
 - `Heart-VTKSeries_To_USD/` - Direct VTK time series to USD conversion for cardiac data
-- `Heart-Model_To_Patient/` - Advanced model-to-patient registration with ICP, mask-based, and PCA methods
+- `Heart-Create_Statistical_Model/` - PCA statistical shape model creation from population meshes using SlicerSALT
+- `Heart-Statistical_Model_To_Patient/` - Advanced model-to-patient registration with ICP, mask-based, and PCA methods
 
 ### Pulmonary Imaging
 - `Lung-GatedCT_To_USD/` - Respiratory motion analysis using DirLab 4D-CT benchmark data

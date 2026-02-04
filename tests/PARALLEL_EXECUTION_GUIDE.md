@@ -128,7 +128,7 @@ pytest tests/test_experiments.py -v -n 2 --run-experiments
 # Worker 1: Colormap experiment (notebooks sequential within)
 # Worker 2: Heart-VTKSeries experiment (notebooks sequential within)
 # When Worker 1 finishes, it picks up Reconstruct4DCT
-# When Worker 2 finishes, it picks up Heart-Model_To_Patient
+# When Worker 2 finishes, it picks up Heart-Statistical_Model_To_Patient
 # ... and so on
 ```
 

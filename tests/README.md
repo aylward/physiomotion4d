@@ -99,6 +99,10 @@ pytest tests/test_usd_merge.py::TestUSDMerge::test_merge_usd_files_copy_method -
 
 > 💡 **For detailed instructions**, see [TESTING_GUIDE.md](TESTING_GUIDE.md)
 
+## ⏱️ Test Timing Reports
+
+All test runs automatically generate a comprehensive timing report at the end showing individual test durations, session time, and pass/fail/skip counts. The report separates regular tests from experiment tests and highlights the slowest tests.
+
 ## ⚙️ Test Configuration
 
 ### Global Settings

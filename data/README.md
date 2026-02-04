@@ -168,11 +168,12 @@ Users must manually obtain and place this data:
 Check the included PDFs (if available) for source information and proper citation.
 
 ### Usage
-- VTK to USD conversion experiments (`experiments/convert_vtk_to_usd_lib/`)
-- Model-to-image registration experiments
+- **Statistical shape model creation** (`experiments/Heart-Create_Statistical_Model/`) ⭐ **Primary use case**
+- **Model-to-patient registration** (`experiments/Heart-Statistical_Model_To_Patient/`)
+- VTK to USD conversion experiments (`experiments/Convert_VTK_To_USD/`)
 - Shape-based cardiac analysis
 - Atlas-based segmentation initialization
-- Statistical shape analysis
+- Population-based statistical analysis
 
 ---
 

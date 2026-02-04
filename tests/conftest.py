@@ -8,6 +8,7 @@ in the tests directory via pytest's automatic fixture discovery.
 
 import shutil
 import urllib.request
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import itk
@@ -22,10 +23,12 @@ from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegm
 from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 from physiomotion4d.transform_tools import TransformTools
 
-
 # ============================================================================
 # Pytest Configuration - Command Line Options
 # ============================================================================
+
+# Module-level variable to store config for access in hooks
+_pytest_config = None
 
 
 def pytest_addoption(parser):
@@ -40,10 +43,19 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     """Configure pytest with custom markers and settings."""
+    global _pytest_config
+    _pytest_config = config
+
     config.addinivalue_line(
         "markers",
         "experiment: marks tests that run experiment notebooks (extremely slow, manual only)",
     )
+    # Initialize test timing storage
+    config._test_timings = {
+        "tests": [],
+        "total_time": 0.0,
+        "start_time": datetime.now(),
+    }
 
 
 def pytest_collection_modifyitems(config, items):
@@ -64,6 +76,159 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "experiment" in item.keywords:
             item.add_marker(skip_experiments)
+
+
+def pytest_runtest_logreport(report):
+    """
+    Collect test timing information after each test completes.
+
+    This hook is called for each phase of test execution (setup, call, teardown).
+    We only collect timing from the 'call' phase which is the actual test execution.
+    """
+    if report.when == "call":
+        # Use the module-level config reference
+        if _pytest_config is None:
+            return
+
+        # Store test timing information
+        test_info = {
+            "nodeid": report.nodeid,
+            "duration": report.duration,
+            "outcome": report.outcome,
+            "is_experiment": "experiment" in report.keywords,
+        }
+
+        _pytest_config._test_timings["tests"].append(test_info)
+        _pytest_config._test_timings["total_time"] += report.duration
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """
+    Print comprehensive test timing report after all tests complete.
+
+    This hook is called at the end of the test session to display
+    timing statistics for all tests, including experiment tests.
+    """
+    timings = config._test_timings
+    tests = timings["tests"]
+
+    if not tests:
+        return
+
+    # Calculate session duration
+    session_duration = datetime.now() - timings["start_time"]
+
+    # Separate regular and experiment tests
+    regular_tests = [t for t in tests if not t["is_experiment"]]
+    experiment_tests = [t for t in tests if t["is_experiment"]]
+
+    # Write the timing report
+    terminalreporter.write_sep("=", "TEST TIMING REPORT", bold=True)
+    terminalreporter.write_line("")
+
+    # Session summary
+    terminalreporter.write_line(f"Session Duration: {session_duration}")
+    terminalreporter.write_line(
+        f"Total Test Time: {timedelta(seconds=int(timings['total_time']))}"
+    )
+    terminalreporter.write_line(f"Total Tests: {len(tests)}")
+    terminalreporter.write_line("")
+
+    # Regular tests section
+    if regular_tests:
+        terminalreporter.write_sep("-", "Regular Tests", bold=True)
+        terminalreporter.write_line(f"Count: {len(regular_tests)}")
+
+        # Sort by duration (longest first)
+        sorted_regular = sorted(
+            regular_tests, key=lambda x: x["duration"], reverse=True
+        )
+
+        # Calculate total time
+        regular_total = sum(t["duration"] for t in regular_tests)
+        terminalreporter.write_line(
+            f"Total Time: {timedelta(seconds=int(regular_total))}"
+        )
+        terminalreporter.write_line("")
+
+        # Show all regular tests with timing
+        terminalreporter.write_line("Individual Test Times:")
+        for test in sorted_regular:
+            outcome_symbol = "✓" if test["outcome"] == "passed" else "✗"
+            duration_str = _format_duration(test["duration"])
+            terminalreporter.write_line(
+                f"  {outcome_symbol} {duration_str:>10s}  {test['nodeid']}"
+            )
+        terminalreporter.write_line("")
+
+    # Experiment tests section
+    if experiment_tests:
+        terminalreporter.write_sep("-", "Experiment Tests", bold=True)
+        terminalreporter.write_line(f"Count: {len(experiment_tests)}")
+
+        # Sort by duration (longest first)
+        sorted_experiments = sorted(
+            experiment_tests, key=lambda x: x["duration"], reverse=True
+        )
+
+        # Calculate total time
+        experiment_total = sum(t["duration"] for t in experiment_tests)
+        terminalreporter.write_line(
+            f"Total Time: {timedelta(seconds=int(experiment_total))}"
+        )
+        terminalreporter.write_line("")
+
+        # Show all experiment tests with timing
+        terminalreporter.write_line("Individual Test Times:")
+        for test in sorted_experiments:
+            outcome_symbol = "✓" if test["outcome"] == "passed" else "✗"
+            duration_str = _format_duration(test["duration"])
+            terminalreporter.write_line(
+                f"  {outcome_symbol} {duration_str:>10s}  {test['nodeid']}"
+            )
+        terminalreporter.write_line("")
+
+    # Top 10 slowest tests overall
+    if len(tests) > 10:
+        terminalreporter.write_sep("-", "Top 10 Slowest Tests", bold=True)
+        sorted_all = sorted(tests, key=lambda x: x["duration"], reverse=True)[:10]
+
+        for i, test in enumerate(sorted_all, 1):
+            outcome_symbol = "✓" if test["outcome"] == "passed" else "✗"
+            duration_str = _format_duration(test["duration"])
+            test_type = "[EXP]" if test["is_experiment"] else "[REG]"
+            terminalreporter.write_line(
+                f"  {i:2d}. {outcome_symbol} {duration_str:>10s} {test_type} {test['nodeid']}"
+            )
+        terminalreporter.write_line("")
+
+    # Statistics by outcome
+    passed = sum(1 for t in tests if t["outcome"] == "passed")
+    failed = sum(1 for t in tests if t["outcome"] == "failed")
+    skipped = sum(1 for t in tests if t["outcome"] == "skipped")
+
+    terminalreporter.write_sep("-", "Test Outcomes", bold=True)
+    terminalreporter.write_line(f"Passed:  {passed}")
+    terminalreporter.write_line(f"Failed:  {failed}")
+    terminalreporter.write_line(f"Skipped: {skipped}")
+    terminalreporter.write_line("")
+
+
+def _format_duration(seconds):
+    """Format duration in a human-readable way."""
+    if seconds < 1:
+        return f"{seconds * 1000:.0f}ms"
+    elif seconds < 60:
+        return f"{seconds:.2f}s"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}m {secs:.0f}s"
+    else:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        return f"{hours}h {minutes}m {secs:.0f}s"
 
 
 # Directory and Data Download Fixtures

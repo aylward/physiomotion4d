@@ -49,8 +49,14 @@ pytest tests/test_experiments.py::test_experiment_heart_vtk_series_to_usd -v -s 
 # Heart Gated CT to USD (~6 hours, requires GPU & data)
 pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --run-experiments
 
-# Heart Model to Patient (~4 hours, requires GPU & data)
-pytest tests/test_experiments.py::test_experiment_heart_model_to_patient -v -s --run-experiments
+# Convert VTK to USD (~2 hours, requires data)
+pytest tests/test_experiments.py::test_experiment_convert_vtk_to_usd -v -s --run-experiments
+
+# Create Statistical Model (~3 hours, requires data, includes manual steps)
+pytest tests/test_experiments.py::test_experiment_create_statistical_model -v -s --run-experiments
+
+# Heart Statistical Model to Patient (~4 hours, requires GPU & data)
+pytest tests/test_experiments.py::test_experiment_heart_statistical_model_to_patient -v -s --run-experiments
 
 # Lung Gated CT to USD (~6 hours, requires GPU & data)
 pytest tests/test_experiments.py::test_experiment_lung_gated_ct_to_usd -v -s --run-experiments
@@ -66,16 +72,18 @@ pytest tests/test_experiments.py::test_experiment_lung_gated_ct_to_usd -v -s --r
 
 ### Available Experiment Tests
 
-| Test Name | Subdirectory | Expected Duration | Requirements | Status |
-|-----------|--------------|-------------------|--------------|--------|
-| `test_experiment_colormap_vtk_to_usd` | `Colormap-VTK_To_USD/` | ~2 hours | Basic | ✅ Active |
-| ~~`test_experiment_displacement_field_to_usd`~~ | ~~`DisplacementField_To_USD/`~~ | ~~~2 hours~~ | ~~Basic~~ | 🚫 **Disabled** |
-| `test_experiment_reconstruct_4dct` | `Reconstruct4DCT/` | ~4 hours | GPU | ✅ Active |
-| `test_experiment_heart_vtk_series_to_usd` | `Heart-VTKSeries_To_USD/` | ~3 hours | Data | ✅ Active |
-| `test_experiment_heart_gated_ct_to_usd` | `Heart-GatedCT_To_USD/` | ~6 hours | GPU + Data | ✅ Active |
-| `test_experiment_heart_model_to_patient` | `Heart-Model_To_Patient/` | ~4 hours | GPU + Data | ✅ Active |
-| `test_experiment_lung_gated_ct_to_usd` | `Lung-GatedCT_To_USD/` | ~6 hours | GPU + Data | ✅ Active |
-| ~~`test_experiment_lung_vessels_airways`~~ | ~~`Lung-VesselsAirways/`~~ | ~~~2 hours~~ | ~~GPU + Data~~ | 🚫 **Disabled** |
+| Test Name                                            | Subdirectory                          | Expected Duration | Requirements   | Status         |
+| ---------------------------------------------------- | ------------------------------------- | ----------------- | -------------- | -------------- |
+| `test_experiment_colormap_vtk_to_usd`                | `Colormap-VTK_To_USD/`                | ~2 hours          | Basic          | ✅ Active       |
+| `test_experiment_convert_vtk_to_usd`                 | `Convert_VTK_To_USD/`                 | ~2 hours          | Data           | ✅ Active       |
+| ~~`test_experiment_displacement_field_to_usd`~~      | ~~`DisplacementField_To_USD/`~~       | ~~~2 hours~~      | ~~Basic~~      | 🚫 **Disabled** |
+| `test_experiment_reconstruct_4dct`                   | `Reconstruct4DCT/`                    | ~4 hours          | GPU            | ✅ Active       |
+| `test_experiment_heart_vtk_series_to_usd`            | `Heart-VTKSeries_To_USD/`             | ~3 hours          | Data           | ✅ Active       |
+| `test_experiment_heart_gated_ct_to_usd`              | `Heart-GatedCT_To_USD/`               | ~6 hours          | GPU + Data     | ✅ Active       |
+| `test_experiment_create_statistical_model`           | `Heart-Create_Statistical_Model/`     | ~3 hours          | Data           | ✅ Active       |
+| `test_experiment_heart_statistical_model_to_patient` | `Heart-Statistical_Model_To_Patient/` | ~4 hours          | GPU + Data     | ✅ Active       |
+| `test_experiment_lung_gated_ct_to_usd`               | `Lung-GatedCT_To_USD/`                | ~6 hours          | GPU + Data     | ✅ Active       |
+| ~~`test_experiment_lung_vessels_airways`~~           | ~~`Lung-VesselsAirways/`~~            | ~~~2 hours~~      | ~~GPU + Data~~ | 🚫 **Disabled** |
 
 **Note:** Disabled tests are commented out in the code and will not run. They can be re-enabled when the notebooks are ready.
 
@@ -332,7 +340,7 @@ pytest tests/test_experiments.py -v -n auto --run-experiments
 ## FAQ
 
 **Q: How long will all experiments take?**
-A: Approximately 21-25 hours total on a high-end workstation (GPU, 64GB RAM). Note: DisplacementField_To_USD and Lung-VesselsAirways are currently disabled.
+A: Approximately 32 hours total on a high-end workstation (GPU, 64GB RAM). Note: DisplacementField_To_USD and Lung-VesselsAirways are currently disabled.
 
 **Q: Can I run these on CPU only?**
 A: Some experiments will work, but most require GPU and will be extremely slow or fail on CPU.

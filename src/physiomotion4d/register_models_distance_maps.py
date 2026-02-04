@@ -184,7 +184,9 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             self.fixed_model,
             self.reference_image,
             squared_distance=True,
-            invert_distance_map=True,
+            negative_inside=True,
+            zero_inside=False,
+            norm_to_max_distance=50.0,
         )
 
         # Create fixed ROI mask with dilation
@@ -204,7 +206,9 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             self.moving_model,
             self.reference_image,
             squared_distance=True,
-            invert_distance_map=True,
+            negative_inside=True,
+            zero_inside=False,
+            norm_to_max_distance=50.0,
         )
 
         # Create moving ROI mask with dilation
@@ -291,6 +295,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             self.registrar_ants.set_fixed_mask(self.fixed_mask_roi_image)
 
             self.registrar_ants.set_transform_type(transform_type)
+            self.registrar_ants.set_metric("MeanSquares")
 
             result_ants = self.registrar_ants.register(
                 moving_image=self.moving_mask_image,

@@ -43,6 +43,17 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
         point_subsample_step: int = 4,
         log_level: int | str = logging.INFO,
     ):
+        """Initialize the ICP-ITK model registration.
+
+        Args:
+            fixed_model: Target model (surface mesh) to register to
+            reference_image: Optional patient image providing coordinate frame and
+                distance data
+            point_subsample_step: Step size for subsampling model points during
+                registration (default: 4)
+            log_level: Logging level (logging.DEBUG, logging.INFO, logging.WARNING)
+                (default: logging.INFO)
+        """
         # Initialize base class with logging
         super().__init__(class_name="RegisterModelsICPITK", log_level=log_level)
 

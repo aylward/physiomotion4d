@@ -37,11 +37,13 @@ EXPERIMENTS_DIR = REPO_ROOT / "experiments"
 # Experiment subdirectories to test (in order of complexity/dependencies)
 EXPERIMENT_SUBDIRS = [
     "Colormap-VTK_To_USD",
+    "Convert_VTK_To_USD",
     # 'DisplacementField_To_USD',  # Disabled - notebooks not ready
     "Reconstruct4DCT",
     "Heart-VTKSeries_To_USD",
     "Heart-GatedCT_To_USD",
-    "Heart-Model_To_Patient",
+    "Heart-Create_Statistical_Model",
+    "Heart-Statistical_Model_To_Patient",
     "Lung-GatedCT_To_USD",
     # 'Lung-VesselsAirways',  # Disabled - notebooks not ready
 ]
@@ -406,15 +408,65 @@ def test_experiment_heart_gated_ct_to_usd():
 
 @pytest.mark.experiment
 @pytest.mark.slow
+@pytest.mark.requires_data
+@pytest.mark.timeout(7200)  # 2 hours total timeout
+@pytest.mark.xdist_group(name="experiment_convert_vtk_to_usd")
+def test_experiment_convert_vtk_to_usd():
+    """
+    Test Convert_VTK_To_USD experiment notebooks.
+
+    This experiment demonstrates VTK to USD conversion using the library classes.
+
+    EXECUTION ORDER (ENFORCED):
+    1. convert_chop_valve_to_usd.ipynb (converts CHOP valve data)
+    2. convert_vtk_to_usd_using_class.ipynb (demonstrates library usage)
+
+    Sequential execution ensures examples build on each other.
+    """
+    run_experiment_notebooks("Convert_VTK_To_USD", timeout_per_notebook=3600)
+
+
+@pytest.mark.experiment
+@pytest.mark.slow
+@pytest.mark.requires_data
+@pytest.mark.timeout(10800)  # 3 hours total timeout
+@pytest.mark.xdist_group(name="experiment_create_statistical_model")
+def test_experiment_create_statistical_model():
+    """
+    Test Heart-Create_Statistical_Model experiment notebooks.
+
+    This experiment demonstrates creating a PCA statistical shape model from the
+    KCL Heart Model dataset.
+
+    EXECUTION ORDER (ENFORCED):
+    1. 1-input_meshes_to_input_surfaces.ipynb (convert meshes to surfaces)
+    2. 2-input_surfaces_to_surfaces_aligned.ipynb (align surfaces)
+    3. 3-registration_based_correspondence.ipynb (establish point correspondence)
+    4. 4-surfaces_aligned_correspond_to_pca_inputs.ipynb (prepare PCA inputs)
+    5. 5-compute_pca_model.ipynb (compute PCA model using sklearn)
+
+    Sequential execution ensures data dependencies are met.
+    """
+    run_experiment_notebooks(
+        "Heart-Create_Statistical_Model", timeout_per_notebook=5400
+    )
+
+
+@pytest.mark.experiment
+@pytest.mark.slow
 @pytest.mark.requires_gpu
 @pytest.mark.requires_data
 @pytest.mark.timeout(14400)  # 4 hours total timeout
-@pytest.mark.xdist_group(name="experiment_heart_model")
-def test_experiment_heart_model_to_patient():
+@pytest.mark.xdist_group(name="experiment_heart_statistical_model")
+def test_experiment_heart_statistical_model_to_patient():
     """
-    Test Heart-Model_To_Patient experiment notebooks.
+    Test Heart-Statistical_Model_To_Patient experiment notebooks.
 
-    This experiment demonstrates heart model to patient registration.
+    This experiment demonstrates heart model to patient registration using
+    statistical shape models (PCA).
+
+    ⚠️ PREREQUISITE: Complete Heart-Create_Statistical_Model experiment first to generate
+    the PCA model data required for this experiment.
 
     EXECUTION ORDER (ENFORCED):
     1. heart_model_to_model_icp_itk.ipynb (ICP registration)
@@ -423,7 +475,9 @@ def test_experiment_heart_model_to_patient():
 
     Sequential execution ensures registration results are available for subsequent steps.
     """
-    run_experiment_notebooks("Heart-Model_To_Patient", timeout_per_notebook=7200)
+    run_experiment_notebooks(
+        "Heart-Statistical_Model_To_Patient", timeout_per_notebook=7200
+    )
 
 
 @pytest.mark.experiment

@@ -17,7 +17,7 @@ Key Features:
         RegisterModelsDistanceMaps
     - Multi-stage registration pipeline:
         ICP → (optional PCA) → mask-to-mask → mask-to-image
-    - Optional PCA-based shape fitting with SlicerSALT format support
+    - Optional PCA-based shape fitting
     - Support for multi-label anatomical structures
     - Optional Icon-based final refinement
 """
@@ -35,7 +35,7 @@ from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.register_models_distance_maps import RegisterModelsDistanceMaps
-from physiomotion4d.register_models_icp_itk import RegisterModelsICPITK
+from physiomotion4d.register_models_icp import RegisterModelsICP
 from physiomotion4d.register_models_pca import RegisterModelsPCA
 from physiomotion4d.transform_tools import TransformTools
 
@@ -47,12 +47,12 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
     This class provides a flexible workflow for registering generic anatomical models
     (e.g., cardiac models) to patient-specific surface models and images. The
     registration pipeline combines:
-    - Initial model alignment using RegisterModelsICPITK (centroid + affine ICP)
+    - Initial model alignment using RegisterModelsICP (centroid + affine ICP)
     - Mask-based deformable registration using RegisterModelsDistanceMaps (ANTs/ICON)
     - Optional final mask-to-image refinement using Icon registration
 
     **Registration Pipeline:**
-        1. **ICP Alignment**: Rough affine alignment using RegisterModelsICPITK
+        1. **ICP Alignment**: Rough affine alignment using RegisterModelsICP
         2. **PCA Registration**: Performs PCA-based shape fitting using
             RegisterModelsPCA
         3. **Mask-to-Mask**: Deformable registration using RegisterModelsDistanceMaps
@@ -80,7 +80,6 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         registrar_icon (RegisterImagesICON): ICON registration instance
         registrar_ants (RegisterImagesANTs): ANTs registration instance
         pca_json_filename (str): PCA JSON filename (optional)
-        pca_group_key (str): PCA group key (optional)
         pca_number_of_modes (int): Number of PCA modes to use
         icp_forward_point_transform : ICP transforms
         icp_inverse_point_transform : ICP inverse transforms
@@ -106,8 +105,7 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         ...     template_model=heart_model,
         ...     patient_models=[lv_model, mc_model, rv_model],
         ...     patient_image=patient_ct,
-        ...     pca_json_filename='path/to/pca.json',
-        ...     pca_group_key='All',
+        ...     pca_json_filename='path/to/pca_model.json',
         ...     pca_number_of_modes=10,
         ... )
         >>>
@@ -128,7 +126,6 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         patient_models: list,
         patient_image: itk.Image,
         pca_json_filename: Optional[str] = None,
-        pca_group_key: str = "All",
         pca_number_of_modes: int = 0,
         log_level: int | str = logging.INFO,
     ):
@@ -191,7 +188,7 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.roi_dilation_mm: float = 20.0  # For ROI mask generation
 
         # Stage 1: ICP alignment results
-        self.icp_registrar: Optional[RegisterModelsICPITK] = None
+        self.icp_registrar: Optional[RegisterModelsICP] = None
         self.icp_inverse_point_transform: Optional[itk.Transform] = None
         self.icp_forward_point_transform: Optional[itk.Transform] = None
         self.icp_template_model_surface: Optional[pv.PolyData] = None
@@ -203,7 +200,6 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.pca_inverse_point_transform: Optional[itk.Transform] = None
         self.pca_json_filename = pca_json_filename
         self.pca_number_of_modes = pca_number_of_modes
-        self.pca_group_key = pca_group_key
         self.pca_coefficients: Optional[np.ndarray] = None
         self.pca_template_model_surface: Optional[pv.PolyData] = None
         self.pca_template_labelmap: Optional[itk.Image] = None
@@ -359,17 +355,13 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.log_section("Stage 1: ICP Alignment (RegisterModelsICP)", width=70)
 
         # Create ICP registrar
-        self.icp_registrar = RegisterModelsICPITK(
-            fixed_model=self.patient_model_surface,
-            reference_image=self.patient_image,
-        )
+        self.icp_registrar = RegisterModelsICP(fixed_model=self.patient_model_surface)
 
         # Run rigid ICP registration
         icp_result = self.icp_registrar.register(
             moving_model=self.template_model_surface,
             transform_type="Affine",
-            max_iterations=100,
-            method="L-BFGS-B",
+            max_iterations=2000,
         )
 
         # Store results
@@ -423,12 +415,10 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
                 "registered_model_surface": self.pca_template_model_surface,
             }
 
-        self.pca_registrar = RegisterModelsPCA.from_slicersalt(
-            pca_template_model=self.template_model_surface,
+        self.pca_registrar = RegisterModelsPCA.from_json(
+            pca_template_model=self.icp_template_model_surface,
             pca_json_filename=self.pca_json_filename,
-            pca_group_key=self.pca_group_key,
             pca_number_of_modes=self.pca_number_of_modes,
-            post_pca_transform=self.icp_forward_point_transform,
             fixed_model=self.patient_model_surface,
             reference_image=self.patient_image,
         )
@@ -440,7 +430,7 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.pca_template_model_surface = result["registered_model"]
 
         pca_transforms = self.pca_registrar.compute_pca_transforms(
-            reference_image=self.template_labelmap,
+            reference_image=self.patient_image,
         )
         self.pca_forward_point_transform = pca_transforms["forward_point_transform"]
         self.pca_inverse_point_transform = pca_transforms["inverse_point_transform"]
@@ -450,13 +440,8 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.registered_template_model_surface = self.pca_template_model_surface
 
         self.pca_template_labelmap = self.transform_tools.transform_image(
-            self.template_labelmap,
+            self.icp_template_labelmap,
             self.pca_inverse_point_transform,
-            self.template_labelmap,
-        )
-        self.pca_template_labelmap = self.transform_tools.transform_image(
-            self.pca_template_labelmap,
-            self.icp_inverse_point_transform,
             self.patient_image,
             interpolation_method="nearest",
         )
@@ -671,13 +656,14 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
             p[1] = float(point[1])
             p[2] = float(point[2])
 
-            # Apply PCA and ICP transforms
+            # Apply ICP transform
+            if self.icp_forward_point_transform is not None:
+                p = self.icp_forward_point_transform.TransformPoint(p)
+
+            # Apply PCA transform
             if self.pca_coefficients is not None:
                 assert self.pca_registrar is not None, "PCA registrar must be set"
-                p = self.pca_registrar.transform_point(
-                    p,
-                    include_post_pca_transform=True,
-                )
+                p = self.pca_registrar.transform_point(p)
 
             # Apply mask-to-mask transform
             if self.use_m2m_registration and self.m2m_inverse_transform is not None:

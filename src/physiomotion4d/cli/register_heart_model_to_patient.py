@@ -120,11 +120,6 @@ Examples:
         help="Path to PCA JSON file for shape-based registration (optional)",
     )
     parser.add_argument(
-        "--pca-group-key",
-        default="All",
-        help="PCA group key in JSON file (default: All)",
-    )
-    parser.add_argument(
         "--pca-number-of-modes",
         type=int,
         default=0,
@@ -227,7 +222,6 @@ Examples:
             patient_models=patient_models,
             patient_image=patient_image,
             pca_json_filename=args.pca_json,
-            pca_group_key=args.pca_group_key,
             pca_number_of_modes=args.pca_number_of_modes,
         )
     except (ValueError, RuntimeError, OSError) as e:

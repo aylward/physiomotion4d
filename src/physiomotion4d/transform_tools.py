@@ -217,9 +217,6 @@ class TransformTools(PhysioMotion4DBase):
             field = tfm.GetDisplacementField()
             field_arr = itk.array_view_from_image(tfm.GetDisplacementField())
             reference_image_arr = itk.array_view_from_image(reference_image)
-            print(field_arr.shape)
-            print(field_arr.shape[:2])
-            print(reference_image_arr.shape)
             if field_arr.shape[:2] != reference_image_arr.shape:
                 field_filter = itk.TransformToDisplacementFieldFilter[
                     itk.Image[itk.Vector[itk.F, 3], 3], TfmPrecision

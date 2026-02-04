@@ -23,15 +23,17 @@ A comprehensive test suite (`test_experiments.py`) that automatically executes a
 ### Covered Experiment Subdirectories
 
 1. **Colormap-VTK_To_USD** - VTK colormap conversion to USD ✅ Active
-2. ~~**DisplacementField_To_USD**~~ - Registration displacement field visualization 🚫 **Disabled (notebooks not ready)**
-3. **Reconstruct4DCT** - 4D CT reconstruction techniques ✅ Active
-4. **Heart-VTKSeries_To_USD** - Heart VTK time series conversion ✅ Active
-5. **Heart-GatedCT_To_USD** - Complete cardiac imaging pipeline ✅ Active
-6. **Heart-Model_To_Patient** - Heart model to patient registration ✅ Active
-7. **Lung-GatedCT_To_USD** - Lung imaging pipeline with DirLab data ✅ Active
-8. ~~**Lung-VesselsAirways**~~ - Vessel and airway segmentation 🚫 **Disabled (notebooks not ready)**
+2. **Convert_VTK_To_USD** - VTK to USD using library classes ✅ Active
+3. ~~**DisplacementField_To_USD**~~ - Registration displacement field visualization 🚫 **Disabled (notebooks not ready)**
+4. **Reconstruct4DCT** - 4D CT reconstruction techniques ✅ Active
+5. **Heart-VTKSeries_To_USD** - Heart VTK time series conversion ✅ Active
+6. **Heart-GatedCT_To_USD** - Complete cardiac imaging pipeline ✅ Active
+7. **Heart-Create_Statistical_Model** - PCA statistical shape model creation ✅ Active
+8. **Heart-Statistical_Model_To_Patient** - Heart model to patient registration with PCA ✅ Active
+9. **Lung-GatedCT_To_USD** - Lung imaging pipeline with DirLab data ✅ Active
+10. ~~**Lung-VesselsAirways**~~ - Vessel and airway segmentation 🚫 **Disabled (notebooks not ready)**
 
-**6 active experiments, 2 disabled**
+**8 active experiments, 2 disabled**
 
 ## Files Created
 
@@ -143,18 +145,20 @@ pytest tests/test_experiments.py::test_experiment_structure -v
 
 ### Timeouts
 
-| Test | Per-Notebook | Total Test | Status |
-|------|--------------|------------|--------|
-| Colormap VTK to USD | 3600s (1h) | 7200s (2h) | ✅ Active |
-| ~~Displacement Field~~ | ~~3600s (1h)~~ | ~~7200s (2h)~~ | 🚫 Disabled |
-| Reconstruct 4DCT | 7200s (2h) | 14400s (4h) | ✅ Active |
-| Heart VTK Series | 5400s (1.5h) | 10800s (3h) | ✅ Active |
-| Heart Gated CT | 5400s (1.5h) | 21600s (6h) | ✅ Active |
-| Heart Model to Patient | 7200s (2h) | 14400s (4h) | ✅ Active |
-| Lung Gated CT | 5400s (1.5h) | 21600s (6h) | ✅ Active |
-| ~~Lung Vessels Airways~~ | ~~3600s (1h)~~ | ~~7200s (2h)~~ | 🚫 Disabled |
+| Test                               | Per-Notebook   | Total Test     | Status     |
+| ---------------------------------- | -------------- | -------------- | ---------- |
+| Colormap VTK to USD                | 3600s (1h)     | 7200s (2h)     | ✅ Active   |
+| Convert VTK to USD                 | 3600s (1h)     | 7200s (2h)     | ✅ Active   |
+| ~~Displacement Field~~             | ~~3600s (1h)~~ | ~~7200s (2h)~~ | 🚫 Disabled |
+| Reconstruct 4DCT                   | 7200s (2h)     | 14400s (4h)    | ✅ Active   |
+| Heart VTK Series                   | 5400s (1.5h)   | 10800s (3h)    | ✅ Active   |
+| Heart Gated CT                     | 5400s (1.5h)   | 21600s (6h)    | ✅ Active   |
+| Create Statistical Model           | 5400s (1.5h)   | 10800s (3h)    | ✅ Active   |
+| Heart Statistical Model to Patient | 7200s (2h)     | 14400s (4h)    | ✅ Active   |
+| Lung Gated CT                      | 5400s (1.5h)   | 21600s (6h)    | ✅ Active   |
+| ~~Lung Vessels Airways~~           | ~~3600s (1h)~~ | ~~7200s (2h)~~ | 🚫 Disabled |
 
-**Total for active experiments: ~25 hours** (2 experiments disabled)
+**Total for active experiments: ~32 hours** (2 experiments disabled)
 
 ### Markers
 
@@ -331,7 +335,7 @@ For issues:
 
 This implementation provides a solid foundation for automated validation of PhysioMotion4D experiment notebooks. The test suite is:
 
-- ✅ Comprehensive - Covers all 8 experiment subdirectories
+- ✅ Comprehensive - Covers all 10 experiment subdirectories (8 active, 2 disabled)
 - ✅ Well-documented - Multiple documentation files and guides
 - ✅ Excluded from CI/CD - Properly marked and filtered
 - ✅ Flexible - Run all experiments or individual ones
@@ -342,8 +346,8 @@ The tests serve as both validation tools and living documentation of the experim
 
 ---
 
-**Last Updated:** 2026-01-25  
-**Implementation By:** AI Assistant (Claude Sonnet 4.5)  
+**Last Updated:** 2026-01-25
+**Implementation By:** AI Assistant (Claude Sonnet 4.5)
 **Review Status:** Pending human review
 
 ## Change Log
@@ -376,3 +380,13 @@ The tests serve as both validation tools and living documentation of the experim
 - Ensures notebooks run in strict alphanumeric order even with parallel workers
 - Different experiment subdirectories CAN run in parallel safely
 - Notebooks within a subdirectory CANNOT run in parallel or out of order
+
+### 2026-01-30 - Added Heart-Create_Statistical_Model and Renamed Heart-Model_To_Patient
+- Added `Heart-Create_Statistical_Model` experiment (PCA shape model creation with SlicerSALT)
+- Renamed `Heart-Model_To_Patient` to `Heart-Statistical_Model_To_Patient` for clarity
+- Added `Convert_VTK_To_USD` experiment test
+- Updated all documentation to reflect experiment reorganization
+- Created comprehensive README.md for Heart-Create_Statistical_Model experiment
+- Updated data/KCL-Heart-Model/README.md to reference new experiment
+- Total active experiments: 8 (up from 6)
+- Total estimated runtime: ~32 hours (up from ~25 hours)

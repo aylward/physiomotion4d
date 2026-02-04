@@ -126,12 +126,12 @@ class PhysioMotion4DBase:
         assert PhysioMotion4DBase._shared_logger is not None
         self.logger: logging.Logger = PhysioMotion4DBase._shared_logger
 
-        # Convert string log level to integer if needed
-        if isinstance(log_level, str):
-            log_level = getattr(logging, log_level.upper())
-
         # Store the log level
-        self.log_level = log_level
+        if isinstance(log_level, str):
+            int_log_level = getattr(logging, log_level.upper())
+        else:
+            int_log_level = log_level
+        self.log_level: int = int_log_level
 
     @classmethod
     def _initialize_shared_logger(
@@ -146,9 +146,10 @@ class PhysioMotion4DBase:
 
         # Convert string log level to integer if needed
         if isinstance(log_level, str):
-            log_level = getattr(logging, log_level.upper())
-
-        cls._shared_logger.setLevel(log_level)
+            int_log_level = getattr(logging, log_level.upper())
+            cls._shared_logger.setLevel(int_log_level)
+        else:
+            cls._shared_logger.setLevel(log_level)
 
         # Remove existing handlers to avoid duplicates
         cls._shared_logger.handlers.clear()

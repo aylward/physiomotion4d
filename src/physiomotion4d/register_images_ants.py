@@ -56,11 +56,14 @@ class RegisterImagesANTs(RegisterImagesBase):
         syn_metric (str): Similarity metric for SyN (default: 'CC')
         syn_sampling (int): Sampling strategy (default: 2)
         reg_iterations (tuple): Iterations per resolution level (default: (40, 20, 0))
+        metric (str): Similarity metric to use ('CC', 'Mattes', or 'MeanSquares', default: 'CC')
 
     Example:
         >>> registrar = RegisterImagesANTs()
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
+        >>> registrar.set_transform_type('Affine')
+        >>> registrar.set_metric('Mattes')
         >>> result = registrar.register(moving_image)
         >>> inverse_transform = result['inverse_transform']
     """
@@ -78,6 +81,7 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         self.number_of_iterations: list[int] = [40, 20, 10]
         self.transform_type = "Deformable"
+        self.metric = "CC"
 
     def set_number_of_iterations(self, number_of_iterations: list[int]) -> None:
         """Set the number of iterations for ANTs registration.
@@ -99,6 +103,19 @@ class RegisterImagesANTs(RegisterImagesBase):
         if transform_type not in ["Deformable", "Affine", "Rigid"]:
             self.log_error("Invalid transform type: %s", transform_type)
             raise ValueError(f"Invalid transform type: {transform_type}")
+
+    def set_metric(self, metric: str) -> None:
+        """Set the similarity metric to use for registration.
+
+        Args:
+            metric (str): Similarity metric to use for registration.
+                Options: 'CC' (cross-correlation), 'Mattes' (Mattes mutual information),
+                'MeanSquares' (mean squares difference)
+        """
+        self.metric = metric
+        if metric not in ["CC", "Mattes", "MeanSquares"]:
+            self.log_error("Invalid metric: %s", metric)
+            raise ValueError(f"Invalid metric: {metric}")
 
     def _ants_to_itk_image(self, ants_image: ants.ANTsImage) -> itk.Image:
         """Convert ANTs image back to ITK format.
@@ -589,6 +606,27 @@ class RegisterImagesANTs(RegisterImagesBase):
             self.log_error("Invalid transform type: %s", self.transform_type)
             raise ValueError(f"Invalid transform type: {self.transform_type}")
 
+        # Determine the appropriate metric based on transform type and user-specified metric
+        aff_metric = None
+        syn_metric = None
+
+        if self.transform_type in ["Affine", "Rigid"]:
+            # For Affine/Rigid transforms, set aff_metric
+            if self.metric == "CC":
+                aff_metric = "GC"
+            elif self.metric == "Mattes":
+                aff_metric = "mattes"
+            elif self.metric == "MeanSquares":
+                aff_metric = "meansquares"
+        elif self.transform_type == "Deformable":
+            # For Deformable transforms, set syn_metric
+            if self.metric == "CC":
+                syn_metric = "CC"
+            elif self.metric == "Mattes":
+                syn_metric = "mattes"
+            elif self.metric == "MeanSquares":
+                syn_metric = "meansquares"
+
         if self.fixed_mask is not None and self.moving_mask is not None:
             registration_result = ants.registration(
                 fixed=self._itk_to_ants_image(self.fixed_image_pre),
@@ -597,6 +635,8 @@ class RegisterImagesANTs(RegisterImagesBase):
                 moving_mask=self._itk_to_ants_image(self.moving_mask),
                 initial_transform=[initial_transform],
                 type_of_transform=transform_type,
+                aff_metric=aff_metric,
+                syn_metric=syn_metric,
                 use_histogram_matching=False,
                 mask_all_stages=True,
                 verbose=True,
@@ -608,6 +648,8 @@ class RegisterImagesANTs(RegisterImagesBase):
                 moving=self._itk_to_ants_image(self.moving_image_pre),
                 initial_transform=[initial_transform],
                 type_of_transform=transform_type,
+                aff_metric=aff_metric,
+                syn_metric=syn_metric,
                 use_histogram_matching=False,
                 verbose=True,
                 reg_iterations=self.number_of_iterations,

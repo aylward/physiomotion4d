@@ -25,20 +25,24 @@ git mv old_name.py new_name.py
 
 ## Documentation
 
-**Do NOT create extra documentation files** describing what was done:
+**NEVER create .md files unless explicitly requested by the user or unless creating a new module in a directory that does not already have a README.md, then a README.md may be created if appropriate.**
 
 ❌ **Don't create**:
 - `MIGRATION.md`
 - `CHANGES.md`
 - `UPDATE_SUMMARY.md`
 - `MODERNIZATION_*.md`
-- Similar meta-documentation files
+- `*_GUIDE.md`
+- `*_EXAMPLE.md`
+- `*_SUMMARY.md`
+- Any other .md files without explicit user request except README.md files for new modules.
 
 ✅ **Do document**:
 - In-code docstrings
 - README files for new modules
 - Inline comments for complex logic
-- API documentation in existing docs
+- Update existing README.md files when needed
+- API documentation in existing docs structure
 
 ## Backward Compatibility
 
@@ -56,6 +60,24 @@ git mv old_name.py new_name.py
 - Keep functions focused and small
 - Use `logging` module instead of `print` statements
 - Follow PEP 8 for Python code
+
+## Python Commands
+
+**Use `py` for running Python on this Windows system:**
+
+```bash
+# Running Python
+py script.py
+
+# Running modules
+py -m pytest tests/
+
+# Python version
+py --version
+```
+
+❌ **Don't use**: `python` (not available in PATH)
+✅ **Do use**: `py` (Python launcher for Windows)
 
 ## Testing
 

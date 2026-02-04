@@ -11,6 +11,7 @@ import io
 import json
 import logging
 import os
+import socket
 import tempfile
 import zipfile
 from urllib.error import HTTPError, URLError
@@ -66,8 +67,11 @@ class SegmentChestVista3DNIM(SegmentChestVista3D):
             method="POST",
         )
         try:
-            with urlopen(req) as resp:
+            # Use timeout to prevent indefinite hanging (300s = 5 minutes)
+            with urlopen(req, timeout=300) as resp:
                 response_content = resp.read()
+        except socket.timeout as e:
+            raise RuntimeError("VISTA3D NIM request timed out after 300 seconds") from e
         except HTTPError as e:
             raise RuntimeError(
                 f"VISTA3D NIM request failed: HTTP {e.code} {e.reason}"
