@@ -21,6 +21,7 @@ from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
+from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
 from physiomotion4d.transform_tools import TransformTools
 
 # ============================================================================
@@ -369,6 +370,39 @@ def segmenter_total_segmentator():
 def segmenter_vista_3d():
     """Create a SegmentChestVista3D instance."""
     return SegmentChestVista3D()
+
+
+@pytest.fixture(scope="session")
+def segmenter_simpleware():
+    """Create a SegmentHeartSimpleware instance."""
+    return SegmentHeartSimpleware()
+
+
+# Heart-Simpleware_Segmentation uses same data as the notebook: data/CHOP-Valve4D/CT/RVOT28-Dias.nii.gz
+HEART_SIMPLEWARE_IMAGE_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "CHOP-Valve4D"
+    / "CT"
+    / "RVOT28-Dias.nii.gz"
+)
+
+
+@pytest.fixture(scope="session")
+def heart_simpleware_image_path():
+    """Path to cardiac CT image used by experiments/Heart-Simpleware_Segmentation notebook."""
+    if not HEART_SIMPLEWARE_IMAGE_PATH.exists():
+        pytest.skip(
+            f"Heart Simpleware test data not found: {HEART_SIMPLEWARE_IMAGE_PATH}. "
+            "Place RVOT28-Dias.nii.gz there or run from repo with data/CHOP-Valve4D/CT/ populated."
+        )
+    return HEART_SIMPLEWARE_IMAGE_PATH
+
+
+@pytest.fixture(scope="session")
+def heart_simpleware_image(heart_simpleware_image_path):
+    """Load cardiac CT image for SegmentHeartSimpleware tests (same as notebook)."""
+    return itk.imread(str(heart_simpleware_image_path))
 
 
 @pytest.fixture(scope="session")

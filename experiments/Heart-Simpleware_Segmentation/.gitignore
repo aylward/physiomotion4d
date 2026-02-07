@@ -1,0 +1,22 @@
+# Ignore results directory and temporary files
+results/
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
+*.tmp
+*.log
+
+# Ignore large data files
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.raw
+*.dcm
+
+# Ignore visualization outputs
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.avi

@@ -189,6 +189,44 @@ def execute_notebook(notebook_path: Path, timeout: int = 3600) -> dict:
         raise
 
 
+def _heart_statistical_model_pca_prerequisites_met() -> tuple[bool, str]:
+    """
+    Check whether PCA model outputs from Heart-Create_Statistical_Model exist.
+
+    Heart-Statistical_Model_To_Patient notebooks expect these artifacts from
+    the Heart-Create_Statistical_Model experiment (notably 5-compute_pca_model.ipynb).
+
+    Returns:
+        (True, "") if all required paths exist, else (False, reason_message).
+    """
+    pca_output_dir = (
+        EXPERIMENTS_DIR / "Heart-Create_Statistical_Model" / "kcl-heart-model"
+    )
+    pca_json = pca_output_dir / "pca_model.json"
+    pca_mean_vtp = pca_output_dir / "pca_mean.vtp"
+
+    if not pca_output_dir.is_dir():
+        return (
+            False,
+            f"PCA model output directory not found: {pca_output_dir}. "
+            "Run the Heart-Create_Statistical_Model experiment first "
+            "(e.g. pytest tests/test_experiments.py::test_experiment_create_statistical_model -v -s --run-experiments).",
+        )
+    if not pca_json.is_file():
+        return (
+            False,
+            f"PCA model JSON not found: {pca_json}. "
+            "Complete Heart-Create_Statistical_Model (including 5-compute_pca_model.ipynb) first.",
+        )
+    if not pca_mean_vtp.is_file():
+        return (
+            False,
+            f"PCA mean surface not found: {pca_mean_vtp}. "
+            "Complete Heart-Create_Statistical_Model (including 5-compute_pca_model.ipynb) first.",
+        )
+    return (True, "")
+
+
 def run_experiment_notebooks(subdir_name: str, timeout_per_notebook: int = 3600):
     """
     Run all notebooks in an experiment subdirectory in alphanumeric order.
@@ -468,6 +506,9 @@ def test_experiment_heart_statistical_model_to_patient():
     ⚠️ PREREQUISITE: Complete Heart-Create_Statistical_Model experiment first to generate
     the PCA model data required for this experiment.
 
+    If PCA outputs (kcl-heart-model/pca_model.json, pca_mean.vtp) are missing, this test
+    is skipped with a clear message so it can be run in isolation after generating them.
+
     EXECUTION ORDER (ENFORCED):
     1. heart_model_to_model_icp_itk.ipynb (ICP registration)
     2. heart_model_to_model_registration_pca.ipynb (PCA-based registration)
@@ -475,6 +516,10 @@ def test_experiment_heart_statistical_model_to_patient():
 
     Sequential execution ensures registration results are available for subsequent steps.
     """
+    prereq_met, skip_reason = _heart_statistical_model_pca_prerequisites_met()
+    if not prereq_met:
+        pytest.skip(skip_reason)
+
     run_experiment_notebooks(
         "Heart-Statistical_Model_To_Patient", timeout_per_notebook=7200
     )

@@ -223,6 +223,7 @@ module = [
     "pyvista.*",
     "scripts.*",
     "SimpleITK",
+    "simpleware.*",
     "torch",
     "torch.*",
     "totalsegmentator.*",

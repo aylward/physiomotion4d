@@ -1,6 +1,7 @@
 # Project files
 .claude
 .coverage
+*.code-workspace
 coverage.xml
 *~
 *.swp
