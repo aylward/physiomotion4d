@@ -15,19 +15,30 @@ The test suite validates the complete PhysioMotion4D pipeline:
 
 ## Quick Start
 
-### 1. Install test dependencies
+### 1. Install Git LFS (required)
+
+Baseline files in `tests/baselines/` (`.hdf` and `.mha`) are tracked with **Git LFS**. Install Git LFS and pull LFS files so baseline comparison tests can run:
+
+```bash
+# Install: brew install git-lfs (macOS), sudo apt-get install git-lfs (Linux), or see https://git-lfs.github.com
+git lfs install
+git lfs pull   # if you already cloned
+```
+
+### 2. Install test dependencies
 
 ```bash
 # Using uv (recommended)
 uv pip install -e ".[test]"
+```
 
-### 2. Run all tests (excluding slow ones)
+### 3. Run all tests (excluding slow ones)
 
 ```bash
 pytest tests/ -m "not slow" -v
 ```
 
-### 3. Run specific test modules
+### 4. Run specific test modules
 
 ```bash
 # Data preparation tests (fast)
@@ -43,7 +54,7 @@ pytest tests/test_usd_merge.py -v
 pytest tests/test_usd_time_preservation.py -v
 ```
 
-### 4. Run with coverage
+### 5. Run with coverage
 
 ```bash
 pytest tests/ --cov=src/physiomotion4d --cov-report=html

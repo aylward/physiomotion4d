@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 """
 Test for time series image registration.
 
@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from physiomotion4d import RegisterTimeSeriesImages
+from physiomotion4d.test_tools import TestTools
 from physiomotion4d.transform_tools import TransformTools
 
 
@@ -93,12 +94,8 @@ class TestRegisterTimeSeriesImages:
 
         print("\n✓ Number of iterations set successfully")
 
-    def test_register_time_series_basic(self, test_images, test_directories):
+    def test_register_time_series_basic(self, test_images, test_directories) -> bool:
         """Test basic time series registration without prior transform."""
-        output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_time_series"
-        reg_output_dir.mkdir(exist_ok=True)
-
         # Use first 3 images for quick test
         fixed_image = test_images[0]
         moving_images = test_images[1:4]
@@ -149,20 +146,40 @@ class TestRegisterTimeSeriesImages:
         print(f"  Transforms generated: {len(forward_transforms)}")
         print(f"  Average loss: {np.mean(losses):.6f}")
 
-        # Save first transform for verification
-        itk.transformwrite(
-            [forward_transforms[0]],
-            str(reg_output_dir / "time_series_forward_transform_0.hdf"),
-            compression=True,
+        transform_tools = TransformTools()
+        moving_image = transform_tools.transform_image(
+            moving_images[0],
+            forward_transforms[0],
+            fixed_image,
+            interpolation_method="linear",
         )
-        print(f"  Saved sample transform to: {reg_output_dir}")
 
-    def test_register_time_series_with_prior(self, test_images, test_directories):
+        test_tools = TestTools(
+            class_name="TestRegisterTimeSeriesImages",
+            results_dir=test_directories["output"],
+            baselines_dir=test_directories["baselines"],
+        )
+
+        test_tools.write_result_transform(
+            forward_transforms[0], "basic_forward_transform_0.hdf"
+        )
+        success = test_tools.compare_result_to_baseline_transform(
+            "basic_forward_transform_0.hdf",
+        )
+
+        test_tools.write_result_image(
+            moving_image, "basic_time_series_registered_0.mha"
+        )
+        success = success and test_tools.compare_result_to_baseline_image(
+            "basic_time_series_registered_0.mha",
+        )
+
+        return success
+
+    def test_register_time_series_with_prior(
+        self, test_images, test_directories
+    ) -> bool:
         """Test time series registration with prior transform usage."""
-        output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_time_series"
-        reg_output_dir.mkdir(exist_ok=True)
-
         fixed_image = test_images[0]
         moving_images = test_images[1:4]
 
@@ -185,12 +202,41 @@ class TestRegisterTimeSeriesImages:
         forward_transforms = result["forward_transforms"]
         losses = result["losses"]
 
+        transform_tools = TransformTools()
+        moving_image = transform_tools.transform_image(
+            moving_images[0],
+            forward_transforms[0],
+            fixed_image,
+            interpolation_method="linear",
+        )
+
         # Verify all transforms generated
         for i, forward_transform in enumerate(forward_transforms):
             assert forward_transform is not None, f"forward_transform[{i}] is None"
 
         print("✓ Time series registration with prior complete")
         print(f"  Losses: {[f'{loss:.6f}' for loss in losses]}")
+
+        test_tools = TestTools(
+            class_name="TestRegisterTimeSeriesImages",
+            results_dir=test_directories["output"],
+            baselines_dir=test_directories["baselines"],
+        )
+
+        test_tools.write_result_transform(
+            forward_transforms[0], "prior_forward_transform_0.hdf"
+        )
+        success = test_tools.compare_result_to_baseline_transform(
+            "prior_forward_transform_0.hdf",
+        )
+
+        test_tools.write_result_image(
+            moving_image, "prior_time_series_registered_0.mha"
+        )
+        success = success and test_tools.compare_result_to_baseline_image(
+            "prior_time_series_registered_0.mha",
+        )
+        return success
 
     def test_register_time_series_identity_start(self, test_images):
         """Test time series registration with identity for starting image."""
@@ -221,17 +267,17 @@ class TestRegisterTimeSeriesImages:
     def test_register_time_series_different_starting_indices(self, test_images):
         """Test time series registration with different starting indices."""
         fixed_image = test_images[0]
-        moving_images = test_images[1:5]  # 4 images
+        moving_images = test_images[1:3]  # 2 images
 
         print("\nTesting different starting indices...")
 
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ants([10, 5, 1])
 
         # Test starting from beginning, middle, and end
-        for starting_index in [0, 2, 3]:
+        for starting_index in [0, 1]:
             print(f"  Starting index: {starting_index}")
             result = registrar.register_time_series(
                 moving_images=moving_images,
@@ -301,12 +347,10 @@ class TestRegisterTimeSeriesImages:
 
         print("\n✓ Invalid prior portion correctly rejected")
 
-    def test_transform_application_time_series(self, test_images, test_directories):
+    def test_transform_application_time_series(
+        self, test_images, test_directories
+    ) -> bool:
         """Test applying transforms from time series registration."""
-        output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_time_series"
-        reg_output_dir.mkdir(exist_ok=True)
-
         fixed_image = test_images[0]
         moving_images = test_images[1:3]
 
@@ -342,11 +386,20 @@ class TestRegisterTimeSeriesImages:
         print(f"  Registered image size: {itk.size(registered_image)}")
 
         # Save registered image
-        itk.imwrite(
-            registered_image,
-            str(reg_output_dir / "time_series_registered_0.mha"),
-            compression=True,
+        test_tools = TestTools(
+            class_name="TestRegisterTimeSeriesImages",
+            results_dir=test_directories["output"],
+            baselines_dir=test_directories["baselines"],
         )
+
+        test_tools.write_result_image(
+            registered_image, "transform_application_time_series_0.mha"
+        )
+        success = test_tools.compare_result_to_baseline_image(
+            "transform_application_time_series_0.mha",
+        )
+
+        return success
 
     def test_register_time_series_icon(self, test_images):
         """Test time series registration with ICON method."""

@@ -135,6 +135,42 @@ All experiment tests are marked with:
 - `@pytest.mark.requires_data` - Requires external data download (when applicable)
 - `@pytest.mark.timeout(seconds)` - Sets maximum execution time
 
+## Running as Test: PHYSIOMOTION_RUNNING_AS_TEST
+
+When you run experiment tests with `pytest ... --run-experiments`, the test runner sets the environment variable **`PHYSIOMOTION_RUNNING_AS_TEST=1`** before executing each notebook. Notebooks can read this to use **reduced parameters** (fewer iterations, fewer files, smaller resolution) so test runs complete in reasonable time.
+
+### How it works
+
+- **Test runner** ([test_experiments.py](test_experiments.py)): `execute_notebook()` passes `env` with `PHYSIOMOTION_RUNNING_AS_TEST=1` to the subprocess that runs `jupyter nbconvert --execute`, so the notebook kernel sees the variable.
+- **Notebooks**: In an early cell (e.g. after imports or with other config), compute a boolean and use it to choose quick vs full parameters.
+
+### Recommended check in notebooks
+
+Use either of these:
+
+**Option 1 – inline (no extra import):**
+
+```python
+running_as_test = os.environ.get("PHYSIOMOTION_RUNNING_AS_TEST", "").lower() in ("1", "true", "yes")
+```
+
+**Option 2 – shared helper (recommended):**
+
+```python
+from physiomotion4d.notebook_utils import running_as_test
+
+# Then use running_as_test() where you need it, e.g.:
+quick_run = running_as_test()
+max_iterations = 100 if running_as_test() else 2000
+```
+
+### Semantics
+
+- **Truthy values** (case-insensitive): `1`, `true`, `yes` → notebook should use fast/small parameters.
+- **Unset or falsy**: use full parameters (normal interactive or production run).
+
+Notebooks that support this will run quickly when executed as tests and at full fidelity when run manually.
+
 ## Usage Tips
 
 ### Run with Detailed Output

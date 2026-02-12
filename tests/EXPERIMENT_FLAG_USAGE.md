@@ -141,9 +141,13 @@ If you ever need to disable this protection (not recommended):
 
 **Warning:** Removing this protection means developers might accidentally run 20+ hour test suites.
 
+## Test-Mode Flag: PHYSIOMOTION_RUNNING_AS_TEST
+
+When experiment tests run (with `--run-experiments`), the test runner also sets **`PHYSIOMOTION_RUNNING_AS_TEST=1`** so that notebooks can use reduced parameters (e.g. fewer iterations, fewer files) and finish faster. Notebooks should read this variable and choose quick vs full parameters accordingly. See [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md#running-as-test-physiomotion_running_as_test) for the recommended check and the `physiomotion4d.notebook_utils.running_as_test()` helper.
+
 ## Related Documentation
 
-- **[EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)** - Complete guide to experiment tests
+- **[EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)** - Complete guide to experiment tests (including PHYSIOMOTION_RUNNING_AS_TEST)
 - **[README.md](README.md)** - Main testing documentation
 - **[conftest.py](conftest.py)** - Pytest configuration implementation
 

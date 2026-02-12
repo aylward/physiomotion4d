@@ -100,3 +100,7 @@ The user prefers to review and stage changes manually.
 - Make atomic commits with clear messages
 - Don't commit large binary files (add to `.gitignore`)
 - Use `git status` to verify changes before committing
+
+**Code and documentation versions:**
+- Refer to code and documentation in the folder reference_code to get examples and documentation of the APIs and best practices for the advanced libraries used in this project:
+    - ITK, VTK, PyVista, Omniverse, PhysicsNeMo, Simpleware, MONAI, and OpenUSD

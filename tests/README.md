@@ -53,11 +53,27 @@ tests/
 ├── data/                    # Downloaded/input test data
 │   └── Slicer-Heart-CT/    # 4D cardiac CT dataset
 ├── results/                 # Test outputs (organized by module)
-├── baseline/                # Regression test baselines
+├── baselines/               # Regression test baselines (.hdf, .mha via Git LFS)
 └── *.py                     # Test modules
 ```
 
 ## 🚀 Quick Start
+
+### Git LFS (required for tests)
+
+Baseline files in `tests/baselines/` (`.hdf` and `.mha`) are stored with **Git LFS**. You must install and use Git LFS so these files are pulled correctly; otherwise tests that compare against baselines will fail.
+
+```bash
+# Install Git LFS (one-time per machine)
+# macOS (Homebrew): brew install git-lfs
+# Ubuntu/Debian:    sudo apt-get install git-lfs
+# Windows:          winget install GitHub.GitLFS  (or download from https://git-lfs.github.com)
+
+git lfs install          # one-time per user
+git lfs pull            # fetch LFS files if you already cloned
+```
+
+If you clone after running `git lfs install`, LFS files are pulled automatically with `git clone`.
 
 ### Install Dependencies
 ```bash

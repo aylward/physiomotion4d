@@ -22,6 +22,8 @@ The project has two main workflow files:
    - Builds Sphinx documentation
    - Deploys to GitHub Pages
 
+**Git LFS**: Workflows that run tests (`ci.yml`, `test-slow.yml`) use `actions/checkout` with `lfs: true` so baseline files in `tests/baselines/` (`.hdf`, `.mha`) are fetched and tests can compare against them.
+
 ## Main CI Workflow
 
 File: `.github/workflows/ci.yml`

@@ -215,6 +215,7 @@ pytest tests/test_experiments.py::test_experiment_structure -v --run-experiments
 
 ### Test Features
 
+- **Test-mode flag** - When run as tests (pytest with `--run-experiments`), the runner sets `PHYSIOMOTION_RUNNING_AS_TEST=1`. Notebooks can read this (e.g. via `physiomotion4d.notebook_utils.running_as_test()`) and use reduced parameters so test runs stay fast. See [tests/EXPERIMENT_TESTS_GUIDE.md](../tests/EXPERIMENT_TESTS_GUIDE.md#running-as-test-physiomotion_running_as_test).
 - **One test per subdirectory** - Each experiment subdirectory gets its own test function
 - **Alphanumeric ordering** - Notebooks execute in alphanumeric order (e.g., `0-`, `1-`, `2-`)
 - **Long timeouts** - Each notebook has up to 1 hour execution time, tests have multi-hour timeouts

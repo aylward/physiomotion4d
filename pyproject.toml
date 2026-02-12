@@ -242,6 +242,7 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
+    "-W", "always",
     "--cov=physiomotion4d",
     "--cov-report=term-missing",
     "--cov-report=html",

@@ -29,6 +29,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 - NVIDIA GPU with CUDA 12.6+ (for AI models and registration)
 - 16GB+ RAM (32GB+ recommended for large datasets)
 - NVIDIA Omniverse (for USD visualization)
+- **Git LFS** (required for running tests: baseline files in `tests/baselines/` are stored with Git LFS; install from [git-lfs.github.com](https://git-lfs.github.com), then run `git lfs install` and `git lfs pull` after cloning)
 
 ### Installation from PyPI
 
@@ -43,10 +44,12 @@ pip install physiomotion4d[nim]
 
 ### Installation from Source
 
-1. **Clone the repository**:
+1. **Clone the repository** (Git LFS is required for tests; install it first from [git-lfs.github.com](https://git-lfs.github.com)):
    ```bash
    git clone <repository-url>
    cd PhysioMotion4D
+   git lfs install   # if not already done
+   git lfs pull     # fetch .hdf and .mha baselines in tests/baselines/
    ```
 
 2. **Create virtual environment**:

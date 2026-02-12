@@ -23,6 +23,7 @@ Note: These tests require all dependencies installed and GPU/CUDA support for
 many of the experiments.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -152,6 +153,10 @@ def execute_notebook(notebook_path: Path, timeout: int = 3600) -> dict:
         str(notebook_path),
     ]
 
+    # So notebooks can use reduced parameters when run as tests (see EXPERIMENT_TESTS_GUIDE.md)
+    env = os.environ.copy()
+    env["PHYSIOMOTION_RUNNING_AS_TEST"] = "1"
+
     try:
         result = subprocess.run(
             cmd,
@@ -159,6 +164,7 @@ def execute_notebook(notebook_path: Path, timeout: int = 3600) -> dict:
             text=True,
             timeout=timeout * 1.5,  # Give extra time for nbconvert overhead
             cwd=notebook_path.parent,  # Run in notebook's directory
+            env=env,
             check=False,
         )
 

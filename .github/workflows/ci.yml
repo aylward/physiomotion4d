@@ -35,6 +35,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        lfs: true
 
     - name: Free up disk space on Ubuntu
       if: matrix.os == 'ubuntu-latest'
@@ -134,6 +136,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        lfs: true
 
     - name: Free up disk space
       run: |
@@ -264,6 +268,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        lfs: true
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -341,6 +347,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        lfs: true
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v5

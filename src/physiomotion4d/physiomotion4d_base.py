@@ -31,6 +31,7 @@ Example:
 """
 
 import logging
+import warnings
 from typing import Any, Optional, cast
 
 
@@ -39,6 +40,13 @@ class ClassNameFilter(logging.Filter):
 
     When enabled, only log messages from classes in the allowed list will be shown.
     """
+
+    warnings.filterwarnings(
+        "ignore", category=DeprecationWarning, message=".*SwigPyPacked.*"
+    )
+    warnings.filterwarnings(
+        "ignore", category=DeprecationWarning, message=".*swigvarlink.*"
+    )
 
     def __init__(self) -> None:
         super().__init__()

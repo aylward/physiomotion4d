@@ -24,7 +24,6 @@ network_weights
 # Data files
 *.gz
 *.mat
-*.mha
 *.mhd
 *.zip
 *.nii
