@@ -9,7 +9,8 @@ This section provides comprehensive guides for using PhysioMotion4D's command-li
    **CLI Commands: Your Definitive Resource** ⭐
 
    The examples and workflows documented here are based on production-ready CLI commands
-   (``physiomotion4d-heart-gated-ct``, ``physiomotion4d-register-heart-model``) and their
+   (``physiomotion4d-heart-gated-ct``, ``physiomotion4d-create-statistical-model``,
+   ``physiomotion4d-fit-statistical-model-to-patient``) and their
    implementations in ``src/physiomotion4d/cli/``. These are your **primary resource** for:
 
    * Production-ready workflow implementations
@@ -48,7 +49,9 @@ Current Scripts
      - Description
    * - :doc:`heart_gated_ct`
      - Process cardiac gated CT to animated heart models with physiological motion
-   * - :doc:`heart_model_to_patient`
+   * - :doc:`create_statistical_model`
+     - Build a PCA statistical shape model from sample meshes aligned to a reference
+   * - :doc:`fit_statistical_model_to_patient`
      - Register generic heart models to patient-specific imaging data and surface models
 
 Upcoming Scripts

@@ -249,14 +249,14 @@ Custom Segmentation Methods
 Adding New Segmentation Algorithms
 -----------------------------------
 
-Extend :class:`SegmentChestBase`:
+Extend :class:`SegmentAnatomyBase`:
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestBase
+   from physiomotion4d import SegmentAnatomyBase
    import torch
 
-   class MyCustomSegmentator(SegmentChestBase):
+   class MyCustomSegmentator(SegmentAnatomyBase):
        """Custom deep learning segmentation."""
 
        def __init__(

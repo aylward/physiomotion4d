@@ -76,10 +76,11 @@ By Category
 
 **Workflows**
    * :class:`~physiomotion4d.WorkflowConvertHeartGatedCTToUSD` - Heart CT to USD
-   * :class:`~physiomotion4d.WorkflowRegisterHeartModelToPatient` - Heart model registration
+   * :class:`~physiomotion4d.WorkflowCreateStatisticalModel` - Create PCA statistical shape model
+   * :class:`~physiomotion4d.WorkflowFitStatisticalModelToPatient` - Heart model registration
 
 **Segmentation**
-   * :class:`~physiomotion4d.SegmentChestBase` - Base segmentation class
+   * :class:`~physiomotion4d.SegmentAnatomyBase` - Base segmentation class
    * :class:`~physiomotion4d.SegmentChestTotalSegmentator` - TotalSegmentator
    * :class:`~physiomotion4d.SegmentChestVista3D` - VISTA-3D model
    * :class:`~physiomotion4d.SegmentChestVista3DNIM` - VISTA-3D NIM

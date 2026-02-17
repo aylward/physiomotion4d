@@ -88,13 +88,14 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 
 - **Workflow Classes**: Complete end-to-end pipeline processors
   - `WorkflowConvertHeartGatedCTToUSD`: Heart-gated CT to USD processing workflow
-  - `WorkflowRegisterHeartModelToPatient`: Model-to-patient registration workflow
+  - `WorkflowCreateStatisticalModel`: Create PCA statistical shape model from sample meshes
+  - `WorkflowFitStatisticalModelToPatient`: Model-to-patient registration workflow
 - **Segmentation Classes**: Multiple AI-based chest segmentation implementations
   - `SegmentChestTotalSegmentator`: TotalSegmentator-based segmentation
   - `SegmentChestVista3D`: VISTA-3D model-based segmentation
   - `SegmentChestVista3DNIM`: NVIDIA NIM version of VISTA-3D
   - `SegmentChestEnsemble`: Ensemble segmentation combining multiple methods
-  - `SegmentChestBase`: Base class for custom segmentation methods
+  - `SegmentAnatomyBase`: Base class for custom segmentation methods
 - **Registration Classes**: Multiple registration methods for different use cases
   - Image-to-Image Registration:
     - `RegisterImagesICON`: Deep learning-based registration using Icon algorithm
@@ -156,13 +157,34 @@ physiomotion4d-heart-gated-ct cardiac.nrrd \
 
 For Python API usage and advanced customization, see the examples below or refer to the CLI implementation in `src/physiomotion4d/cli/`.
 
+#### Create Statistical Model
+
+Build a PCA statistical shape model from sample meshes aligned to a reference:
+
+```bash
+# From a directory of sample meshes
+physiomotion4d-create-statistical-model \
+    --sample-meshes-dir ./input_meshes \
+    --reference-mesh average_mesh.vtk \
+    --output-dir ./pca_output
+
+# With custom PCA components
+physiomotion4d-create-statistical-model \
+    --sample-meshes-dir ./meshes \
+    --reference-mesh average_mesh.vtk \
+    --output-dir ./pca_output \
+    --pca-components 20
+```
+
+Outputs: `pca_mean_surface.vtp`, `pca_mean.vtu` (if reference is volumetric), and `pca_model.json`.
+
 #### Heart Model to Patient Registration
 
 Register a generic heart model to patient-specific data:
 
 ```bash
 # Basic registration
-physiomotion4d-register-heart-model \
+physiomotion4d-fit-statistical-model-to-patient \
     --template-model heart_model.vtu \
     --template-labelmap heart_labelmap.nii.gz \
     --patient-models lv.vtp rv.vtp myo.vtp \
@@ -170,7 +192,7 @@ physiomotion4d-register-heart-model \
     --output-dir ./results
 
 # With PCA shape fitting
-physiomotion4d-register-heart-model \
+physiomotion4d-fit-statistical-model-to-patient \
     --template-model heart_model.vtu \
     --template-labelmap heart_labelmap.nii.gz \
     --patient-models lv.vtp rv.vtp myo.vtp \
@@ -203,7 +225,7 @@ final_usd = processor.process()
 ### Python API - Model to Patient Registration
 
 ```python
-from physiomotion4d import WorkflowRegisterHeartModelToPatient
+from physiomotion4d import WorkflowFitStatisticalModelToPatient
 import pyvista as pv
 import itk
 
@@ -213,7 +235,7 @@ patient_surfaces = [pv.read("lv.stl"), pv.read("rv.stl")]
 reference_image = itk.imread("patient_ct.nii.gz")
 
 # Initialize and run workflow
-workflow = WorkflowRegisterHeartModelToPatient(
+workflow = WorkflowFitStatisticalModelToPatient(
     moving_mesh=model_mesh,
     fixed_meshes=patient_surfaces,
     fixed_image=reference_image
@@ -352,13 +374,13 @@ PhysioMotion4D provides standardized logging through the `PhysioMotion4DBase` cl
 
 ```python
 import logging
-from physiomotion4d import WorkflowRegisterHeartModelToPatient, PhysioMotion4DBase
+from physiomotion4d import WorkflowFitStatisticalModelToPatient, PhysioMotion4DBase
 
 # Control logging level globally for all classes
 PhysioMotion4DBase.set_log_level(logging.DEBUG)
 
 # Or filter to show logs from specific classes only
-PhysioMotion4DBase.set_log_classes(["WorkflowRegisterHeartModelToPatient", "RegisterModelsPCA"])
+PhysioMotion4DBase.set_log_classes(["WorkflowFitStatisticalModelToPatient", "RegisterModelsPCA"])
 
 # Show all classes again
 PhysioMotion4DBase.set_log_all_classes()
@@ -436,7 +458,7 @@ Advanced registration between generic anatomical models and patient-specific dat
 - **`heart_model_to_model_registration_pca.ipynb`**: PCA-based statistical shape model registration
 - **`heart_model_to_patient.ipynb`**: Complete model-to-patient registration workflow
 
-Uses the `WorkflowRegisterHeartModelToPatient` class for three-stage registration:
+Uses the `WorkflowFitStatisticalModelToPatient` class for three-stage registration:
 1. ICP-based rough alignment
 2. Mask-to-mask deformable registration
 3. Optional PCA-constrained shape fitting

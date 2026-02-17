@@ -163,7 +163,9 @@ Changelog = "https://github.com/aylward/PhysioMotion4d/blob/main/CHANGELOG.md"
 # CLI commands installed via pip
 # Entry points reference the main() functions in the cli submodule
 physiomotion4d-heart-gated-ct = "physiomotion4d.cli.convert_heart_gated_ct_to_usd:main"
-physiomotion4d-register-heart-model = "physiomotion4d.cli.register_heart_model_to_patient:main"
+physiomotion4d-create-statistical-model = "physiomotion4d.cli.create_statistical_model:main"
+physiomotion4d-fit-statistical-model-to-patient = "physiomotion4d.cli.fit_statistical_model_to_patient:main"
+physiomotion4d-visualize-pca-modes = "physiomotion4d.cli.visualize_pca_modes:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -173,6 +175,7 @@ current_version = "2025.05.0"
 version_pattern = "YYYY.0M.PATCH[PYTAGNUM]"
 commit_message = "Bump version {old_version} -> {new_version}"
 commit = true
+tag_message = "{new_version}"
 tag = true
 push = false
 
@@ -201,41 +204,19 @@ warn_unreachable = true
 strict_equality = true
 show_error_codes = true
 exclude = '(?x)(^src[/\\\\]physiomotion4d[/\\\\]network_weights[/\\\\]vista3d[/\\\\])'
+# Third-party libs (itk, pyvista, pxr, vtk, simpleware, etc.) have no stubs
+disable_error_code = ["import-not-found", "import-untyped"]
 
+# When type-checking our package, ignore missing imports for third-party libs.
+# Override applies to the module being checked (physiomotion4d.*).
 [[tool.mypy.overrides]]
-module = [
-    "ants",
-    "cupy",
-    "huggingface_hub",
-    "hugging_face_pipeline",
-    "icon_registration.*",
-    "ignite.*",
-    "itk.*",
-    "matplotlib",
-    "matplotlib.*",
-    "monai.*",
-    "nibabel.*",
-    "nrrd",
-    "numpy",
-    "numpy.*",
-    "pxr",
-    "pynrrd.*",
-    "pyvista.*",
-    "scripts.*",
-    "SimpleITK",
-    "simpleware.*",
-    "torch",
-    "torch.*",
-    "totalsegmentator.*",
-    "transformers",
-    "transformers.*",
-    "trimesh",
-    "unigradicon.*",
-    "vista3d",
-    "vista3d.*",
-    "vtk.*"
-]
+module = ["physiomotion4d", "physiomotion4d.*"]
 ignore_missing_imports = true
+
+[tool.pyright]
+# Third-party packages (e.g. pyvista) are in dependencies but may have no stubs;
+# do not report import-not-found so analysis matches mypy overrides above.
+reportMissingImports = false
 
 [tool.pytest.ini_options]
 minversion = "7.0"

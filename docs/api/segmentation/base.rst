@@ -9,7 +9,7 @@ Abstract base class for all segmentation methods.
 Class Reference
 ===============
 
-.. autoclass:: SegmentChestBase
+.. autoclass:: SegmentAnatomyBase
    :members:
    :undoc-members:
    :show-inheritance:
@@ -18,7 +18,7 @@ Class Reference
 Overview
 ========
 
-:class:`SegmentChestBase` provides the foundation for all segmentation implementations in PhysioMotion4D. It defines the common interface and shared functionality that all segmentation methods must implement.
+:class:`SegmentAnatomyBase` provides the foundation for all segmentation implementations in PhysioMotion4D. It defines the common interface and shared functionality that all segmentation methods must implement.
 
 **Key Responsibilities**:
    * Define standard segmentation interface
@@ -87,17 +87,17 @@ These methods are provided by the base class:
 Creating Custom Segmentation Classes
 =====================================
 
-To create a new segmentation method, inherit from :class:`SegmentChestBase`:
+To create a new segmentation method, inherit from :class:`SegmentAnatomyBase`:
 
 Basic Implementation
 --------------------
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestBase
+   from physiomotion4d import SegmentAnatomyBase
    import numpy as np
    
-   class CustomSegmentator(SegmentChestBase):
+   class CustomSegmentator(SegmentAnatomyBase):
        """Custom segmentation implementation."""
        
        def __init__(self, param1=None, verbose=False):
@@ -150,7 +150,7 @@ With Custom Post-Processing
 
 .. code-block:: python
 
-   class CustomSegmentator(SegmentChestBase):
+   class CustomSegmentator(SegmentAnatomyBase):
        """Segmentator with custom post-processing."""
        
        def post_process(self, labelmap):
@@ -243,7 +243,7 @@ Validate that required structures are present:
 
 .. code-block:: python
 
-   class ValidatingSegmentator(SegmentChestBase):
+   class ValidatingSegmentator(SegmentAnatomyBase):
        """Segmentator with validation."""
        
        def segment(self, image_path):
@@ -268,7 +268,7 @@ Track segmentation progress for long operations:
 
 .. code-block:: python
 
-   class ProgressSegmentator(SegmentChestBase):
+   class ProgressSegmentator(SegmentAnatomyBase):
        """Segmentator with progress tracking."""
        
        def segment(self, image_path):

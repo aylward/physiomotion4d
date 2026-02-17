@@ -1,6 +1,6 @@
 """Model-to-image and model-to-model registration for anatomical models.
 
-This module provides the WorkflowRegisterHeartModelToPatient class for registering generic
+This module provides the WorkflowFitStatisticalModelToPatient class for registering generic
 anatomical models to patient-specific imaging data and surface models.
 The workflow includes:
 1. Rough alignment using ICP (RegisterModelsICP)
@@ -23,7 +23,7 @@ Key Features:
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import itk
 import numpy as np
@@ -40,7 +40,7 @@ from physiomotion4d.register_models_pca import RegisterModelsPCA
 from physiomotion4d.transform_tools import TransformTools
 
 
-class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
+class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
     """Register anatomical models using multi-stage ICP, mask-based, and image-based
         registration.
 
@@ -79,8 +79,9 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         transform_tools (TransformTools): Transform utilities
         registrar_icon (RegisterImagesICON): ICON registration instance
         registrar_ants (RegisterImagesANTs): ANTs registration instance
-        pca_json_filename (str): PCA JSON filename (optional)
-        pca_number_of_modes (int): Number of PCA modes to use
+        use_pca_registration (bool): Whether PCA registration is enabled (set via set_use_pca_registration)
+        pca_model (dict): PCA model dict when PCA enabled; same structure as WorkflowCreateStatisticalModel output
+        pca_number_of_modes (int): Number of PCA modes when PCA enabled
         icp_forward_point_transform : ICP transforms
         icp_inverse_point_transform : ICP inverse transforms
         icp_template_model_surface: template model surface after ICP alignment
@@ -100,33 +101,24 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         registered_template_model_surface: Final registered model surface
 
     Example:
-        >>> # Initialize with minimal parameters
-        >>> registrar = WorkflowRegisterHeartModelToPatient(
+        >>> # Initialize with minimal parameters (no labelmap; no patient image -> reference created from patient models)
+        >>> registrar = WorkflowFitStatisticalModelToPatient(
         ...     template_model=heart_model,
         ...     patient_models=[lv_model, mc_model, rv_model],
-        ...     patient_image=patient_ct,
-        ...     pca_json_filename='path/to/pca_model.json',
-        ...     pca_number_of_modes=10,
         ... )
-        >>>
-        >>> # Optional: Configure parameters (masks auto-generated if not set)
         >>> registrar.set_roi_dilation_mm(20)
-        >>>
-        >>> # Run registration
-        >>> patient_model = registrar.run_workflow()
+        >>> # To enable PCA registration, call before run_workflow():
+        >>> # registrar.set_use_pca_registration(True, pca_model=pca_model_dict, pca_number_of_modes=10)
+        >>> # To enable mask-to-image refinement:
+        >>> # registrar.set_use_mask_to_image_registration(True, template_labelmap, organ_mesh_ids, organ_extra_ids, background_ids)
+        >>> result = registrar.run_workflow()
     """
 
     def __init__(
         self,
         template_model: pv.UnstructuredGrid,
-        template_labelmap: itk.Image,
-        template_labelmap_heart_muscle_ids: list[int],
-        template_labelmap_chamber_ids: list[int],
-        template_labelmap_background_ids: list[int],
         patient_models: list,
-        patient_image: itk.Image,
-        pca_json_filename: Optional[str] = None,
-        pca_number_of_modes: int = 0,
+        patient_image: Optional[itk.Image] = None,
         log_level: int | str = logging.INFO,
     ):
         """Initialize the model-to-image-and-model registration pipeline.
@@ -135,38 +127,46 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
             template_model: Generic anatomical model to be registered
             patient_models: List of patient-specific models extracted from imaging
                 data. Typically 3 models for cardiac applications: LV, myocardium, RV.
-            patient_image: Patient image data providing the target coordinate frame
-                (origin, spacing, direction). Used as reference for registration.
+            patient_image: Optional patient image providing the target coordinate frame.
+                If None, a reference image is created from the patient model surface
+                via create_reference_image (contour_tools).
             log_level: Logging level (logging.DEBUG, logging.INFO, logging.WARNING).
                 Default: logging.INFO
         """
         # Initialize base class with logging
         super().__init__(
-            class_name="WorkflowRegisterHeartModelToPatient", log_level=log_level
+            class_name="WorkflowFitStatisticalModelToPatient", log_level=log_level
         )
 
         self.template_model = template_model
         self.template_model_surface = template_model.extract_surface()
-        self.template_labelmap = template_labelmap
-        self.template_labelmap_heart_muscle_ids = template_labelmap_heart_muscle_ids
-        self.template_labelmap_chamber_ids = template_labelmap_chamber_ids
-        self.template_labelmap_background_ids = template_labelmap_background_ids
+        self.template_labelmap: Optional[itk.Image] = None
+        self.template_labelmap_organ_mesh_ids: Optional[list[int]] = None
+        self.template_labelmap_organ_extra_ids: Optional[list[int]] = None
+        self.template_labelmap_background_ids: Optional[list[int]] = None
 
         self.patient_models = patient_models
         patient_models_surfaces = [model.extract_surface() for model in patient_models]
         combined_patient_model = pv.merge(patient_models_surfaces)
         self.patient_model_surface = combined_patient_model.extract_surface()
 
-        self.patient_image = patient_image
-
-        resampler = ttk.ResampleImage.New(Input=self.patient_image)
-        resampler.SetMakeHighResIso(True)
-        resampler.Update()
-        self.patient_image = resampler.GetOutput()
-
-        # Utilities
+        # Utilities (needed for create_reference_image when patient_image is None)
         self.transform_tools = TransformTools()
         self.contour_tools = ContourTools()
+
+        if patient_image is not None:
+            self.patient_image = patient_image
+            resampler = ttk.ResampleImage.New(Input=self.patient_image)
+            resampler.SetMakeHighResIso(True)
+            resampler.Update()
+            self.patient_image = resampler.GetOutput()
+        else:
+            self.patient_image = self.contour_tools.create_reference_image(
+                mesh=self.patient_model_surface,
+                spatial_resolution=1.0,
+                buffer_factor=0.25,
+                ptype=itk.F,
+            )
 
         self.registrar_ants = RegisterImagesANTs()
         self.registrar_ants.set_number_of_iterations([5, 2, 5])
@@ -194,12 +194,13 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.icp_template_model_surface: Optional[pv.PolyData] = None
         self.icp_template_labelmap: Optional[itk.Image] = None
 
-        # Stage 1.5: PCA registration results (optional)
+        # Stage 1.5: PCA registration results (optional; enable via set_use_pca_registration(True, pca_model, pca_number_of_modes))
+        self.use_pca_registration = False
         self.pca_registrar: Optional[RegisterModelsPCA] = None
         self.pca_forward_point_transform: Optional[itk.Transform] = None
         self.pca_inverse_point_transform: Optional[itk.Transform] = None
-        self.pca_json_filename = pca_json_filename
-        self.pca_number_of_modes = pca_number_of_modes
+        self.pca_model: Optional[dict[str, Any]] = None
+        self.pca_number_of_modes: int = 0
         self.pca_coefficients: Optional[np.ndarray] = None
         self.pca_template_model_surface: Optional[pv.PolyData] = None
         self.pca_template_labelmap: Optional[itk.Image] = None
@@ -211,8 +212,8 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.m2m_template_model_surface: Optional[pv.PolyData] = None
         self.m2m_template_labelmap: Optional[itk.Image] = None
 
-        # Stage 3: Mask-to-image registration results
-        self.use_m2i_registration = True
+        # Stage 3: Mask-to-image registration results (disabled by default; enable via set_use_mask_to_image_registration(True, template_labelmap, ...))
+        self.use_m2i_registration = False
         self.m2i_inverse_transform: Optional[itk.Transform] = None
         self.m2i_forward_transform: Optional[itk.Transform] = None
         self.m2i_template_model_surface: Optional[pv.PolyData] = None
@@ -320,6 +321,39 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         """
         self.roi_dilation_mm = roi_dilation_mm
 
+    def set_use_pca_registration(
+        self,
+        use_pca_registration: bool,
+        pca_model: Optional[dict[str, Any]] = None,
+        pca_number_of_modes: int = 0,
+    ) -> None:
+        """Set whether to use PCA-based registration and provide the PCA model.
+
+        When enabling (True), pca_model and pca_number_of_modes must be provided.
+
+        Args:
+            use_pca_registration: Whether to use PCA registration after ICP.
+            pca_model: Required when use is True. PCA model dict (e.g. from
+                WorkflowCreateStatisticalModel result["pca_model"]) with keys
+                "eigenvalues" and "components".
+            pca_number_of_modes: Required when use is True. Number of PCA modes to use.
+                Default 0 means use all modes.
+
+        Raises:
+            ValueError: If use is True and pca_model is None.
+        """
+        if use_pca_registration:
+            if pca_model is None:
+                raise ValueError(
+                    "When enabling PCA registration, pca_model must be provided."
+                )
+            self.pca_model = pca_model
+            self.pca_number_of_modes = pca_number_of_modes
+        else:
+            self.pca_model = None
+            self.pca_number_of_modes = 0
+        self.use_pca_registration = use_pca_registration
+
     def set_use_mask_to_mask_registration(
         self, use_mask_to_mask_registration: bool
     ) -> None:
@@ -332,13 +366,57 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.use_m2m_registration = use_mask_to_mask_registration
 
     def set_use_mask_to_image_registration(
-        self, use_mask_to_image_registration: bool
+        self,
+        use_mask_to_image_registration: bool,
+        template_labelmap: Optional[itk.Image] = None,
+        template_labelmap_organ_mesh_ids: Optional[list[int]] = None,
+        template_labelmap_organ_extra_ids: Optional[list[int]] = None,
+        template_labelmap_background_ids: Optional[list[int]] = None,
     ) -> None:
         """Set whether to use mask-to-image registration.
 
+        When enabling (True), a template labelmap and label IDs must be provided
+        so the workflow can propagate and refine the labelmap to the patient image.
+
         Args:
-            use_m2i: Whether to use mask-to-image registration. Default: True
+            use_mask_to_image_registration: Whether to use mask-to-image registration.
+            template_labelmap: Required when use is True. Template labelmap in template
+                model space (same geometry as template_model).
+            template_labelmap_organ_mesh_ids: Required when use is True. Label IDs for
+                organ mesh in the template labelmap.
+            template_labelmap_organ_extra_ids: Required when use is True. Label IDs for
+                organ-extra structures in the template labelmap.
+            template_labelmap_background_ids: Required when use is True. Label IDs for
+                background in the template labelmap.
+
+        Raises:
+            ValueError: If use is True and any of template_labelmap or the id lists
+                is None or missing.
         """
+        if use_mask_to_image_registration:
+            if template_labelmap is None:
+                raise ValueError(
+                    "When enabling mask-to-image registration, template_labelmap must be provided."
+                )
+            if template_labelmap_organ_mesh_ids is None:
+                raise ValueError(
+                    "When enabling mask-to-image registration, "
+                    "template_labelmap_organ_mesh_ids must be provided."
+                )
+            if template_labelmap_organ_extra_ids is None:
+                raise ValueError(
+                    "When enabling mask-to-image registration, "
+                    "template_labelmap_organ_extra_ids must be provided."
+                )
+            if template_labelmap_background_ids is None:
+                raise ValueError(
+                    "When enabling mask-to-image registration, "
+                    "template_labelmap_background_ids must be provided."
+                )
+            self.template_labelmap = template_labelmap
+            self.template_labelmap_organ_mesh_ids = template_labelmap_organ_mesh_ids
+            self.template_labelmap_organ_extra_ids = template_labelmap_organ_extra_ids
+            self.template_labelmap_background_ids = template_labelmap_background_ids
         self.use_m2i_registration = use_mask_to_image_registration
 
     def register_model_to_model_icp(self) -> dict:
@@ -370,12 +448,15 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         self.icp_inverse_point_transform = icp_result["inverse_point_transform"]
         self.icp_template_model_surface = icp_result["registered_model"]
 
-        self.icp_template_labelmap = self.transform_tools.transform_image(
-            self.template_labelmap,
-            self.icp_inverse_point_transform,
-            self.patient_image,
-            interpolation_method="nearest",
-        )
+        if self.template_labelmap is not None:
+            self.icp_template_labelmap = self.transform_tools.transform_image(
+                self.template_labelmap,
+                self.icp_inverse_point_transform,
+                self.patient_image,
+                interpolation_method="nearest",
+            )
+        else:
+            self.icp_template_labelmap = None
 
         self.log_info("Stage 1 complete: ICP alignment finished.")
 
@@ -408,16 +489,17 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
             width=70,
         )
 
-        if self.pca_json_filename is None:
+        if not self.use_pca_registration or self.pca_model is None:
             self.pca_template_model_surface = self.icp_template_model_surface
+            self.pca_template_labelmap = self.icp_template_labelmap
             return {
                 "pca_coefficients": None,
                 "registered_model_surface": self.pca_template_model_surface,
             }
 
-        self.pca_registrar = RegisterModelsPCA.from_json(
+        self.pca_registrar = RegisterModelsPCA.from_pca_model(
             pca_template_model=self.icp_template_model_surface,
-            pca_json_filename=self.pca_json_filename,
+            pca_model=self.pca_model,
             pca_number_of_modes=self.pca_number_of_modes,
             fixed_model=self.patient_model_surface,
             reference_image=self.patient_image,
@@ -439,12 +521,15 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
 
         self.registered_template_model_surface = self.pca_template_model_surface
 
-        self.pca_template_labelmap = self.transform_tools.transform_image(
-            self.icp_template_labelmap,
-            self.pca_inverse_point_transform,
-            self.patient_image,
-            interpolation_method="nearest",
-        )
+        if self.icp_template_labelmap is not None:
+            self.pca_template_labelmap = self.transform_tools.transform_image(
+                self.icp_template_labelmap,
+                self.pca_inverse_point_transform,
+                self.patient_image,
+                interpolation_method="nearest",
+            )
+        else:
+            self.pca_template_labelmap = None
 
         self.log_info("Stage 2 complete: PCA registration finished.")
 
@@ -503,12 +588,15 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
 
         self.registered_template_model_surface = self.m2m_template_model_surface
 
-        self.m2m_template_labelmap = self.transform_tools.transform_image(
-            self.pca_template_labelmap,
-            self.m2m_forward_transform,
-            self.patient_image,
-            interpolation_method="nearest",
-        )
+        if self.pca_template_labelmap is not None:
+            self.m2m_template_labelmap = self.transform_tools.transform_image(
+                self.pca_template_labelmap,
+                self.m2m_forward_transform,
+                self.patient_image,
+                interpolation_method="nearest",
+            )
+        else:
+            self.m2m_template_labelmap = None
 
         self.log_info("Stage 3 complete: Mask-to-mask registration finished.")
 
@@ -537,6 +625,24 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
             "Stage 4: Labelmap-to-Image Refinement (Icon Registration)", width=70
         )
 
+        if (
+            self.template_labelmap is None
+            or self.template_labelmap_organ_mesh_ids is None
+            or self.template_labelmap_organ_extra_ids is None
+            or self.template_labelmap_background_ids is None
+        ):
+            raise ValueError(
+                "Mask-to-image registration requires template labelmap and label IDs. "
+                "Call set_use_mask_to_image_registration(True, template_labelmap, "
+                "organ_mesh_ids, organ_extra_ids, background_ids) before run_workflow()."
+            )
+        if self.m2m_template_labelmap is None:
+            raise ValueError(
+                "Mask-to-image registration requires a labelmap to have been set "
+                "(via set_use_mask_to_image_registration(True, ...)) before running "
+                "earlier stages so the labelmap is propagated through ICP/PCA/M2M."
+            )
+
         labelmap_arr = itk.GetArrayFromImage(self.m2m_template_labelmap).astype(
             np.uint16
         )
@@ -546,12 +652,14 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
             labelmap_arr,
         )
         labelmap_arr = np.where(
-            np.isin(labelmap_arr, self.template_labelmap_heart_muscle_ids),
+            np.isin(labelmap_arr, self.template_labelmap_organ_mesh_ids),
             0,
             labelmap_arr,
         )
         labelmap_arr = np.where(
-            np.isin(labelmap_arr, self.template_labelmap_chamber_ids), 1, labelmap_arr
+            np.isin(labelmap_arr, self.template_labelmap_organ_extra_ids),
+            1,
+            labelmap_arr,
         )
         labelmap = itk.GetImageFromArray(labelmap_arr)
         labelmap.CopyInformation(self.m2m_template_labelmap)
@@ -691,7 +799,7 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
 
     def run_workflow(
         self,
-        use_mask_to_image_registration: bool = True,
+        use_mask_to_image_registration: bool = False,
         use_mask_to_mask_registration: bool = True,
         use_icon_registration_refinement: bool = False,
     ) -> dict:
@@ -701,21 +809,20 @@ class WorkflowRegisterHeartModelToPatient(PhysioMotion4DBase):
         1. ICP alignment (RegisterModelsICP)
         2. PCA registration (PCA data was provided)
         3. Mask-to-mask deformable registration (RegisterModelsDistanceMaps)
-        4. Optional mask-to-image refinement (Icon)
+        4. Optional mask-to-image refinement (Icon); requires template labelmap and IDs
+            set via set_use_mask_to_image_registration(True, ...).
 
         Args:
             use_mask_to_image_registration: Whether to include mask-to-image
-                registration stage.
-                Default: True
+                registration stage. Default: False. When True, template labelmap and
+                label IDs must have been set via set_use_mask_to_image_registration(True, ...).
             use_mask_to_mask_registration: Whether to include mask-to-mask registration
-                stage.
-                Default: True
+                stage. Default: True
             use_icon_registration_refinement: Whether to include icon registration
-                refinement stage.
-                Default: False
+                refinement stage. Default: False
 
         Returns:
-            pv.UnstructuredGrid: Final registered model
+            dict with registered_template_model and registered_template_model_surface
         """
         self.log_section(
             "STARTING COMPLETE MODEL-TO-IMAGE-AND-MODEL REGISTRATION WORKFLOW", width=70

@@ -6,7 +6,7 @@ and performing image processing operations.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import itk
 import numpy as np
@@ -245,3 +245,40 @@ class ImageTools(PhysioMotion4DBase):
         itk.array_view_from_image(itk_image)[:] = arr_data
 
         return itk_image
+
+    def flip_image_to_identity_direction(
+        self, in_image: itk.Image, in_mask: Optional[itk.Image] = None
+    ) -> Any | tuple[Any, Any]:
+        """
+        Flip the image to the identity direction.
+        """
+        flip0 = np.array(in_image.GetDirection())[0, 0] < 0
+        flip1 = np.array(in_image.GetDirection())[1, 1] < 0
+        flip2 = np.array(in_image.GetDirection())[2, 2] < 0
+        if flip0 or flip1 or flip2:
+            self.log_info(
+                f"Flipping image to identity direction: {flip0}, {flip1}, {flip2}"
+            )
+            flip_filter = itk.FlipImageFilter.New(Input=in_image)
+            flip_filter.SetFlipAxes([int(flip0), int(flip1), int(flip2)])
+            flip_filter.SetFlipAboutOrigin(True)
+            flip_filter.Update()
+            out_image = flip_filter.GetOutput()
+            id_mat = itk.Matrix[itk.D, 3, 3]()
+            id_mat.SetIdentity()
+            out_image.SetDirection(id_mat)
+            if in_mask is not None:
+                flip_filter = itk.FlipImageFilter.New(Input=in_mask)
+                flip_filter.SetFlipAxes([int(flip0), int(flip1), int(flip2)])
+                flip_filter.SetFlipAboutOrigin(True)
+                flip_filter.Update()
+                out_mask = flip_filter.GetOutput()
+                out_mask.SetDirection(id_mat)
+                return out_image, out_mask
+            else:
+                return out_image
+        else:
+            if in_mask is not None:
+                return in_image, in_mask
+            else:
+                return in_image

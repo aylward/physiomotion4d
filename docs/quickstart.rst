@@ -260,7 +260,8 @@ Now that you've completed your first workflow:
    **About CLI Commands and Experiments:**
 
    * **CLI Commands** ⭐ **PRIMARY RESOURCE** - Production-ready workflows with proper class usage
-     (``physiomotion4d-heart-gated-ct``, ``physiomotion4d-register-heart-model``).
+     (``physiomotion4d-heart-gated-ct``, ``physiomotion4d-create-statistical-model``,
+     ``physiomotion4d-fit-statistical-model-to-patient``).
      See ``src/physiomotion4d/cli/`` for implementation details.
 
    * **experiments/** - Research prototypes and design explorations. These demonstrate conceptual

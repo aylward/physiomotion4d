@@ -8,6 +8,7 @@ and optional image-based refinement).
 """
 
 import argparse
+import json
 import os
 import sys
 import traceback
@@ -15,7 +16,7 @@ import traceback
 import itk
 import pyvista as pv
 
-from physiomotion4d import WorkflowRegisterHeartModelToPatient
+from physiomotion4d import WorkflowFitStatisticalModelToPatient
 
 
 def main() -> int:
@@ -25,39 +26,36 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic registration with required inputs
+  # Basic registration (no patient image: reference image created from patient models)
   %(prog)s \\
     --template-model heart_model.vtu \\
-    --template-labelmap heart_labelmap.nii.gz \\
     --patient-models lv.vtp rv.vtp myo.vtp \\
-    --patient-image patient_ct.nii.gz \\
     --output-dir ./results
 
-  # Registration with PCA shape fitting
+  # With patient image and PCA shape fitting
   %(prog)s \\
     --template-model heart_model.vtu \\
-    --template-labelmap heart_labelmap.nii.gz \\
     --patient-models lv.vtp rv.vtp myo.vtp \\
     --patient-image patient_ct.nii.gz \\
     --pca-json pca_model.json \\
     --pca-number-of-modes 10 \\
     --output-dir ./results
 
-  # Registration with custom label IDs
+  # Enable mask-to-image refinement (requires template labelmap and label IDs)
   %(prog)s \\
     --template-model heart_model.vtu \\
-    --template-labelmap heart_labelmap.nii.gz \\
-    --patient-models lv.vtp rv.vtp \\
+    --patient-models lv.vtp rv.vtp myo.vtp \\
     --patient-image patient_ct.nii.gz \\
+    --mask-to-image \\
+    --template-labelmap heart_labelmap.nii.gz \\
     --template-labelmap-muscle-ids 1 2 3 \\
     --template-labelmap-chamber-ids 4 5 6 \\
     --template-labelmap-background-ids 0 \\
     --output-dir ./results
 
-  # Registration with ICON refinement
+  # With ICON refinement
   %(prog)s \\
     --template-model heart_model.vtu \\
-    --template-labelmap heart_labelmap.nii.gz \\
     --patient-models lv.vtp rv.vtp \\
     --patient-image patient_ct.nii.gz \\
     --use-icon-refinement \\
@@ -72,11 +70,6 @@ Examples:
         help="Path to template/generic heart model (.vtu, .vtk, .stl)",
     )
     parser.add_argument(
-        "--template-labelmap",
-        required=True,
-        help="Path to template labelmap image (.nii.gz, .nrrd, .mha)",
-    )
-    parser.add_argument(
         "--patient-models",
         nargs="+",
         required=True,
@@ -84,8 +77,11 @@ Examples:
     )
     parser.add_argument(
         "--patient-image",
-        required=True,
-        help="Path to patient CT/MRI image (.nii.gz, .nrrd, .mha)",
+        help="Path to patient CT/MRI image (.nii.gz, .nrrd, .mha). If omitted, a reference image is created from the patient models.",
+    )
+    parser.add_argument(
+        "--template-labelmap",
+        help="Path to template labelmap image (.nii.gz, .nrrd, .mha). Required when --mask-to-image is set.",
     )
     parser.add_argument(
         "--output-dir", required=True, help="Output directory for results"
@@ -135,11 +131,11 @@ Examples:
         help="Disable mask-to-mask deformable registration",
     )
     parser.add_argument(
-        "--no-mask-to-image",
+        "--mask-to-image",
         dest="use_mask_to_image",
-        action="store_false",
-        default=True,
-        help="Disable mask-to-image refinement registration",
+        action="store_true",
+        default=False,
+        help="Enable mask-to-image refinement (requires --template-labelmap and label IDs)",
     )
     parser.add_argument(
         "--use-icon-refinement",
@@ -163,18 +159,22 @@ Examples:
         print(f"Error: Template model not found: {args.template_model}")
         return 1
 
-    if not os.path.exists(args.template_labelmap):
-        print(f"Error: Template labelmap not found: {args.template_labelmap}")
-        return 1
-
     for patient_model in args.patient_models:
         if not os.path.exists(patient_model):
             print(f"Error: Patient model not found: {patient_model}")
             return 1
 
-    if not os.path.exists(args.patient_image):
+    if args.patient_image is not None and not os.path.exists(args.patient_image):
         print(f"Error: Patient image not found: {args.patient_image}")
         return 1
+
+    if args.use_mask_to_image:
+        if args.template_labelmap is None:
+            print("Error: --template-labelmap is required when --mask-to-image is set.")
+            return 1
+        if not os.path.exists(args.template_labelmap):
+            print(f"Error: Template labelmap not found: {args.template_labelmap}")
+            return 1
 
     if args.pca_json and not os.path.exists(args.pca_json):
         print(f"Error: PCA JSON file not found: {args.pca_json}")
@@ -193,17 +193,25 @@ Examples:
         )
         template_model: pv.UnstructuredGrid = template_model_raw
 
-        print(f"  Loading template labelmap: {args.template_labelmap}")
-        template_labelmap = itk.imread(args.template_labelmap)
-
         print("  Loading patient models:")
         patient_models = []
         for patient_model_file in args.patient_models:
             print(f"    - {patient_model_file}")
             patient_models.append(pv.read(patient_model_file))
 
-        print(f"  Loading patient image: {args.patient_image}")
-        patient_image = itk.imread(args.patient_image)
+        if args.patient_image is not None:
+            print(f"  Loading patient image: {args.patient_image}")
+            patient_image = itk.imread(args.patient_image)
+        else:
+            patient_image = None
+            print(
+                "  No patient image: reference image will be created from patient models"
+            )
+
+        template_labelmap = None
+        if args.template_labelmap is not None:
+            print(f"  Loading template labelmap: {args.template_labelmap}")
+            template_labelmap = itk.imread(args.template_labelmap)
 
     except (FileNotFoundError, OSError, RuntimeError) as e:
         print(f"Error loading input data: {e}")
@@ -213,17 +221,27 @@ Examples:
     # Initialize workflow
     print("\nInitializing heart model to patient registration workflow...")
     try:
-        workflow = WorkflowRegisterHeartModelToPatient(
+        workflow = WorkflowFitStatisticalModelToPatient(
             template_model=template_model,
-            template_labelmap=template_labelmap,
-            template_labelmap_heart_muscle_ids=args.template_labelmap_muscle_ids,
-            template_labelmap_chamber_ids=args.template_labelmap_chamber_ids,
-            template_labelmap_background_ids=args.template_labelmap_background_ids,
             patient_models=patient_models,
             patient_image=patient_image,
-            pca_json_filename=args.pca_json,
-            pca_number_of_modes=args.pca_number_of_modes,
         )
+        if args.pca_json is not None:
+            with open(args.pca_json, encoding="utf-8") as f:
+                pca_model = json.load(f)
+            workflow.set_use_pca_registration(
+                True,
+                pca_model=pca_model,
+                pca_number_of_modes=args.pca_number_of_modes,
+            )
+        if args.use_mask_to_image:
+            workflow.set_use_mask_to_image_registration(
+                True,
+                template_labelmap=template_labelmap,
+                template_labelmap_organ_mesh_ids=args.template_labelmap_muscle_ids,
+                template_labelmap_organ_extra_ids=args.template_labelmap_chamber_ids,
+                template_labelmap_background_ids=args.template_labelmap_background_ids,
+            )
     except (ValueError, RuntimeError, OSError) as e:
         print(f"Error initializing workflow: {e}")
         traceback.print_exc()

@@ -49,7 +49,7 @@ Heart Gated CT to USD
 Heart Model to Patient Registration
 ------------------------------------
 
-.. autoclass:: WorkflowRegisterHeartModelToPatient
+.. autoclass:: WorkflowFitStatisticalModelToPatient
    :members:
    :undoc-members:
    :show-inheritance:
@@ -67,9 +67,9 @@ Heart Model to Patient Registration
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowRegisterHeartModelToPatient
+   from physiomotion4d import WorkflowFitStatisticalModelToPatient
    
-   workflow = WorkflowRegisterHeartModelToPatient(
+   workflow = WorkflowFitStatisticalModelToPatient(
        model_file="heart_template.vtk",
        patient_image="patient_ct.nrrd",
        output_directory="./registration_results",
@@ -221,7 +221,7 @@ Combine multiple workflows:
    heart_result = heart_workflow.process()
    
    # Second workflow: Register model
-   registration_workflow = WorkflowRegisterHeartModelToPatient(
+   registration_workflow = WorkflowFitStatisticalModelToPatient(
        model_file=heart_result['model'],
        patient_image=patient_ct,
        output_directory="./registration_output"

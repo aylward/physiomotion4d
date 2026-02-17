@@ -31,7 +31,7 @@ Core Components
 
 2. **Segmentation Module**
 
-   * Base class: :class:`SegmentChestBase`
+   * Base class: :class:`SegmentAnatomyBase`
    * Implementations: TotalSegmentator, VISTA-3D, Ensemble
 
 3. **Registration Module**

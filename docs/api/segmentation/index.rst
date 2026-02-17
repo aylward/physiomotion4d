@@ -16,7 +16,7 @@ PhysioMotion4D supports multiple segmentation approaches:
 * **VISTA-3D NIM**: NVIDIA Inference Microservice version
 * **Ensemble**: Combine multiple methods for improved accuracy
 
-All segmentation classes inherit from :class:`SegmentChestBase` and provide consistent interfaces.
+All segmentation classes inherit from :class:`SegmentAnatomyBase` and provide consistent interfaces.
 
 Quick Links
 ===========

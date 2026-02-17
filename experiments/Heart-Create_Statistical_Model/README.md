@@ -145,10 +145,10 @@ After completing this experiment, you will have generated files in `kcl-heart-mo
 The outputs from this experiment are used in the `Heart-Statistical_Model_To_Patient` experiment:
 
 ```python
-from physiomotion4d import WorkflowRegisterHeartModelToPatient
+from physiomotion4d import WorkflowFitStatisticalModelToPatient
 
 # Use PCA model from this experiment
-workflow = WorkflowRegisterHeartModelToPatient(
+workflow = WorkflowFitStatisticalModelToPatient(
     moving_mesh=mean_shape,
     fixed_meshes=patient_surfaces,
     fixed_image=patient_ct,

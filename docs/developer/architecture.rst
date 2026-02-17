@@ -46,10 +46,10 @@ The package is organized into functional modules:
    │
    ├── Workflow Classes
    │   ├── workflow_convert_heart_gated_ct_to_usd.py      Cardiac CT → USD
-   │   └── workflow_register_heart_model_to_patient.py    Model → Patient
+   │   └── workflow_fit_statistical_model_to_patient.py    Model → Patient
    │
    ├── Segmentation
-   │   ├── segment_chest_base.py                  Base segmentation
+   │   ├── segment_anatomy_base.py                Base segmentation
    │   ├── segment_chest_total_segmentator.py     TotalSegmentator
    │   ├── segment_chest_vista_3d.py              VISTA-3D
    │   ├── segment_chest_vista_3d_nim.py          VISTA-3D NIM
@@ -95,9 +95,9 @@ Most PhysioMotion4D classes inherit from :class:`PhysioMotion4DBase`:
    PhysioMotion4DBase
    ├── Workflow Classes
    │   ├── WorkflowConvertHeartGatedCTToUSD
-   │   └── WorkflowRegisterHeartModelToPatient
+   │   └── WorkflowFitStatisticalModelToPatient
    ├── Segmentation Classes
-   │   ├── SegmentChestBase
+   │   ├── SegmentAnatomyBase
    │   │   ├── SegmentChestTotalSegmentator
    │   │   ├── SegmentChestVista3D
    │   │   └── SegmentChestEnsemble
@@ -221,7 +221,7 @@ Extension Points
 PhysioMotion4D is designed for extension:
 
 **Add New Segmentation Methods**
-   Inherit from :class:`SegmentChestBase`
+   Inherit from :class:`SegmentAnatomyBase`
 
 **Add New Registration Methods**
    Inherit from :class:`RegisterImagesBase`

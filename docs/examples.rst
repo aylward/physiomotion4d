@@ -8,7 +8,8 @@ see the :doc:`cli_scripts/overview` section.
 .. note::
 
    **For Production Workflows:** The CLI commands (``physiomotion4d-heart-gated-ct``,
-   ``physiomotion4d-register-heart-model``) and their implementations in ``src/physiomotion4d/cli/``
+   ``physiomotion4d-create-statistical-model``, ``physiomotion4d-fit-statistical-model-to-patient``)
+   and their implementations in ``src/physiomotion4d/cli/``
    are the definitive source for proper library usage, class instantiation, and best practices.
 
    The ``experiments/`` directory contains research prototypes that informed development but should

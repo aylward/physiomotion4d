@@ -2,7 +2,7 @@
 
 This module provides the SegmentChestTotalSegmentator class that implements
 chest CT segmentation using the TotalSegmentator deep learning model. It inherits
-from SegmentChestBase and defines anatomical structure mappings specific to
+from SegmentAnatomyBase and defines anatomical structure mappings specific to
 TotalSegmentator's output labels.
 """
 
@@ -15,10 +15,10 @@ import nibabel as nib
 import numpy as np
 from totalsegmentator.python_api import totalsegmentator
 
-from physiomotion4d.segment_chest_base import SegmentChestBase
+from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
 
 
-class SegmentChestTotalSegmentator(SegmentChestBase):
+class SegmentChestTotalSegmentator(SegmentAnatomyBase):
     """
     Chest CT segmentation using TotalSegmentator deep learning model.
 

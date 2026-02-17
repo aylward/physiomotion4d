@@ -12,12 +12,12 @@ import logging
 import itk
 import numpy as np
 
-from physiomotion4d.segment_chest_base import SegmentChestBase
+from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 
 
-class SegmentChestEnsemble(SegmentChestBase):
+class SegmentChestEnsemble(SegmentAnatomyBase):
     """
     A class that inherits from physioSegmentChest and implements the
     segmentation method using VISTA3D.

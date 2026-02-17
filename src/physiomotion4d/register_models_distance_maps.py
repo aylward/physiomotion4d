@@ -120,7 +120,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         moving_model: pv.PolyData,
         fixed_model: pv.PolyData,
         reference_image: itk.Image,
-        roi_dilation_mm: float = 10,
+        roi_dilation_mm: float = 20,
         log_level: int | str = logging.INFO,
     ):
         """Initialize mask-based model registration.

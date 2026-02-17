@@ -21,17 +21,17 @@ PhysioMotion4D supports multiple segmentation approaches:
 * **VISTA-3D NIM**: NVIDIA Inference Microservice version
 * **Ensemble**: Combine multiple methods for improved accuracy
 
-All segmentation classes inherit from :class:`SegmentChestBase` and provide consistent interfaces.
+All segmentation classes inherit from :class:`SegmentAnatomyBase` and provide consistent interfaces.
 
 Base Segmentation Class
 =======================
 
-SegmentChestBase
+SegmentAnatomyBase
 ----------------
 
 Abstract base class for all segmentation methods.
 
-.. autoclass:: physiomotion4d.SegmentChestBase
+.. autoclass:: physiomotion4d.SegmentAnatomyBase
    :members:
    :undoc-members:
    :show-inheritance:
@@ -274,10 +274,10 @@ Add custom post-processing steps:
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestBase
+   from physiomotion4d import SegmentAnatomyBase
    import numpy as np
    
-   class CustomSegmentator(SegmentChestBase):
+   class CustomSegmentator(SegmentAnatomyBase):
        """Custom segmentator with post-processing."""
        
        def post_process(self, labelmap):

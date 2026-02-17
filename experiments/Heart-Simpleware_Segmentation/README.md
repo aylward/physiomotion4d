@@ -225,9 +225,9 @@ workflow.set_static_labelmap(result["labelmap"])
 ### Statistical Model Registration
 Register segmentation with heart model using `Heart-Statistical_Model_To_Patient`:
 ```python
-from physiomotion4d.workflow_register_heart_model_to_patient import WorkflowRegisterHeartModelToPatient
+from physiomotion4d.workflow_fit_statistical_model_to_patient import WorkflowFitStatisticalModelToPatient
 
-workflow = WorkflowRegisterHeartModelToPatient()
+workflow = WorkflowFitStatisticalModelToPatient()
 workflow.set_patient_segmentation(result["labelmap"])
 # Perform model-to-patient registration
 ```

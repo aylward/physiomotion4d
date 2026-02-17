@@ -1,0 +1,102 @@
+====================================
+Create Statistical Model
+====================================
+
+Overview
+========
+
+The ``physiomotion4d-create-statistical-model`` command-line tool builds a PCA
+(Principal Component Analysis) statistical shape model from a sample of meshes
+aligned to a reference mesh. This mirrors the pipeline in the
+Heart-Create_Statistical_Model experiment notebooks.
+
+The workflow:
+
+1. **Extract surfaces** from sample and reference meshes
+2. **ICP alignment**: Affine align each sample surface to the reference surface
+3. **Deformable registration**: ANTs SyN to establish dense correspondence
+4. **Correspondence**: Build aligned shapes with reference topology
+5. **PCA**: Compute mean shape and principal components
+
+Outputs written to the output directory:
+
+* ``pca_mean_surface.vtp`` — Mean shape as a surface (PolyData)
+* ``pca_mean.vtu`` — Reference volume mesh in mean space (only if reference is volumetric)
+* ``pca_model.json`` — PCA model (eigenvalues, components) for use with
+  :class:`physiomotion4d.WorkflowFitStatisticalModelToPatient` or
+  :class:`physiomotion4d.RegisterModelsPCA`
+
+Installation
+============
+
+The script is installed with PhysioMotion4D:
+
+.. code-block:: bash
+
+   pip install physiomotion4d
+
+Quick Start
+===========
+
+Basic Usage
+-----------
+
+Create a PCA model from a directory of sample meshes and a reference mesh:
+
+.. code-block:: bash
+
+   physiomotion4d-create-statistical-model \
+       --sample-meshes-dir ./input_meshes \
+       --reference-mesh average_mesh.vtk \
+       --output-dir ./pca_output
+
+Explicit Sample List
+--------------------
+
+Provide sample mesh paths explicitly instead of a directory:
+
+.. code-block:: bash
+
+   physiomotion4d-create-statistical-model \
+       --sample-meshes 01.vtk 02.vtk 03.vtu 04.vtp \
+       --reference-mesh average_mesh.vtk \
+       --output-dir ./pca_output
+
+With Custom Parameters
+----------------------
+
+.. code-block:: bash
+
+   physiomotion4d-create-statistical-model \
+       --sample-meshes-dir ./meshes \
+       --reference-mesh average_mesh.vtk \
+       --output-dir ./pca_output \
+       --pca-components 20
+
+Command-Line Arguments
+======================
+
+Required Arguments
+------------------
+
+``--sample-meshes-dir DIR`` or ``--sample-meshes PATH [PATH ...]``
+   Either a directory containing sample mesh files (``.vtk``, ``.vtu``, ``.vtp``)
+   or a list of paths to sample meshes. One of these is required.
+
+``--reference-mesh PATH``
+   Path to the reference mesh. Its surface is used as the alignment target for
+   all samples.
+
+``--output-dir DIR``
+   Output directory. Writes ``pca_mean_surface.vtp``, ``pca_mean.vtu`` (if
+   reference is volumetric), and ``pca_model.json``.
+
+Optional Arguments
+------------------
+
+``--pca-components N``
+   Number of PCA components to retain (default: 15).
+
+See :class:`physiomotion4d.WorkflowCreateStatisticalModel` for the full API and
+additional parameters (e.g. ``reference_spatial_resolution``,
+``reference_buffer_factor``) that can be exposed in future CLI versions.

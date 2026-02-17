@@ -45,11 +45,12 @@ from .register_models_pca import RegisterModelsPCA
 from .register_time_series_images import RegisterTimeSeriesImages
 
 # Segmentation classes
-from .segment_chest_base import SegmentChestBase
+from .segment_anatomy_base import SegmentAnatomyBase
 from .segment_chest_ensemble import SegmentChestEnsemble
 from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from .segment_chest_vista_3d import SegmentChestVista3D
 from .segment_chest_vista_3d_nim import SegmentChestVista3DNIM
+from .segment_heart_simpleware import SegmentHeartSimpleware
 from .transform_tools import TransformTools
 from .usd_anatomy_tools import USDAnatomyTools
 from .usd_tools import USDTools
@@ -57,21 +58,24 @@ from .usd_tools import USDTools
 # Core workflow processor
 from .workflow_convert_heart_gated_ct_to_usd import WorkflowConvertHeartGatedCTToUSD
 from .workflow_reconstruct_highres_4d_ct import WorkflowReconstructHighres4DCT
-from .workflow_register_heart_model_to_patient import (
-    WorkflowRegisterHeartModelToPatient,
+from .workflow_create_statistical_model import WorkflowCreateStatisticalModel
+from .workflow_fit_statistical_model_to_patient import (
+    WorkflowFitStatisticalModelToPatient,
 )
 
 __all__ = [
     # Workflow classes
     "WorkflowConvertHeartGatedCTToUSD",
+    "WorkflowCreateStatisticalModel",
     "WorkflowReconstructHighres4DCT",
-    "WorkflowRegisterHeartModelToPatient",
+    "WorkflowFitStatisticalModelToPatient",
     # Segmentation classes
-    "SegmentChestBase",
+    "SegmentAnatomyBase",
     "SegmentChestEnsemble",
     "SegmentChestTotalSegmentator",
     "SegmentChestVista3D",
     "SegmentChestVista3DNIM",
+    "SegmentHeartSimpleware",
     # Registration classes
     "RegisterImagesBase",
     "RegisterImagesICON",

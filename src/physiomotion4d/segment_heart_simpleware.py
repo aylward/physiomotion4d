@@ -2,23 +2,24 @@
 
 This module provides the SegmentHeartSimpleware class that implements
 heart segmentation using Synopsys Simpleware Medical's ASCardio module.
-It inherits from SegmentChestBase and provides heart-specific anatomical
+It inherits from SegmentAnatomyBase and provides heart-specific anatomical
 structure mappings.
 """
 
 import logging
 import os
 import subprocess
+import sys
 import tempfile
 
 import itk
 import numpy as np
 from itk import TubeTK as tube
 
-from physiomotion4d.segment_chest_base import SegmentChestBase
+from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
 
 
-class SegmentHeartSimpleware(SegmentChestBase):
+class SegmentHeartSimpleware(SegmentAnatomyBase):
     """
     Heart CT segmentation using Simpleware Medical's ASCardio module.
 
@@ -97,6 +98,8 @@ class SegmentHeartSimpleware(SegmentChestBase):
         # From Base Class
         # self.contrast_mask_ids = {135: "contrast"}
 
+        self.trim_mesh_to_essentials = False
+
         self.set_other_and_all_mask_ids()
 
         # Path to Simpleware Medical console executable
@@ -108,6 +111,14 @@ class SegmentHeartSimpleware(SegmentChestBase):
             "simpleware_medical",
             "SimplewareScript_heart_segmentation.py",
         )
+
+    def set_trim_mesh_to_essentials(self, trim_mesh_to_essentials: bool) -> None:
+        """Set whether to trim mesh to common and critical structures.
+
+        Args:
+            trim_mesh_to_essentials (bool): Whether to reduce to essential.
+        """
+        self.trim_mesh_to_essentials = trim_mesh_to_essentials
 
     def set_simpleware_executable_path(self, path: str) -> None:
         """Set the path to the Simpleware Medical console executable.
@@ -195,15 +206,43 @@ class SegmentHeartSimpleware(SegmentChestBase):
             self.log_info("Command: %s", " ".join(cmd))
 
             try:
-                # Run Simpleware Medical as a subprocess
-                result = subprocess.run(
+                # Run Simpleware Medical as a subprocess. When the process exits,
+                # the OS frees all of its resources (GPU, memory); no extra
+                # cleanup is required. Using Popen so we can kill the process
+                # tree on timeout and ensure no child processes keep holding GPU.
+                proc = subprocess.Popen(
                     cmd,
-                    input=user_input,
-                    capture_output=True,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    check=True,
-                    timeout=600,  # 10 minute timeout
+                    start_new_session=(
+                        sys.platform != "win32"
+                    ),  # process group on Unix
                 )
+                try:
+                    stdout, stderr = proc.communicate(
+                        input=user_input,
+                        timeout=600,  # 10 minute timeout
+                    )
+                except subprocess.TimeoutExpired:
+                    # Kill process tree so GPU/memory are released (child may have spawned others)
+                    if sys.platform == "win32":
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                            capture_output=True,
+                        )
+                    else:
+                        os.killpg(os.getpgid(proc.pid), 9)
+                    proc.wait()
+                    raise RuntimeError(
+                        "Simpleware Medical segmentation timed out after 600 seconds"
+                    )
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(
+                        proc.returncode, cmd, stdout, stderr
+                    )
+                result = type("Result", (), {"stdout": stdout, "stderr": stderr})()
 
                 # Log output from Simpleware
                 if result.stdout:
@@ -211,10 +250,6 @@ class SegmentHeartSimpleware(SegmentChestBase):
                 if result.stderr:
                     self.log_warning("Simpleware stderr:\n%s", result.stderr)
 
-            except subprocess.TimeoutExpired as e:
-                raise RuntimeError(
-                    f"Simpleware Medical segmentation timed out after 600 seconds: {e}"
-                )
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(
                     f"Simpleware Medical segmentation failed with return code {e.returncode}:\n"
@@ -223,7 +258,7 @@ class SegmentHeartSimpleware(SegmentChestBase):
 
             # Simpleware's right ventricle, left atrium, right atrium correspond to
             #   the interior of those regions.
-            mask_ids_of_interior_regions = [2, 3, 4]
+            mask_ids_of_interior_regions = [1, 2, 3, 4]
 
             # Check if output file was created
             sz = [s for s in preprocessed_image.GetLargestPossibleRegion().GetSize()]
@@ -265,6 +300,16 @@ class SegmentHeartSimpleware(SegmentChestBase):
                     "ensure the ASCardio module ran successfully."
                 )
 
+            if self.trim_mesh_to_essentials:
+                z = labelmap_array.shape[2] - 1
+                z_classes = np.unique(labelmap_array[z, :, :])
+                heart_count = np.sum((c in [1, 2, 3, 4, 5]) for c in z_classes)
+                while heart_count < 3 and z > 0:
+                    z -= 1
+                    z_classes = np.unique(labelmap_array[z, :, :])
+                    heart_count = np.sum((c in [1, 2, 3, 4, 5]) for c in z_classes)
+                if z < labelmap_array.shape[2] - 3:
+                    labelmap_array[(z + 3) :, :, :] = 0
             labelmap_image = itk.GetImageFromArray(labelmap_array.astype(np.uint8))
             labelmap_image.CopyInformation(preprocessed_image)
 

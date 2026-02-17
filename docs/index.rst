@@ -56,7 +56,8 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
    **Getting Started with Code Examples:**
 
    This documentation uses examples from the CLI commands (``physiomotion4d-heart-gated-ct``,
-   ``physiomotion4d-register-heart-model``) and their implementations in ``src/physiomotion4d/cli/``,
+   ``physiomotion4d-create-statistical-model``, ``physiomotion4d-fit-statistical-model-to-patient``)
+   and their implementations in ``src/physiomotion4d/cli/``,
    which contain production-ready workflows and proper library usage patterns. The repository also includes
    an ``experiments/`` directory with research prototypes that can inspire adaptations to
    new digital twin models and anatomical regions—see the experiments README for details on
@@ -76,7 +77,8 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 
    cli_scripts/overview
    cli_scripts/heart_gated_ct
-   cli_scripts/heart_model_to_patient
+   cli_scripts/create_statistical_model
+   cli_scripts/fit_statistical_model_to_patient
    cli_scripts/lung_gated_ct
    cli_scripts/4dct_reconstruction
    cli_scripts/vtk_to_usd

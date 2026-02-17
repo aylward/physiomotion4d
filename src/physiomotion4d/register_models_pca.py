@@ -96,7 +96,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 These are the square roots of pca_eigenvalues
             pca_number_of_modes: Number of PCA modes to use. Default: -1 (use all)
             pca_template_model_point_subsample: Step size for subsampling model points. Default: 4
-            pre_pca_transform: Optional ITK transform to apply after PCA registration.
+            pre_pca_transform: Optional ITK transform to apply before PCA registration.
                 Default: None
             fixed_distance_map: ITK image providing the distance map.
                 Default: None
@@ -161,20 +161,9 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self.registered_model_pca_coefficients: Optional[np.ndarray] = None
         self.registered_model: Optional[pv.UnstructuredGrid] = None
         self.registered_model_mean_distance: float = 0.0
-        self.register_model_pca_deformation: Optional[np.ndarray] = None
+        self.registered_model_pca_deformation: Optional[np.ndarray] = None
         self.forward_point_transform: Optional[itk.DisplacementFieldTransform] = None
         self.inverse_point_transform: Optional[itk.DisplacementFieldTransform] = None
-
-        self._template_model_pca_deformation_field_image: Optional[itk.Image] = None
-        self._deformation_field_interpolator_x: Optional[
-            itk.LinearInterpolateImageFunction
-        ] = None
-        self._deformation_field_interpolator_y: Optional[
-            itk.LinearInterpolateImageFunction
-        ] = None
-        self._deformation_field_interpolator_z: Optional[
-            itk.LinearInterpolateImageFunction
-        ] = None
 
         # Image interpolator (created when needed)
         self._fixed_distance_map_interpolator: Optional[
@@ -215,7 +204,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             pca_json_filename: Path to the PCA model JSON file
             pca_number_of_modes: Number of PCA modes to use. Default: 0 (use all)
             pca_template_model_point_subsample: Step size for subsampling model points. Default: 4
-            pre_pca_transform: Optional ITK transform to apply after PCA registration.
+            pre_pca_transform: Optional ITK transform to apply before PCA registration.
                 Default: None
             fixed_distance_map: ITK image providing the distance values
                 for registration. If None, must be set later before registration.
@@ -283,6 +272,67 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         logger.info("  ✓ Data validation successful!")
         logger.info("PCA model data loaded successfully!")
 
+        return cls.from_pca_model(
+            pca_template_model=pca_template_model,
+            pca_model=pca_data,
+            pca_number_of_modes=pca_number_of_modes,
+            pca_template_model_point_subsample=pca_template_model_point_subsample,
+            pre_pca_transform=pre_pca_transform,
+            fixed_distance_map=fixed_distance_map,
+            fixed_model=fixed_model,
+            reference_image=reference_image,
+            log_level=log_level,
+        )
+
+    @classmethod
+    def from_pca_model(
+        cls,
+        pca_template_model: pv.UnstructuredGrid,
+        pca_model: dict,
+        pca_number_of_modes: int = 0,
+        pca_template_model_point_subsample: int = 4,
+        pre_pca_transform: Optional[itk.Transform] = None,
+        fixed_distance_map: Optional[itk.Image] = None,
+        fixed_model: Optional[pv.UnstructuredGrid] = None,
+        reference_image: Optional[itk.Image] = None,
+        log_level: int | str = logging.INFO,
+    ) -> Self:
+        """Create RegisterModelsPCA from a PCA model dictionary.
+
+        The dict must match the structure produced by
+        :class:`WorkflowCreateStatisticalModel` (key ``pca_model``):
+        ``explained_variance_ratio``, ``eigenvalues``, ``components``.
+
+        Args:
+            pca_template_model: Mean surface mesh to use as template
+            pca_model: PCA model dict with 'eigenvalues' and 'components' (and optionally
+                'explained_variance_ratio')
+            pca_number_of_modes: Number of PCA modes to use. Default: 0 (use all)
+            pca_template_model_point_subsample: Step size for subsampling model points. Default: 4
+            pre_pca_transform: Optional ITK transform to apply before PCA registration.
+            fixed_distance_map: ITK image providing the distance values for registration.
+            fixed_model: Target surface mesh to register to.
+            reference_image: Reference image defining coordinate space.
+            log_level: Logging level.
+
+        Returns:
+            RegisterModelsPCA instance
+
+        Raises:
+            ValueError: If required keys are missing or dimensions invalid
+        """
+        if "eigenvalues" not in pca_model:
+            raise ValueError("'eigenvalues' field not found in pca_model")
+        pca_std_deviations = np.sqrt(np.array(pca_model["eigenvalues"]))
+        if "components" not in pca_model:
+            raise ValueError("'components' field not found in pca_model")
+        pca_eigenvectors = np.array(pca_model["components"], dtype=np.float64)
+        expected_size = pca_template_model.n_points * 3
+        if pca_eigenvectors.shape[1] != expected_size:
+            raise ValueError(
+                f"Component dimension mismatch: expected {expected_size} "
+                f"(3 × {pca_template_model.n_points} points), got {pca_eigenvectors.shape[1]}"
+            )
         return cls(
             pca_template_model=pca_template_model,
             pca_eigenvectors=pca_eigenvectors,
@@ -597,8 +647,8 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self.log_info("Creating final registered model...")
 
         # Compute PCA deformation
-        if self.register_model_pca_deformation is None:
-            self.register_model_pca_deformation = self._compute_pca_deformation(
+        if self.registered_model_pca_deformation is None:
+            self.registered_model_pca_deformation = self._compute_pca_deformation(
                 self.registered_model_pca_coefficients,
             )
 
@@ -623,9 +673,9 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 point = self.pre_pca_transform.TransformPoint(point)
 
             # Add PCA deformation
-            point[0] += self.register_model_pca_deformation[i, 0]
-            point[1] += self.register_model_pca_deformation[i, 1]
-            point[2] += self.register_model_pca_deformation[i, 2]
+            point[0] += self.registered_model_pca_deformation[i, 0]
+            point[1] += self.registered_model_pca_deformation[i, 1]
+            point[2] += self.registered_model_pca_deformation[i, 2]
 
             # Store result
             final_points[i, 0] = point[0]
@@ -655,8 +705,10 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         Returns:
             Transformed ITK point
 
-        Raises:
-            ValueError: If registration has not been completed yet
+        Notes:
+            1) if the point is outside the image bounds, the point is not transformed.
+            2) if the pre_pca_transform is set and enabled, it is applied.
+            3) if the forward point transform is not set, no errors are raised.
 
         Example:
             >>> p = itk.Point[itk.D, 3]()
@@ -664,81 +716,13 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             >>> transformed_p = registrar.transform_point(p)
         """
 
-        if self._deformation_field_interpolator_x is None:
-            field_array = itk.GetArrayFromImage(
-                self._template_model_pca_deformation_field_image
-            )
-            field_x_image = itk.GetImageFromArray(field_array[:, :, :, 0])
-            field_x_image.CopyInformation(
-                self._template_model_pca_deformation_field_image
-            )
-            self._deformation_field_interpolator_x = itk.LinearInterpolateImageFunction[
-                itk.Image[itk.D, 3], itk.D
-            ].New()
-            self._deformation_field_interpolator_x.SetInputImage(field_x_image)
-
-            field_y_image = itk.GetImageFromArray(field_array[:, :, :, 1])
-            field_y_image.CopyInformation(
-                self._template_model_pca_deformation_field_image
-            )
-            self._deformation_field_interpolator_y = itk.LinearInterpolateImageFunction[
-                itk.Image[itk.D, 3], itk.D
-            ].New()
-            self._deformation_field_interpolator_y.SetInputImage(field_y_image)
-
-            field_z_image = itk.GetImageFromArray(field_array[:, :, :, 2])
-            field_z_image.CopyInformation(
-                self._template_model_pca_deformation_field_image
-            )
-            self._deformation_field_interpolator_z = itk.LinearInterpolateImageFunction[
-                itk.Image[itk.D, 3], itk.D
-            ].New()
-            self._deformation_field_interpolator_z.SetInputImage(field_z_image)
-
-        assert self._template_model_pca_deformation_field_image is not None, (
-            "Deformation field image must be set"
-        )
-        assert self._deformation_field_interpolator_x is not None, (
-            "Interpolator x must be initialized"
-        )
-        assert self._deformation_field_interpolator_y is not None, (
-            "Interpolator y must be initialized"
-        )
-        assert self._deformation_field_interpolator_z is not None, (
-            "Interpolator z must be initialized"
-        )
         if include_pre_pca_transform and self.pre_pca_transform is not None:
             point = self.pre_pca_transform.TransformPoint(point)
 
-        cindx = self._template_model_pca_deformation_field_image.TransformPhysicalPointToContinuousIndex(
-            point
-        )
-        size = self._template_model_pca_deformation_field_image.GetLargestPossibleRegion().GetSize()
-        if (
-            cindx[0] < 0
-            or cindx[0] >= size[0]
-            or cindx[1] < 0
-            or cindx[1] >= size[1]
-            or cindx[2] < 0
-            or cindx[2] >= size[2]
-        ):
-            self.log_error("Point is outside deformation field bounds")
-            return point
-
-        deformation_x = (
-            self._deformation_field_interpolator_x.EvaluateAtContinuousIndex(cindx)
-        )
-        deformation_y = (
-            self._deformation_field_interpolator_y.EvaluateAtContinuousIndex(cindx)
-        )
-        deformation_z = (
-            self._deformation_field_interpolator_z.EvaluateAtContinuousIndex(cindx)
-        )
-
-        transformed_point = itk.Point[itk.D, 3]()
-        transformed_point[0] = float(point[0] + deformation_x)
-        transformed_point[1] = float(point[1] + deformation_y)
-        transformed_point[2] = float(point[2] + deformation_z)
+        if self.forward_point_transform is not None:
+            transformed_point = self.forward_point_transform.TransformPoint(point)
+        else:
+            transformed_point = point
 
         return transformed_point
 
@@ -750,13 +734,13 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 - 'forward_point_transform': Forward displacement field transform
                 - 'inverse_point_transform': Inverse displacement field transform
         """
-        assert self.register_model_pca_deformation is not None, (
+        assert self.registered_model_pca_deformation is not None, (
             "PCA deformation must be computed"
         )
-        self._template_model_pca_deformation_field_image = (
+        template_model_pca_deformation_field_image = (
             self._contour_tools.create_deformation_field(
                 np.array(self.pca_template_model.points),
-                self.register_model_pca_deformation,
+                self.registered_model_pca_deformation,
                 reference_image=reference_image,
                 blur_sigma=2.5,
                 ptype=itk.D,
@@ -765,7 +749,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
         self.forward_point_transform = itk.DisplacementFieldTransform[itk.D, 3].New()
         self.forward_point_transform.SetDisplacementField(
-            self._template_model_pca_deformation_field_image
+            template_model_pca_deformation_field_image
         )
 
         transform_tools = TransformTools()
@@ -830,7 +814,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         )
 
         # Create final registered model
-        self.register_model_pca_deformation = None
+        self.registered_model_pca_deformation = None
         self.registered_model = self.transform_template_model()
 
         # Return results as dictionary

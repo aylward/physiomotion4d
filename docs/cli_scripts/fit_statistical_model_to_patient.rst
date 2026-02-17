@@ -5,7 +5,7 @@ Heart Model to Patient Registration
 Overview
 ========
 
-The ``physiomotion4d-register-heart-model`` command-line tool registers generic anatomical heart models to patient-specific imaging data and surface models. This workflow enables:
+The ``physiomotion4d-fit-statistical-model-to-patient`` command-line tool registers generic anatomical heart models to patient-specific imaging data and surface models. This workflow enables:
 
 * Patient-specific anatomical modeling from generic templates
 * Multi-stage registration combining ICP, PCA, and deformable methods
@@ -38,7 +38,7 @@ Register a generic heart model to patient data:
 
 .. code-block:: bash
 
-   physiomotion4d-register-heart-model \
+   physiomotion4d-fit-statistical-model-to-patient \
        --template-model heart_model.vtu \
        --template-labelmap heart_labelmap.nii.gz \
        --patient-models lv.vtp rv.vtp myo.vtp \
@@ -52,7 +52,7 @@ Include statistical shape model fitting:
 
 .. code-block:: bash
 
-   physiomotion4d-register-heart-model \
+   physiomotion4d-fit-statistical-model-to-patient \
        --template-model heart_model.vtu \
        --template-labelmap heart_labelmap.nii.gz \
        --patient-models lv.vtp rv.vtp myo.vtp \
@@ -82,7 +82,7 @@ Required Arguments
 ``--output-dir DIR``
    Output directory for results
 
-See :class:`physiomotion4d.WorkflowRegisterHeartModelToPatient` for API documentation.
+See :class:`physiomotion4d.WorkflowFitStatisticalModelToPatient` for API documentation.
 
 Template Labelmap Configuration
 --------------------------------
@@ -141,7 +141,7 @@ Example 1: Basic Registration
 
 .. code-block:: bash
 
-   physiomotion4d-register-heart-model \
+   physiomotion4d-fit-statistical-model-to-patient \
        --template-model heart_model.vtu \
        --template-labelmap heart_labelmap.nii.gz \
        --patient-models lv.vtp rv.vtp myo.vtp \
@@ -153,7 +153,7 @@ Example 2: PCA-Based Registration
 
 .. code-block:: bash
 
-   physiomotion4d-register-heart-model \
+   physiomotion4d-fit-statistical-model-to-patient \
        --template-model heart_model.vtu \
        --template-labelmap heart_labelmap.nii.gz \
        --patient-models lv.vtp rv.vtp \

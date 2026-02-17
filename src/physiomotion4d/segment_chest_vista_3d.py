@@ -26,10 +26,10 @@ import itk
 import torch
 from huggingface_hub import snapshot_download
 
-from physiomotion4d.segment_chest_base import SegmentChestBase
+from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
 
 
-class SegmentChestVista3D(SegmentChestBase):
+class SegmentChestVista3D(SegmentAnatomyBase):
     """
     Chest CT segmentation using NVIDIA VISTA-3D foundational model.
 

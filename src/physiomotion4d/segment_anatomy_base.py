@@ -1,7 +1,7 @@
-"""Base class for segmenting chest CT images.
+"""Base class for segmenting anatomy in CT images.
 
-This module provides the SegmentChestBase class that serves as a foundation
-for implementing different chest CT segmentation algorithms. It handles common
+This module provides the SegmentAnatomyBase class that serves as a foundation
+for implementing different anatomy CT segmentation algorithms. It handles common
 preprocessing, postprocessing, and anatomical structure organization tasks.
 """
 
@@ -15,12 +15,12 @@ from itk import TubeTK as tube
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
 
-class SegmentChestBase(PhysioMotion4DBase):
-    """Base class for chest segmentation that provides common functionality for
-    segmenting chest CT images.
+class SegmentAnatomyBase(PhysioMotion4DBase):
+    """Base class for anatomy segmentation that provides common functionality for
+    segmenting anatomy in CT images.
 
     This class implements preprocessing, postprocessing, and mask creation
-    methods that are shared across different chest segmentation
+    methods that are shared across different anatomy segmentation
     implementations. It defines anatomical structure mappings and provides
     utilities for image preprocessing, intensity rescaling, and mask generation.
 
@@ -43,7 +43,7 @@ class SegmentChestBase(PhysioMotion4DBase):
     """
 
     def __init__(self, log_level: int | str = logging.INFO):
-        """Initialize the SegmentChestBase class.
+        """Initialize the SegmentAnatomyBase class.
 
         Sets up default parameters for image preprocessing and anatomical
         structure ID mappings. Subclasses should call this constructor and
@@ -385,6 +385,9 @@ class SegmentChestBase(PhysioMotion4DBase):
             InsideValue=1,
             OutsideValue=0,
         )
+        thresh_arr = itk.GetArrayFromImage(thresh_image).astype(np.int16)
+        thresh_image = itk.GetImageFromArray(thresh_arr)
+        thresh_image.CopyInformation(preprocessed_image)
 
         label_arr = itk.GetArrayFromImage(labelmap_image)
         if labelmap_ids is None:

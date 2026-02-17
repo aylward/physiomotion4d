@@ -6,7 +6,7 @@ This directory contains integration code for using Synopsys Simpleware Medical w
 
 The integration enables PhysioMotion4D to leverage Simpleware Medical's ASCardio module for automated cardiac segmentation. The implementation uses a two-component architecture:
 
-1. **segment_heart_simpleware.py** (in parent directory): A Python class that inherits from `SegmentChestBase` and manages the external Simpleware Medical process
+1. **segment_heart_simpleware.py** (in parent directory): A Python class that inherits from `SegmentAnatomyBase` and manages the external Simpleware Medical process
 2. **SimplewareScript_heart_segmentation.py** (this directory): A Python script that runs within the Simpleware Medical environment and performs the actual segmentation using ASCardio
 
 ## Requirements

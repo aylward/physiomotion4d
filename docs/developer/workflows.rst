@@ -37,7 +37,7 @@ Each CLI script wraps a corresponding workflow class:
    * - ``physiomotion4d-heart-gated-ct``
      - :class:`WorkflowConvertHeartGatedCTToUSD`
    * - ``physiomotion4d-heart-model-to-patient``
-     - :class:`WorkflowRegisterHeartModelToPatient` *(planned)*
+     - :class:`WorkflowFitStatisticalModelToPatient` *(planned)*
    * - ``physiomotion4d-lung-gated-ct``
      - :class:`LungGatedCTToUSDWorkflow` *(planned)*
    * - ``physiomotion4d-4dct-reconstruction``
@@ -109,7 +109,7 @@ Process 4D cardiac CT to animated USD models.
 
 See :doc:`../cli_scripts/heart_gated_ct` for CLI usage.
 
-WorkflowRegisterHeartModelToPatient
+WorkflowFitStatisticalModelToPatient
 ------------------------------------
 
 .. note::
@@ -121,9 +121,9 @@ Register population heart models to patient images.
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowRegisterHeartModelToPatient
+   from physiomotion4d import WorkflowFitStatisticalModelToPatient
    
-   workflow = WorkflowRegisterHeartModelToPatient(
+   workflow = WorkflowFitStatisticalModelToPatient(
        model_file="population_heart_model.vtk",
        patient_image="patient_ct.nrrd",
        output_directory="./results"
@@ -131,7 +131,7 @@ Register population heart models to patient images.
    
    registered_model = workflow.process()
 
-See :doc:`../cli_scripts/heart_model_to_patient` for planned CLI usage.
+See :doc:`../cli_scripts/fit_statistical_model_to_patient` for planned CLI usage.
 
 Common Workflow Patterns
 ========================
