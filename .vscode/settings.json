@@ -45,5 +45,11 @@
   "python.linting.enabled": false,
   "python.linting.flake8Enabled": false,
   "python.linting.pylintEnabled": false,
-  "python.formatting.provider": "none"
+  "python.formatting.provider": "none",
+  "python.languageServer": "None",
+  "cursorpyright.analysis.diagnosticSeverityOverrides": {
+    "reportUndefinedVariable": "warning",
+    "reportMissingImports": "warning"
+  },
+  "cursorpyright.analysis.typeCheckingMode": "basic"
 }
