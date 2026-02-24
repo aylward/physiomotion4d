@@ -234,6 +234,8 @@ Examples:
                 pca_model=pca_model,
                 pca_number_of_modes=args.pca_number_of_modes,
             )
+        if args.use_mask_to_mask:
+            workflow.set_use_mask_to_mask_registration(args.use_mask_to_mask)
         if args.use_mask_to_image:
             workflow.set_use_mask_to_image_registration(
                 True,
@@ -252,8 +254,6 @@ Examples:
         print("\nStarting registration pipeline...")
         print("=" * 70)
         result = workflow.run_workflow(
-            use_mask_to_mask_registration=args.use_mask_to_mask,
-            use_mask_to_image_registration=args.use_mask_to_image,
             use_icon_registration_refinement=args.use_icon_refinement,
         )
 

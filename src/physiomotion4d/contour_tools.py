@@ -165,12 +165,15 @@ class ContourTools(PhysioMotion4DBase):
 
     def create_mask_from_mesh(
         self,
-        mesh: pv.DataSet,
+        mesh: pv.DataSet | pv.UnstructuredGrid,
         reference_image: itk.Image,
     ) -> itk.Image:
         ref_spacing = np.array(reference_image.GetSpacing())
 
         # Create trimesh object with LPS coordinates
+        if isinstance(mesh, pv.UnstructuredGrid):
+            mesh = mesh.extract_surface()
+
         if hasattr(mesh, "n_faces_strict"):
             # PyVista PolyData
             faces = mesh.faces.reshape((mesh.n_faces_strict, 4))[:, 1:]
@@ -248,7 +251,7 @@ class ContourTools(PhysioMotion4DBase):
 
     def create_distance_map(
         self,
-        mesh: pv.DataSet,
+        mesh: pv.DataSet | pv.UnstructuredGrid,
         reference_image: itk.Image,
         squared_distance: bool = False,
         negative_inside: bool = True,
