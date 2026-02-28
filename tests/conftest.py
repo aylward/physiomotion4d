@@ -18,6 +18,7 @@ from itk import TubeTK as ttk
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
 from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
@@ -493,6 +494,12 @@ def contour_tools():
 def registrar_ants():
     """Create a RegisterImagesANTs instance."""
     return RegisterImagesANTs()
+
+
+@pytest.fixture(scope="session")
+def registrar_greedy():
+    """Create a RegisterImagesGreedy instance."""
+    return RegisterImagesGreedy()
 
 
 @pytest.fixture(scope="session")

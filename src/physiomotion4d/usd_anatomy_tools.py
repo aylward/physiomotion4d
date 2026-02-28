@@ -178,7 +178,49 @@ class USDAnatomyTools(PhysioMotion4DBase):
             "coat_weight": 0.1,
         }
 
-    def _apply_surgical_materials(
+        # Map anatomy type name (CLI/workflow) to params for apply_anatomy_material_to_mesh
+        self._anatomy_params_by_type: Mapping[str, Mapping[str, Any]] = {
+            "heart": self.heart_params,
+            "lung": self.lung_params,
+            "bone": self.bone_params,
+            "major_vessels": self.major_vessels_params,
+            "contrast": self.contrast_params,
+            "soft_tissue": self.soft_tissue_params,
+            "other": self.other_params,
+            "liver": self.liver_params,
+            "spleen": self.spleen_params,
+            "kidney": self.kidney_params,
+        }
+
+    def get_anatomy_types(self) -> list[str]:
+        """Return list of supported anatomy type names for apply_anatomy_material_to_mesh."""
+        return list(self._anatomy_params_by_type.keys())
+
+    def apply_anatomy_material_to_mesh(self, mesh_path: str, anatomy_type: str) -> None:
+        """Apply an anatomic OmniSurface material to a single mesh prim by type.
+
+        Args:
+            mesh_path: USD path to the mesh prim (e.g. "/World/Meshes/MyMesh").
+            anatomy_type: One of: heart, lung, bone, major_vessels, contrast,
+                soft_tissue, other, liver, spleen, kidney.
+
+        Raises:
+            ValueError: If mesh_path is invalid or anatomy_type is not supported.
+        """
+        params = self._anatomy_params_by_type.get(anatomy_type.lower())
+        if params is None:
+            raise ValueError(
+                f"Unknown anatomy_type '{anatomy_type}'. "
+                f"Supported: {', '.join(self.get_anatomy_types())}"
+            )
+        prim = self.stage.GetPrimAtPath(mesh_path)
+        if not prim.IsValid():
+            raise ValueError(f"Invalid prim at path: {mesh_path}")
+        if not prim.IsA(UsdGeom.Mesh):
+            raise ValueError(f"Prim at {mesh_path} is not a Mesh")
+        self.apply_anatomy_material_to_prim(prim, params)
+
+    def apply_anatomy_material_to_prim(
         self, prim: Any, material_params: Mapping[str, Any]
     ) -> None:
         """Corrected material application with Omniverse-specific fixes"""
@@ -363,4 +405,4 @@ class USDAnatomyTools(PhysioMotion4DBase):
                 assert anatomy_params is not None
                 mesh_prim = UsdGeom.Mesh(prim)
                 if mesh_prim:
-                    self._apply_surgical_materials(prim, anatomy_params)
+                    self.apply_anatomy_material_to_prim(prim, anatomy_params)

@@ -293,9 +293,13 @@ class TestVTKToUSDConversion:
         # Get test data
         vtp_file = kcl_average_surface
 
-        # Convert to USD
+        # Single mesh (no split) so path is /World/Meshes/HeartSurface
+        settings = ConversionSettings(
+            separate_objects_by_connectivity=False,
+            separate_objects_by_cell_type=False,
+        )
         output_usd = output_dir / "heart_surface.usd"
-        converter = VTKToUSDConverter()
+        converter = VTKToUSDConverter(settings)
         stage = converter.convert_file(
             vtp_file,
             output_usd,
@@ -336,9 +340,13 @@ class TestVTKToUSDConversion:
             metallic=0.0,
         )
 
-        # Convert with material
+        # Single mesh so path is /World/Meshes/HeartSurface
+        settings = ConversionSettings(
+            separate_objects_by_connectivity=False,
+            separate_objects_by_cell_type=False,
+        )
         output_usd = output_dir / "heart_with_material.usd"
-        converter = VTKToUSDConverter()
+        converter = VTKToUSDConverter(settings)
         stage = converter.convert_file(
             vtp_file,
             output_usd,
@@ -369,12 +377,14 @@ class TestVTKToUSDConversion:
 
         vtp_file = kcl_average_surface
 
-        # Create custom settings
+        # Create custom settings (single mesh for predictable path)
         settings = ConversionSettings(
             triangulate_meshes=True,
             compute_normals=True,
             preserve_point_arrays=True,
             preserve_cell_arrays=True,
+            separate_objects_by_connectivity=False,
+            separate_objects_by_cell_type=False,
             meters_per_unit=0.001,  # mm to meters
             up_axis="Y",
         )
@@ -382,7 +392,7 @@ class TestVTKToUSDConversion:
         # Convert with settings
         output_usd = output_dir / "heart_custom_settings.usd"
         converter = VTKToUSDConverter(settings)
-        stage = converter.convert_file(vtp_file, output_usd)
+        stage = converter.convert_file(vtp_file, output_usd, mesh_name="Mesh")
 
         # Verify stage metadata
         assert UsdGeom.GetStageMetersPerUnit(stage) == 0.001
@@ -404,10 +414,14 @@ class TestVTKToUSDConversion:
         mesh_data = read_vtk_file(vtp_file)
         array_names = [arr.name for arr in mesh_data.generic_arrays]
 
-        # Convert to USD
+        # Single mesh so path is /World/Meshes/Mesh
+        settings = ConversionSettings(
+            separate_objects_by_connectivity=False,
+            separate_objects_by_cell_type=False,
+        )
         output_usd = output_dir / "heart_with_primvars.usd"
-        converter = VTKToUSDConverter()
-        stage = converter.convert_file(vtp_file, output_usd)
+        converter = VTKToUSDConverter(settings)
+        stage = converter.convert_file(vtp_file, output_usd, mesh_name="Mesh")
 
         # Check primvars exist
         mesh_prim = stage.GetPrimAtPath("/World/Meshes/Mesh")
@@ -441,13 +455,18 @@ class TestTimeSeriesConversion:
         vtk_files = [vtp_file] * 3
         time_codes = [0.0, 1.0, 2.0]
 
-        # Convert time series
+        # Single mesh so path is /World/Meshes/Mesh
+        settings = ConversionSettings(
+            separate_objects_by_connectivity=False,
+            separate_objects_by_cell_type=False,
+        )
         output_usd = output_dir / "heart_time_series.usd"
-        converter = VTKToUSDConverter()
+        converter = VTKToUSDConverter(settings)
         stage = converter.convert_sequence(
             vtk_files=vtk_files,
             output_usd=output_usd,
             time_codes=time_codes,
+            mesh_name="Mesh",
         )
 
         # Verify time range
@@ -483,11 +502,13 @@ class TestIntegration:
 
         vtp_file = kcl_average_surface
 
-        # Configure everything
+        # Configure everything (single mesh for predictable path)
         settings = ConversionSettings(
             triangulate_meshes=True,
             compute_normals=True,
             preserve_point_arrays=True,
+            separate_objects_by_connectivity=False,
+            separate_objects_by_cell_type=False,
             meters_per_unit=0.001,
             times_per_second=24.0,
         )

@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """
-Clear all cell outputs in every Jupyter notebook in the project.
+Clear cell outputs and widget state in every Jupyter notebook in the project.
 
-Use this script before committing to GitHub to keep notebook diffs small and
-avoid committing large output blobs (images, data, execution metadata).
+Use this script before committing (or as a pre-commit hook) to keep notebook
+diffs small and avoid committing large output blobs, execution metadata, and
+ipywidget/PyVista widget state (application/vnd.jupyter.widget-state+json).
 
 Usage:
-    python clear_notebook_outputs.py [root_dir]
+    python prepare_notebooks_for_commit.py [root_dir]
 
 If root_dir is omitted, uses the parent of the directory containing this script
 (i.e. the physiomotion4d project root).
@@ -28,9 +29,21 @@ def clear_cell_outputs(cell: dict) -> None:
             del cell["metadata"]["execution"]
 
 
+def strip_widget_state(nb: dict) -> bool:
+    """
+    Remove Jupyter widget state from notebook metadata (ipywidgets, PyVista, etc.).
+    Returns True if widget state was present and removed, False otherwise.
+    """
+    meta = nb.get("metadata")
+    if not isinstance(meta, dict) or "widgets" not in meta:
+        return False
+    del meta["widgets"]
+    return True
+
+
 def clear_notebook(path: Path) -> bool:
     """
-    Clear all cell outputs in a notebook file in place.
+    Clear all cell outputs and strip widget state in a notebook file in place.
     Returns True if the file was modified, False otherwise.
     """
     try:
@@ -63,6 +76,9 @@ def clear_notebook(path: Path) -> bool:
         if had_output or had_exec_meta:
             clear_cell_outputs(cell)
             modified = True
+
+    if strip_widget_state(nb):
+        modified = True
 
     if not modified:
         return False
@@ -142,6 +158,8 @@ def main() -> int:
                     ):
                         would_modify = True
                         break
+                if not would_modify and isinstance(nb.get("metadata"), dict):
+                    would_modify = "widgets" in nb["metadata"]
                 if would_modify:
                     print(f"  Would clear: {rel}")
                     modified_count += 1

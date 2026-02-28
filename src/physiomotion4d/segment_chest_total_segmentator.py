@@ -86,6 +86,7 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             60: "brachiocephalic_vein_right",
             62: "superior_vena_cava",
             63: "inferior_vena_cava",
+            120: "lung_vessels",
         }
 
         self.lung_mask_ids = {
@@ -94,8 +95,6 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             12: "lung_upper_lobe_right",
             13: "lung_middle_lobe_right",
             14: "lung_lower_lobe_right",
-            15: "esophagus",
-            16: "trachea",
         }
 
         self.bone_mask_ids = {
@@ -187,6 +186,8 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             84: "gluteus_minimus_left",
             85: "gluteus_minimus_right",
             90: "brain",
+            15: "esophagus",
+            16: "trachea",
             133: "soft_tissue",
         }
 
@@ -241,6 +242,11 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             output_nib_image2 = totalsegmentator(nib_image, task="body", device="gpu")
             labelmap_arr2 = output_nib_image2.get_fdata().astype(np.uint8)
 
+            output_nib_image3 = totalsegmentator(
+                nib_image, task="lung_vessels", device="gpu"
+            )
+            labelmap_arr3 = output_nib_image3.get_fdata().astype(np.uint8)
+
             # The data from nibabel is in RAS orientation with xyz axis order.
             # The combination logic can be performed on these numpy arrays.
             mask1 = labelmap_arr1 == 0
@@ -249,6 +255,18 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             final_arr = np.where(
                 mask, list(self.soft_tissue_mask_ids.keys())[-1], labelmap_arr1
             )
+
+            mask3 = labelmap_arr3 == 1
+            mask3_img = itk.image_from_array(mask3.astype(np.uint8))
+            mask3_img.CopyInformation(preprocessed_image)
+            imMath = itk.TubeTK.ImageMath.New(mask3_img)
+            imMath.Dilate(1, 1, 0)
+            imMath.Erode(1, 1, 0)
+            mask3_img = imMath.GetOutputUChar()
+            mask3 = itk.array_from_image(mask3_img)
+            final_arr = np.where(mask3, 120, final_arr)  # lung vessels
+            mask3 = labelmap_arr3 == 2
+            final_arr = np.where(mask3, 16, final_arr)  # trachea
 
             # To create an ITK image, we save the result and read it back with
             # ITK. This correctly handles the coordinate system and data

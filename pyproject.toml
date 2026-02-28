@@ -71,6 +71,7 @@ dependencies = [
     # Registration
     "antspyx>=0.4.0",
     "icon-registration>=1.0.0",
+    "picsl-greedy>=0.0.12",
     "unigradicon>=1.0.0",
 
     # Visualization and USD
@@ -163,6 +164,7 @@ Changelog = "https://github.com/aylward/PhysioMotion4d/blob/main/CHANGELOG.md"
 # CLI commands installed via pip
 # Entry points reference the main() functions in the cli submodule
 physiomotion4d-heart-gated-ct = "physiomotion4d.cli.convert_heart_gated_ct_to_usd:main"
+physiomotion4d-convert-vtk-to-usd = "physiomotion4d.cli.convert_vtk_to_usd:main"
 physiomotion4d-create-statistical-model = "physiomotion4d.cli.create_statistical_model:main"
 physiomotion4d-fit-statistical-model-to-patient = "physiomotion4d.cli.fit_statistical_model_to_patient:main"
 physiomotion4d-visualize-pca-modes = "physiomotion4d.cli.visualize_pca_modes:main"

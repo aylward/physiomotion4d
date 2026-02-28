@@ -1,0 +1,414 @@
+"""Greedy-based image registration implementation.
+
+This module provides the RegisterImagesGreedy class, a concrete implementation of
+RegisterImagesBase that uses the PICSL Greedy algorithm for image registration.
+Greedy is a fast CPU-based deformable registration tool from the Penn Image
+Computing and Science Lab. It supports affine and deformable registration and
+can be used as an alternative to ANTs for 4D cardiac/lung CT registration.
+
+See https://greedy.readthedocs.io/ and https://pypi.org/project/picsl-greedy/.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Optional, Union
+
+import itk
+import numpy as np
+from numpy.typing import NDArray
+
+from physiomotion4d.image_tools import ImageTools
+from physiomotion4d.register_images_base import RegisterImagesBase
+from physiomotion4d.transform_tools import TransformTools
+
+
+def _try_import_greedy() -> Any:
+    """Import picsl_greedy; raise with helpful message if missing."""
+    try:
+        from picsl_greedy import Greedy3D
+
+        return Greedy3D
+    except ImportError as e:
+        raise ImportError(
+            "picsl-greedy is required for RegisterImagesGreedy. "
+            "Install with: pip install picsl-greedy"
+        ) from e
+
+
+class RegisterImagesGreedy(RegisterImagesBase):
+    """Greedy-based deformable image registration implementation.
+
+    This class extends RegisterImagesBase to provide deformable image registration
+    using the PICSL Greedy algorithm. Greedy is a fast CPU-based tool for 2D/3D
+    medical image registration, supporting rigid, affine, and deformable (NCC/SSD)
+    registration.
+
+    Greedy-specific features:
+    - Rigid and affine registration (-a -dof 6 or 12)
+    - Deformable registration with multi-resolution (-n, -s)
+    - Metrics: NMI, NCC, SSD (mapped from CC, Mattes, MeanSquares)
+    - Optional mask support (-gm fixed, -mm moving when both provided)
+    - SimpleITK in-memory interface via ImageTools
+
+    Inherits from RegisterImagesBase:
+    - Fixed and moving image management
+    - Binary mask processing with optional dilation
+    - Modality-specific parameter configuration
+    - Standardized registration interface
+
+    Attributes:
+        number_of_iterations: List of iterations per level (e.g. [40, 20, 10])
+        transform_type: 'Deformable', 'Affine', or 'Rigid'
+        metric: 'CC' (→NCC), 'Mattes' (→NMI), or 'MeanSquares' (→SSD)
+        deformable_smoothing: Smoothing sigmas for deformable (e.g. "2.0vox 0.5vox")
+    """
+
+    def __init__(self, log_level: int | str = logging.INFO) -> None:
+        """Initialize the Greedy image registration class.
+
+        Args:
+            log_level: Logging level (default: logging.INFO)
+        """
+        super().__init__(log_level=log_level)
+
+        self.number_of_iterations: list[int] = [40, 20, 10]
+        self.transform_type = "Deformable"
+        self.metric = "CC"
+        self.deformable_smoothing = "2.0vox 0.5vox"
+
+    def set_number_of_iterations(self, number_of_iterations: list[int]) -> None:
+        """Set the number of iterations per resolution level.
+
+        Args:
+            number_of_iterations: List of iterations (e.g. [40, 20, 10]).
+        """
+        self.number_of_iterations = number_of_iterations
+
+    def set_transform_type(self, transform_type: str) -> None:
+        """Set the type of transform: Deformable, Affine, or Rigid.
+
+        Args:
+            transform_type: 'Deformable', 'Affine', or 'Rigid'.
+        """
+        if transform_type not in ("Deformable", "Affine", "Rigid"):
+            self.log_error("Invalid transform type: %s", transform_type)
+            raise ValueError(f"Invalid transform type: {transform_type}")
+        self.transform_type = transform_type
+
+    def set_metric(self, metric: str) -> None:
+        """Set the similarity metric (CC→NCC, Mattes→NMI, MeanSquares→SSD).
+
+        This metric is used for both affine and deformable registration stages.
+        Greedy recommends NCC or SSD for deformable registration; NMI works
+        well for affine but is less suited to deformable.
+
+        Args:
+            metric: 'CC', 'Mattes', or 'MeanSquares'.
+        """
+        if metric not in ("CC", "Mattes", "MeanSquares"):
+            self.log_error("Invalid metric: %s", metric)
+            raise ValueError(f"Invalid metric: {metric}")
+        self.metric = metric
+
+    def _itk_to_sitk(self, itk_image: itk.Image) -> Any:
+        """Convert ITK image to SimpleITK (for Greedy)."""
+        image_tools = ImageTools()
+        return image_tools.convert_itk_image_to_sitk(itk_image)
+
+    def _sitk_to_itk(self, sitk_image: Any) -> itk.Image:
+        """Convert SimpleITK image to ITK."""
+        image_tools = ImageTools()
+        return image_tools.convert_sitk_image_to_itk(sitk_image)
+
+    def _greedy_metric(self) -> str:
+        """Map base metric to Greedy metric string."""
+        if self.metric == "CC":
+            return "NCC 2x2x2"
+        if self.metric == "Mattes":
+            return "NMI"
+        if self.metric == "MeanSquares":
+            return "SSD"
+        return "NCC 2x2x2"
+
+    def _greedy_iterations_str(self) -> str:
+        """Format iterations as Greedy -n string (e.g. 40x20x10)."""
+        return "x".join(str(i) for i in self.number_of_iterations)
+
+    def _matrix_to_itk_affine(self, mat_4x4: NDArray[np.float64]) -> itk.Transform:
+        """Convert 4x4 affine matrix to ITK AffineTransform."""
+        mat_4x4 = np.asarray(mat_4x4, dtype=np.float64)
+        if mat_4x4.shape != (4, 4):
+            raise ValueError(f"Expected 4x4 matrix, got shape {mat_4x4.shape}")
+        M = mat_4x4[:3, :3]
+        t = mat_4x4[:3, 3]
+        center = itk.Point[itk.D, 3]()
+        for i in range(3):
+            center[i] = 0.0
+        affine_tfm = itk.AffineTransform[itk.D, 3].New()
+        affine_tfm.SetCenter(center)
+        affine_tfm.SetMatrix(itk.GetMatrixFromArray(M))
+        translation = itk.Vector[itk.D, 3]()
+        for i in range(3):
+            translation[i] = float(t[i])
+        affine_tfm.SetTranslation(translation)
+        return affine_tfm
+
+    def _sitk_warp_to_itk_displacement_transform(
+        self, warp_sitk: Any, reference_image: itk.Image
+    ) -> itk.Transform:
+        """Convert SimpleITK displacement field to ITK DisplacementFieldTransform."""
+        field_itk = self._sitk_to_itk(warp_sitk)
+        from physiomotion4d.image_tools import ImageTools
+
+        image_tools = ImageTools()
+        arr = itk.array_from_image(field_itk)
+        disp_itk = image_tools.convert_array_to_image_of_vectors(
+            arr, reference_image, itk.D
+        )
+        disp_tfm = itk.DisplacementFieldTransform[itk.D, 3].New()
+        disp_tfm.SetDisplacementField(disp_itk)
+        return disp_tfm
+
+    def _registration_method_affine_or_rigid(
+        self,
+        fixed_sitk: Any,
+        moving_sitk: Any,
+        fixed_mask_sitk: Optional[Any],
+        moving_mask_sitk: Optional[Any],
+        iterations_str: str,
+        metric_str: str,
+        dof: int,
+        initial_affine: Optional[NDArray[np.float64]] = None,
+    ) -> tuple[NDArray[np.float64], float]:
+        """Run Greedy affine or rigid registration. Returns (4x4 matrix, loss)."""
+        Greedy3D = _try_import_greedy()
+        g = Greedy3D()
+
+        cmd = f"-i fixed moving -a -dof {dof} -n {iterations_str} -m {metric_str} -o aff_out"
+        kwargs: dict[str, Any] = {
+            "fixed": fixed_sitk,
+            "moving": moving_sitk,
+            "aff_out": None,
+        }
+        if fixed_mask_sitk is not None and moving_mask_sitk is not None:
+            cmd += " -gm fixed_mask -mm moving_mask"
+            kwargs["fixed_mask"] = fixed_mask_sitk
+            kwargs["moving_mask"] = moving_mask_sitk
+        if initial_affine is not None:
+            cmd += " -ia aff_initial"
+            kwargs["aff_initial"] = initial_affine
+
+        g.execute(cmd, **kwargs)
+        mat = np.array(g["aff_out"], dtype=np.float64)
+        try:
+            ml = g.metric_log()
+            loss = float(ml[-1]["TotalPerPixelMetric"][-1]) if ml else 0.0
+        except Exception:
+            loss = 0.0
+        return mat, loss
+
+    def _registration_method_deformable(
+        self,
+        fixed_sitk: Any,
+        moving_sitk: Any,
+        fixed_mask_sitk: Optional[Any],
+        moving_mask_sitk: Optional[Any],
+        iterations_str: str,
+        metric_str: str,
+        initial_affine: Optional[NDArray[np.float64]] = None,
+    ) -> tuple[Optional[NDArray[np.float64]], Any, float]:
+        """Run Greedy deformable registration. Returns (affine 4x4 or None, warp_sitk, loss)."""
+        Greedy3D = _try_import_greedy()
+        g = Greedy3D()
+
+        # Optional affine init (uses configured metric)
+        if initial_affine is None:
+            cmd_aff = f"-i fixed moving -a -dof 6 -n {iterations_str} -m {metric_str} -o aff_init"
+            kwargs_aff = {"fixed": fixed_sitk, "moving": moving_sitk, "aff_init": None}
+            if fixed_mask_sitk is not None and moving_mask_sitk is not None:
+                cmd_aff += " -gm fixed_mask -mm moving_mask"
+                kwargs_aff["fixed_mask"] = fixed_mask_sitk
+                kwargs_aff["moving_mask"] = moving_mask_sitk
+            g.execute(cmd_aff, **kwargs_aff)
+            initial_affine = np.array(g["aff_init"], dtype=np.float64)
+
+        cmd_def = (
+            f"-i fixed moving -it aff_init -n {iterations_str} "
+            f"-m {metric_str} -s {self.deformable_smoothing} -o warp_out"
+        )
+        kwargs_def = {
+            "fixed": fixed_sitk,
+            "moving": moving_sitk,
+            "aff_init": initial_affine,
+            "warp_out": None,
+        }
+        if fixed_mask_sitk is not None and moving_mask_sitk is not None:
+            cmd_def += " -gm fixed_mask -mm moving_mask"
+            kwargs_def["fixed_mask"] = fixed_mask_sitk
+            kwargs_def["moving_mask"] = moving_mask_sitk
+
+        g.execute(cmd_def, **kwargs_def)
+        warp_out = g["warp_out"]
+        try:
+            ml = g.metric_log()
+            loss = float(ml[-1]["TotalPerPixelMetric"][-1]) if ml else 0.0
+        except Exception:
+            loss = 0.0
+        return initial_affine, warp_out, loss
+
+    def registration_method(
+        self,
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image] = None,
+        moving_image_pre: Optional[itk.Image] = None,
+        initial_forward_transform: Optional[itk.Transform] = None,
+    ) -> dict[str, Union[itk.Transform, float]]:
+        """Register moving image to fixed image using Greedy.
+
+        Converts ITK images to SimpleITK, runs Greedy (affine and/or deformable),
+        then converts outputs back to ITK transforms. Composes with
+        initial_forward_transform when provided.
+        """
+        if self.fixed_image is None or self.fixed_image_pre is None:
+            raise ValueError("Fixed image must be set before registration.")
+
+        moving_pre = moving_image_pre if moving_image_pre is not None else moving_image
+        fixed_sitk = self._itk_to_sitk(self.fixed_image_pre)
+        moving_sitk = self._itk_to_sitk(moving_pre)
+
+        fixed_mask_sitk = None
+        moving_mask_sitk = None
+        if self.fixed_mask is not None:
+            fixed_mask_sitk = self._itk_to_sitk(self.fixed_mask)
+        if moving_mask is not None:
+            moving_mask_sitk = self._itk_to_sitk(moving_mask)
+
+        iterations_str = self._greedy_iterations_str()
+        metric_str = self._greedy_metric()
+
+        # Optional initial transform: convert ITK -> 4x4 for Greedy
+        initial_affine: Optional[NDArray[np.float64]] = None
+        if initial_forward_transform is not None:
+            # If it's affine-like, extract 4x4; else convert to displacement and skip for Greedy init
+            if hasattr(initial_forward_transform, "GetMatrix"):
+                M = np.eye(4, dtype=np.float64)
+                M[:3, :3] = np.asarray(initial_forward_transform.GetMatrix()).reshape(
+                    3, 3
+                )
+                if hasattr(initial_forward_transform, "GetTranslation"):
+                    M[:3, 3] = np.asarray(initial_forward_transform.GetTranslation())
+                if hasattr(initial_forward_transform, "GetCenter"):
+                    c = np.asarray(initial_forward_transform.GetCenter())
+                    M[:3, 3] += c - M[:3, :3] @ c
+                initial_affine = M
+            # Non-affine initial: we could convert to disp field and pass; for simplicity we skip Greedy init
+            # and compose at the end (same as ANTs).
+
+        forward_transform: itk.Transform
+        inverse_transform: itk.Transform
+        loss_val: float
+
+        if self.transform_type == "Rigid":
+            mat, loss_val = self._registration_method_affine_or_rigid(
+                fixed_sitk,
+                moving_sitk,
+                fixed_mask_sitk,
+                moving_mask_sitk,
+                iterations_str,
+                metric_str,
+                dof=6,
+                initial_affine=initial_affine,
+            )
+            forward_transform = self._matrix_to_itk_affine(mat)
+            inverse_affine = itk.AffineTransform[itk.D, 3].New()
+            forward_transform.GetInverse(inverse_affine)
+            inverse_transform = inverse_affine
+        elif self.transform_type == "Affine":
+            mat, loss_val = self._registration_method_affine_or_rigid(
+                fixed_sitk,
+                moving_sitk,
+                fixed_mask_sitk,
+                moving_mask_sitk,
+                iterations_str,
+                metric_str,
+                dof=12,
+                initial_affine=initial_affine,
+            )
+            forward_transform = self._matrix_to_itk_affine(mat)
+            inverse_affine = itk.AffineTransform[itk.D, 3].New()
+            forward_transform.GetInverse(inverse_affine)
+            inverse_transform = inverse_affine
+        else:
+            # Deformable: affine + warp
+            aff_mat, warp_sitk, loss_val = self._registration_method_deformable(
+                fixed_sitk,
+                moving_sitk,
+                fixed_mask_sitk,
+                moving_mask_sitk,
+                iterations_str,
+                metric_str,
+                initial_affine=initial_affine,
+            )
+            aff_tfm = (
+                self._matrix_to_itk_affine(aff_mat) if aff_mat is not None else None
+            )
+            # warp_sitk can be displacement field (SimpleITK image) or numpy
+            if hasattr(warp_sitk, "GetSize"):
+                disp_tfm = self._sitk_warp_to_itk_displacement_transform(
+                    warp_sitk, self.fixed_image
+                )
+            else:
+                # Assume numpy displacement field (z,y,x,3)
+                from physiomotion4d.image_tools import ImageTools
+
+                image_tools = ImageTools()
+                warp_arr = np.asarray(warp_sitk, dtype=np.float64)
+                ref = self.fixed_image
+                disp_itk = image_tools.convert_array_to_image_of_vectors(
+                    warp_arr, ref, itk.D
+                )
+                disp_tfm = itk.DisplacementFieldTransform[itk.D, 3].New()
+                disp_tfm.SetDisplacementField(disp_itk)
+            # Forward = moving -> fixed: first affine then deformable in Greedy
+            forward_composite = itk.CompositeTransform[itk.D, 3].New()
+            if aff_tfm is not None:
+                forward_composite.AddTransform(aff_tfm)
+            forward_composite.AddTransform(disp_tfm)
+            forward_transform = forward_composite
+            # Inverse: inverse warp then inverse affine
+            inv_disp = TransformTools().invert_displacement_field_transform(disp_tfm)
+            inv_aff = itk.AffineTransform[itk.D, 3].New()
+            if aff_tfm is not None:
+                aff_tfm.GetInverse(inv_aff)
+            inverse_composite = itk.CompositeTransform[itk.D, 3].New()
+            inverse_composite.AddTransform(inv_disp)
+            if aff_tfm is not None:
+                inverse_composite.AddTransform(inv_aff)
+            inverse_transform = inverse_composite
+
+        # Compose with user-provided initial transform (same semantics as ANTs)
+        if initial_forward_transform is not None:
+            transform_tools = TransformTools()
+            forward_composite = itk.CompositeTransform[itk.D, 3].New()
+            forward_composite.AddTransform(initial_forward_transform)
+            forward_composite.AddTransform(forward_transform)
+            initial_disp = (
+                transform_tools.convert_transform_to_displacement_field_transform(
+                    initial_forward_transform, self.moving_image
+                )
+            )
+            inv_initial = transform_tools.invert_displacement_field_transform(
+                initial_disp
+            )
+            inverse_composite = itk.CompositeTransform[itk.D, 3].New()
+            inverse_composite.AddTransform(inverse_transform)
+            inverse_composite.AddTransform(inv_initial)
+            forward_transform = forward_composite
+            inverse_transform = inverse_composite
+
+        return {
+            "forward_transform": forward_transform,
+            "inverse_transform": inverse_transform,
+            "loss": loss_val,
+        }

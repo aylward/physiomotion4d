@@ -33,6 +33,11 @@ from .data_structures import (
     VolumeData,
 )
 from .material_manager import MaterialManager
+from .mesh_utils import (
+    cell_type_name_for_vertex_count,
+    split_mesh_data_by_cell_type,
+    split_mesh_data_by_connectivity,
+)
 from .usd_mesh_converter import UsdMeshConverter
 from .usd_utils import (
     compute_mesh_extent,
@@ -76,6 +81,10 @@ __all__ = [
     "sanitize_primvar_name",
     "triangulate_face",
     "compute_mesh_extent",
+    # Mesh utils (cell type split)
+    "cell_type_name_for_vertex_count",
+    "split_mesh_data_by_cell_type",
+    "split_mesh_data_by_connectivity",
     # Readers
     "VTKReader",
     "PolyDataReader",

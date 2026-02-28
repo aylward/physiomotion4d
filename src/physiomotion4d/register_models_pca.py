@@ -74,14 +74,14 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
     def __init__(
         self,
-        pca_template_model: pv.UnstructuredGrid,
+        pca_template_model: pv.UnstructuredGrid | pv.PolyData,
         pca_eigenvectors: np.ndarray,
         pca_std_deviations: np.ndarray,
         pca_number_of_modes: int = 0,
         pca_template_model_point_subsample: int = 4,
         pre_pca_transform: Optional[itk.Transform] = None,
         fixed_distance_map: Optional[itk.Image] = None,
-        fixed_model: Optional[pv.UnstructuredGrid] = None,
+        fixed_model: Optional[pv.UnstructuredGrid | pv.PolyData] = None,
         reference_image: Optional[itk.Image] = None,
         log_level: int | str = logging.INFO,
     ):
@@ -180,13 +180,13 @@ class RegisterModelsPCA(PhysioMotion4DBase):
     @classmethod
     def from_json(
         cls,
-        pca_template_model: pv.UnstructuredGrid,
+        pca_template_model: pv.UnstructuredGrid | pv.PolyData,
         pca_json_filename: str,
         pca_number_of_modes: int = 0,
         pca_template_model_point_subsample: int = 4,
         pre_pca_transform: Optional[itk.Transform] = None,
         fixed_distance_map: Optional[itk.Image] = None,
-        fixed_model: Optional[pv.UnstructuredGrid] = None,
+        fixed_model: Optional[pv.UnstructuredGrid | pv.PolyData] = None,
         reference_image: Optional[itk.Image] = None,
         log_level: int | str = logging.INFO,
     ) -> Self:
@@ -287,13 +287,13 @@ class RegisterModelsPCA(PhysioMotion4DBase):
     @classmethod
     def from_pca_model(
         cls,
-        pca_template_model: pv.UnstructuredGrid,
+        pca_template_model: pv.UnstructuredGrid | pv.PolyData,
         pca_model: dict,
         pca_number_of_modes: int = 0,
         pca_template_model_point_subsample: int = 4,
         pre_pca_transform: Optional[itk.Transform] = None,
         fixed_distance_map: Optional[itk.Image] = None,
-        fixed_model: Optional[pv.UnstructuredGrid] = None,
+        fixed_model: Optional[pv.UnstructuredGrid | pv.PolyData] = None,
         reference_image: Optional[itk.Image] = None,
         log_level: int | str = logging.INFO,
     ) -> Self:

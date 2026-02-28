@@ -153,6 +153,8 @@ class ConversionSettings:
     compute_normals: bool = True
     preserve_point_arrays: bool = True
     preserve_cell_arrays: bool = True
+    separate_objects_by_cell_type: bool = False  # Split into separate USD meshes by cell type (triangle/quad/tetra/hex etc.)
+    separate_objects_by_connectivity: bool = False  # Split into separate USD meshes by connected components (object1, object2, ...). Mutually exclusive with separate_objects_by_cell_type.
 
     # Material settings
     use_preview_surface: bool = True
@@ -165,3 +167,11 @@ class ConversionSettings:
     # Array prefixes
     point_array_prefix: str = "vtk_point_"
     cell_array_prefix: str = "vtk_cell_"
+
+    def __post_init__(self) -> None:
+        """Validate that at most one of the split options is enabled."""
+        if self.separate_objects_by_cell_type and self.separate_objects_by_connectivity:
+            raise ValueError(
+                "separate_objects_by_cell_type and separate_objects_by_connectivity "
+                "cannot both be True; enable only one."
+            )

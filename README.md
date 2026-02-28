@@ -560,6 +560,7 @@ pytest tests/ -m "not slow and not requires_data" -v
 pytest tests/test_usd_merge.py -v                           # USD merge functionality
 pytest tests/test_usd_time_preservation.py -v               # Time-varying data preservation
 pytest tests/test_register_images_ants.py -v                # ANTs registration
+pytest tests/test_register_images_greedy.py -v             # Greedy registration
 pytest tests/test_register_images_icon.py -v                # Icon registration
 pytest tests/test_register_time_series_images.py -v         # Time series registration
 pytest tests/test_segment_chest_total_segmentator.py -v     # TotalSegmentator

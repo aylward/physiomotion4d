@@ -71,6 +71,7 @@ Specific Test Modules
 
    # Registration (slow, ~5-10 minutes each)
    pytest tests/test_register_images_ants.py -v
+   pytest tests/test_register_images_greedy.py -v
    pytest tests/test_register_images_icon.py -v
    pytest tests/test_register_time_series_images.py -v
 
@@ -107,6 +108,7 @@ Tests are organized by functionality:
    │
    ├── Registration Tests (Slow ~5-10 min)
    │   ├── test_register_images_ants.py          # ANTs registration
+   │   ├── test_register_images_greedy.py        # Greedy registration
    │   ├── test_register_images_icon.py          # Icon registration  
    │   └── test_register_time_series_images.py   # Time series registration
    │

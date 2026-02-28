@@ -34,6 +34,7 @@ from .image_tools import ImageTools
 # Base classes
 from .physiomotion4d_base import PhysioMotion4DBase
 from .register_images_ants import RegisterImagesANTs
+from .register_images_greedy import RegisterImagesGreedy
 
 # Registration classes
 from .register_images_base import RegisterImagesBase
@@ -57,6 +58,7 @@ from .usd_tools import USDTools
 
 # Core workflow processor
 from .workflow_convert_heart_gated_ct_to_usd import WorkflowConvertHeartGatedCTToUSD
+from .workflow_convert_vtk_to_usd import WorkflowConvertVTKToUSD
 from .workflow_reconstruct_highres_4d_ct import WorkflowReconstructHighres4DCT
 from .workflow_create_statistical_model import WorkflowCreateStatisticalModel
 from .workflow_fit_statistical_model_to_patient import (
@@ -66,6 +68,7 @@ from .workflow_fit_statistical_model_to_patient import (
 __all__ = [
     # Workflow classes
     "WorkflowConvertHeartGatedCTToUSD",
+    "WorkflowConvertVTKToUSD",
     "WorkflowCreateStatisticalModel",
     "WorkflowReconstructHighres4DCT",
     "WorkflowFitStatisticalModelToPatient",
@@ -80,6 +83,7 @@ __all__ = [
     "RegisterImagesBase",
     "RegisterImagesICON",
     "RegisterImagesANTs",
+    "RegisterImagesGreedy",
     "RegisterTimeSeriesImages",
     "RegisterModelsPCA",
     "RegisterModelsICP",

@@ -59,6 +59,7 @@ The package is organized into functional modules:
    │   ├── Image Registration
    │   │   ├── register_images_base.py            Base registration
    │   │   ├── register_images_ants.py            ANTs registration
+   │   │   ├── register_images_greedy.py          Greedy registration
    │   │   ├── register_images_icon.py            ICON registration
    │   │   └── register_time_series_images.py     Time series
    │   │

@@ -27,6 +27,16 @@ repos:
         pass_filenames: false
         files: ^src/
 
+  # Strip notebook outputs and widget state when notebooks are committed
+  - repo: local
+    hooks:
+      - id: prepare-notebooks-for-commit
+        name: Prepare notebooks for commit (strip outputs and widget state)
+        entry: python utils/prepare_notebooks_for_commit.py
+        language: system
+        pass_filenames: false
+        files: \.ipynb$
+
   # Local tests (optional - can be disabled if too slow)
   - repo: local
     hooks:
