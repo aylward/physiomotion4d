@@ -83,9 +83,12 @@ dependencies = [
     "matplotlib>=3.5.0",
     "jupyterlab>=4.0.0",
     "typing-extensions>=4.0.0",
-    "cupy-cuda12x>=13.6.0",
+    "cupy-cuda13x>=13.6.0",
 
 ]
+
+[tool.uv]
+link-mode = "copy"
 
 [tool.uv.sources]
 torch = [
@@ -163,6 +166,7 @@ Changelog = "https://github.com/aylward/PhysioMotion4d/blob/main/CHANGELOG.md"
 [project.scripts]
 # CLI commands installed via pip
 # Entry points reference the main() functions in the cli submodule
+physiomotion4d-convert-ct-to-vtk = "physiomotion4d.cli.convert_ct_to_vtk:main"
 physiomotion4d-heart-gated-ct = "physiomotion4d.cli.convert_heart_gated_ct_to_usd:main"
 physiomotion4d-convert-vtk-to-usd = "physiomotion4d.cli.convert_vtk_to_usd:main"
 physiomotion4d-create-statistical-model = "physiomotion4d.cli.create_statistical_model:main"

@@ -38,6 +38,7 @@ from physiomotion4d.register_models_distance_maps import RegisterModelsDistanceM
 from physiomotion4d.register_models_icp import RegisterModelsICP
 from physiomotion4d.register_models_pca import RegisterModelsPCA
 from physiomotion4d.transform_tools import TransformTools
+from physiomotion4d.workflow_convert_ct_to_vtk import WorkflowConvertCTToVTK
 
 
 class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
@@ -122,8 +123,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
     def __init__(
         self,
         template_model: pv.PolyData,
-        patient_models: list[pv.PolyData],
+        patient_models: list[pv.PolyData] | None = None,
         patient_image: Optional[itk.Image] = None,
+        segmentation_method: str = "simpleware_heart",
         log_level: int | str = logging.INFO,
     ):
         """Initialize the model-to-image-and-model registration pipeline.
@@ -150,6 +152,19 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.template_labelmap_organ_extra_ids: Optional[list[int]] = None
         self.template_labelmap_background_ids: Optional[list[int]] = None
 
+        if patient_models is None and patient_image is not None:
+            convert_ct_to_vtk = WorkflowConvertCTToVTK(
+                segmentation_method=segmentation_method,
+                log_level=log_level,
+            )
+            patient_models_data = convert_ct_to_vtk.run_workflow(
+                input_image=patient_image,
+                contrast_enhanced_study=False,
+                anatomy_groups=["heart"],
+            )
+            patient_models = [patient_models_data["meshes"]["heart"]]
+        elif patient_models is None:
+            raise ValueError("Either patient_models or patient_image must be provided.")
         self.patient_models = patient_models
         patient_models_surfaces = [model.extract_surface() for model in patient_models]
         self.combined_patient_model = pv.merge(patient_models_surfaces)
@@ -189,8 +204,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.patient_roi = None
 
         # Parameters for mask generation and processing
-        self.mask_dilation_mm: float = 5.0  # For auto-generated mask dilation
-        self.roi_dilation_mm: float = 20.0  # For ROI mask generation
+        self.mask_dilation_mm: float = 0.0  # For auto-generated mask dilation
+        self.roi_dilation_mm: float = 25.0  # For ROI mask generation
 
         # Stage 1: ICP alignment results
         self.icp_registrar: Optional[RegisterModelsICP] = None
@@ -232,6 +247,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         # Final result
         self.registered_template_model: Optional[pv.UnstructuredGrid] = None
         self.registered_template_model_surface: Optional[pv.PolyData] = None
+        self.registered_template_labelmap: Optional[itk.Image] = None
 
     def _auto_generate_mask(
         self, models: list[pv.UnstructuredGrid], dilate_mm: Optional[float] = None
@@ -479,6 +495,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
         self.registered_template_model_surface = self.icp_template_model_surface
         self.registered_template_model = self.icp_template_model
+        self.registered_template_labelmap = self.icp_template_labelmap
 
         return {
             "inverse_point_transform": self.icp_inverse_point_transform,
@@ -599,6 +616,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         else:
             self.pca_template_labelmap = None
 
+        self.registered_template_labelmap = self.pca_template_labelmap
+
         self.log_info("Stage 2 complete: PCA registration finished.")
 
         return {
@@ -666,6 +685,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             )
         else:
             self.m2m_template_labelmap = None
+
+        self.registered_template_labelmap = self.m2m_template_labelmap
 
         self.log_info("Stage 3 complete: Mask-to-mask registration finished.")
 
@@ -785,6 +806,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.log_info("Stage 4 complete: Mask-to-image registration finished.")
 
         self.registered_template_model_surface = self.m2i_template_model_surface
+
+        self.registered_template_labelmap = self.m2i_template_labelmap
 
         return {
             "inverse_transform": self.m2i_inverse_transform,
@@ -926,4 +949,5 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         return {
             "registered_template_model": self.registered_template_model,
             "registered_template_model_surface": self.registered_template_model_surface,
+            "registered_template_labelmap": self.registered_template_labelmap,
         }

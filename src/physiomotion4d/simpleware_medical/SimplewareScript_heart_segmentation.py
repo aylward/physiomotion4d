@@ -36,3 +36,6 @@ for mask in doc.GetMasks():
     mask_name = mask.GetName()
     fixed_name = mask_name.replace(" ", "_").lower()
     mask.MetaImageExport(os.path.join(output_dir, f"mask_{fixed_name}.mhd"))
+
+landmarks = doc.GetMeasurements()
+landmarks.Export(os.path.join(output_dir, "landmarks.csv"))

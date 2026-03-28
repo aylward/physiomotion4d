@@ -6,6 +6,7 @@ It inherits from SegmentAnatomyBase and provides heart-specific anatomical
 structure mappings.
 """
 
+import csv
 import logging
 import os
 import subprocess
@@ -63,6 +64,8 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
             log_level: Logging level (default: logging.INFO)
         """
         super().__init__(log_level=log_level)
+
+        self.landmarks: dict[str, tuple[float, float, float]] = {}
 
         self.target_spacing = 1.0
 
@@ -280,6 +283,18 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
                         labelmap_array == 0, mask_array, labelmap_array
                     )
 
+            landmarks_file = os.path.join(tmp_dir, "landmarks.csv")
+            self.landmarks.clear()
+            with open(landmarks_file, newline="", encoding="utf-8-sig") as fh:
+                next(fh)  # skip line 1 (file header)
+                for row in csv.DictReader(fh):
+                    coords = row["Measurement"].replace(" mm", "").split(",")
+                    self.landmarks[row["Name"]] = (
+                        float(coords[0]),
+                        float(coords[1]),
+                        float(coords[2]),
+                    )
+
             interior_image = itk.GetImageFromArray(interior_array.astype(np.uint8))
             interior_image.CopyInformation(preprocessed_image)
             imMath = tube.ImageMath.New(interior_image)
@@ -308,6 +323,10 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
                 labelmap_image = self.trim_mask_to_essentials(labelmap_image)
 
         return labelmap_image
+
+    def get_landmarks(self) -> dict[str, tuple[float, float, float]]:
+        """Get the landmarks."""
+        return self.landmarks
 
     def trim_mask_to_essentials(self, labelmap_image: itk.image) -> itk.image:
         """Trim mask to essentials."""

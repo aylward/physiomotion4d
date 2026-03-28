@@ -196,6 +196,33 @@ class USDAnatomyTools(PhysioMotion4DBase):
         """Return list of supported anatomy type names for apply_anatomy_material_to_mesh."""
         return list(self._anatomy_params_by_type.keys())
 
+    def get_anatomy_diffuse_color(
+        self, anatomy_type: str
+    ) -> tuple[float, float, float]:
+        """Return the diffuse reflection RGB color for the given anatomy type.
+
+        This accessor does not require a USD stage and may be called on an instance
+        created with ``stage=None`` purely for color look-up purposes.
+
+        Args:
+            anatomy_type: One of: heart, lung, bone, major_vessels, contrast,
+                soft_tissue, other, liver, spleen, kidney.
+
+        Returns:
+            RGB tuple of floats in ``[0, 1]``.
+
+        Raises:
+            ValueError: If *anatomy_type* is not supported.
+        """
+        params = self._anatomy_params_by_type.get(anatomy_type.lower())
+        if params is None:
+            raise ValueError(
+                f"Unknown anatomy_type '{anatomy_type}'. "
+                f"Supported: {', '.join(self.get_anatomy_types())}"
+            )
+        color = params["diffuse_reflection_color"]
+        return (float(color[0]), float(color[1]), float(color[2]))
+
     def apply_anatomy_material_to_mesh(self, mesh_path: str, anatomy_type: str) -> None:
         """Apply an anatomic OmniSurface material to a single mesh prim by type.
 

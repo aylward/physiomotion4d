@@ -74,6 +74,21 @@ class RegisterImagesICON(RegisterImagesBase):
         self.number_of_iterations: int = 50
         self.use_multi_modality: bool = False
         self.use_mass_preservation: bool = False
+        self.weights_path: Optional[str] = None
+
+    def set_weights_path(self, weights_path: str) -> None:
+        """Set a custom weights file for the uniGradICON network.
+
+        Use this to load a fine-tuned checkpoint instead of the default
+        pretrained weights. Clears any previously loaded network so the new
+        weights are applied on the next call to register().
+
+        Args:
+            weights_path: Path to a uniGradICON checkpoint, e.g.
+                "results/duke_4d_finetune/checkpoints/network_weights_100"
+        """
+        self.weights_path = weights_path
+        self.net = None  # force reload on next register() call
 
     def set_number_of_iterations(self, number_of_iterations: int) -> None:
         """Set the number of iterations for ICON registration.
@@ -211,11 +226,13 @@ class RegisterImagesICON(RegisterImagesBase):
                     loss_fn=icon.LNCC(sigma=5),
                     # loss_fn=icon.losses.MINDSSC(radius=2, dilation=2),
                     apply_intensity_conservation_loss=self.use_mass_preservation,
+                    weights_location=self.weights_path,
                 )
             else:
                 self.net = get_unigradicon(
                     loss_fn=icon.LNCC(sigma=5),
                     apply_intensity_conservation_loss=self.use_mass_preservation,
+                    weights_location=self.weights_path,
                 )
 
         inverse_transform = None

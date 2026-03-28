@@ -176,7 +176,10 @@ class ContourTools(PhysioMotion4DBase):
 
         if hasattr(mesh, "n_faces_strict"):
             # PyVista PolyData
-            faces = mesh.faces.reshape((mesh.n_faces_strict, 4))[:, 1:]
+            num_points_per_face = len(mesh.faces) // mesh.n_faces_strict
+            faces = mesh.faces.reshape((mesh.n_faces_strict, num_points_per_face))[
+                :, 1:
+            ]
         else:
             # Handle other mesh types
             faces = mesh.faces.reshape((-1, 4))[:, 1:]
