@@ -587,11 +587,151 @@ pytest tests/ --cov=src/physiomotion4d --cov-report=html
 
 Tests automatically run on pull requests via GitHub Actions. See `tests/README.md` for detailed testing guide.
 
+### Developer Tool Prerequisites
+
+| Tool | Required for | Install |
+|------|-------------|---------|
+| [Claude Code](https://claude.ai/code) | All `/plan`, `/impl`, `/test-feature`, `/doc-feature` skills and `claude_github_reviews.py` | `winget install Anthropic.ClaudeCode` |
+| [gh CLI](https://cli.github.com) | `claude_github_reviews.py` | `winget install GitHub.cli`, then `gh auth login` |
+
+### AI-Assisted Development (Claude Code)
+
+The repository includes a complete [Claude Code](https://claude.ai/code) configuration
+for contributors. It provides always-on project guidance, four specialized subagents,
+and four slash-command skills tailored to this codebase.
+
+#### Configuration files
+
+| Path | Purpose |
+|------|---------|
+| `CLAUDE.md` | Always-on guidance: commands, architecture, code style, working process |
+| `AGENTS.md` | Role-based rules for implementation, testing, docs, and architecture work |
+| `.claude/agents/implementation.md` | Subagent: reads source, plans, implements in small diffs |
+| `.claude/agents/testing.md` | Subagent: writes synthetic-data pytest tests |
+| `.claude/agents/docs.md` | Subagent: updates docstrings and regenerates `docs/API_MAP.md` |
+| `.claude/agents/architecture.md` | Subagent: design plans and trade-off analysis (no code written) |
+| `.claude/skills/plan/SKILL.md` | `/plan` — inspect and plan before coding |
+| `.claude/skills/impl/SKILL.md` | `/impl` — implement a feature or fix |
+| `.claude/skills/test-feature/SKILL.md` | `/test-feature` — write tests for a module |
+| `.claude/skills/doc-feature/SKILL.md` | `/doc-feature` — update docstrings and API map |
+
+#### Common contributor workflows
+
+**Planning a new feature before writing code**
+
+Use `/plan` to get an inspection of the affected classes, a numbered implementation
+plan, and a list of open questions — without touching any files.
+
+```text
+/plan add a confidence-weighted voting mode to SegmentChestEnsemble
+```
+
+Claude will read the relevant source, summarize current behavior, list files that
+will change, and flag any coordinate-system or shape implications.
+
+---
+
+**Implementing a feature or bug fix**
+
+Use `/impl` for end-to-end implementation: read → summarize → plan → diff → lint.
+
+```text
+/impl add set_regularization_weight() to RegisterImagesANTs
+```
+
+```text
+/impl fix the RAS-to-Y-up transform being applied twice in vtk_to_usd/usd_utils.py
+```
+
+Claude will read the affected module, propose a numbered plan, implement in the
+smallest reviewable diff, update docstrings, run `ruff`, and call out breaking changes.
+
+---
+
+**Writing tests for a new or changed module**
+
+Use `/test-feature` to get a test plan and a complete pytest file using synthetic
+`itk.Image` or `pv.PolyData` objects — no real patient data required.
+
+```text
+/test-feature ContourTools.extract_surface — test with a synthetic 32x32x32 sphere mask
+```
+
+```text
+/test-feature RegisterImagesANTs with a pair of small synthetic ITK images
+```
+
+Claude will state image shapes and axis orders in every test docstring, mark
+any real-data dependency with `@pytest.mark.requires_data`, and show the exact
+run command.
+
+---
+
+**Updating documentation after a change**
+
+Use `/doc-feature` after modifying a public API to refresh docstrings and regenerate
+the API map.
+
+```text
+/doc-feature update docstrings for RegisterImagesANTs after adding set_regularization_weight
+```
+
+Claude will update affected docstrings in NumPy style, add shape/axis annotations
+where arrays are involved, and run `py utils/generate_api_map.py`.
+
+---
+
+**Applying PR review suggestions (CodeRabbit / Copilot)**
+
+Use `claude_github_reviews.py` to fetch all review comments for a PR, have Claude
+screen each one against `CLAUDE.md`, apply accepted edits as pending changes, and
+write a Markdown summary to the repo root:
+
+```bash
+py utils/claude_github_reviews.py --pr 42
+py utils/claude_github_reviews.py --pr 42 --dry-run   # preview prompt only
+py utils/claude_github_reviews.py --pr 42 --since-last-push --dry-run
+```
+
+When executing these from the repo root (including in automation), use the project
+interpreter: `venv/Scripts/python` on Windows instead of `py`.
+
+Claude decides APPLY / REVISE / REJECT for each suggestion, with reasoning.
+No changes are committed — review with `git diff`, then `git add -p`.
+
+---
+
+**Setting up an isolated feature branch**
+
+Use the `setup_feature_worktree.py` utility to create a git worktree with its own
+venv in one command (Windows):
+
+```bash
+py utils/setup_feature_worktree.py my-feature
+py utils/setup_feature_worktree.py my-feature --base-branch main
+```
+
+This creates a `feature/my-feature` branch, a sibling worktree directory, installs
+`uv`, and installs project dependencies — ready to open in a separate editor window.
+
+---
+
+**Architectural planning before a structural change**
+
+For larger changes, describe the goal to the architecture subagent and ask for a
+design plan. Claude will produce the six-section format (current state → proposed
+change → affected files → trade-offs → open questions → recommended next action)
+without writing any code.
+
+```text
+/plan redesign the segmentation return type to use a dataclass instead of a tuple
+```
+
 ## 📖 Documentation
 
 - **API Documentation**: Comprehensive docstrings for all classes and methods
 - **Tutorial Notebooks**: Step-by-step examples in `experiments/`
-- **CLAUDE.MD**: Development guidelines and architecture overview
+- **CLAUDE.md / AGENTS.md**: Development guidelines, architecture overview, and Claude Code configuration
 
 ## 🤝 Contributing
 

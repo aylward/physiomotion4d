@@ -27,6 +27,16 @@ repos:
         pass_filenames: false
         files: ^src/
 
+  # Regenerate docs/API_MAP.md whenever Python source files change
+  - repo: local
+    hooks:
+      - id: generate-api-map
+        name: Regenerate API map (docs/API_MAP.md)
+        entry: py utils/generate_api_map.py
+        language: system
+        pass_filenames: false
+        files: \.py$
+
   # Strip notebook outputs and widget state when notebooks are committed
   - repo: local
     hooks:
