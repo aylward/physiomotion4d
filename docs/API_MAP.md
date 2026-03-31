@@ -168,20 +168,21 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_metric(self, metric)` (line 107): Set the similarity metric to use for registration.
   - `def itk_affine_transform_to_ants_transform(self, itk_tfm)` (line 317): Convert ITK affine/rigid transform to ANTs affine transform.
   - `def itk_transform_to_antsfile(self, itk_tfm, reference_image, output_filename)` (line 410): Convert ITK transform to ANTs transform file.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_image_pre=None, initial_forward_transform=None)` (line 510): Register moving image to fixed image using ANTs registration algorithm.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 510): Register moving image to fixed image using ANTs registration algorithm.
 
 ## src/physiomotion4d/register_images_base.py
 
 - **class RegisterImagesBase** (line 29): Base class for deformable image registration algorithms.
   - `def __init__(self, log_level=logging.INFO)` (line 75): Initialize the base image registration class.
-  - `def set_modality(self, modality)` (line 106): Set the imaging modality for registration optimization.
-  - `def set_fixed_image(self, fixed_image)` (line 122): Set the fixed/target image for registration.
-  - `def set_mask_dilation(self, mask_dilation_mm)` (line 143): Set the dilation of the fixed and moving image masks.
-  - `def set_fixed_mask(self, fixed_mask)` (line 151): Set a binary mask for the fixed image region of interest.
-  - `def preprocess(self, image, modality='ct')` (line 192): Preprocess the image based on modality-specific requirements.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_image_pre=None, initial_forward_transform=None)` (line 213): Main registration method to align moving image to fixed image.
-  - `def register(self, moving_image, moving_mask=None, moving_image_pre=None, initial_forward_transform=None)` (line 246): Register a moving image to the fixed image.
-  - `def get_registered_image(self)` (line 329): Get the registered image.
+  - `def set_modality(self, modality)` (line 108): Set the imaging modality for registration optimization.
+  - `def set_fixed_image(self, fixed_image)` (line 124): Set the fixed/target image for registration.
+  - `def set_mask_dilation(self, mask_dilation_mm)` (line 145): Set the dilation of the fixed and moving image masks.
+  - `def set_fixed_mask(self, fixed_mask)` (line 153): Set a binary mask for the fixed image region of interest.
+  - `def set_fixed_labelmap(self, fixed_labelmap)` (line 194): Set the fixed image labelmap (multi-label segmentation).
+  - `def preprocess(self, image, modality='ct')` (line 207): Preprocess the image based on modality-specific requirements.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 228): Main registration method to align moving image to fixed image.
+  - `def register(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 263): Register a moving image to the fixed image.
+  - `def get_registered_image(self)` (line 350): Get the registered image.
 
 ## src/physiomotion4d/register_images_greedy.py
 
@@ -190,7 +191,7 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_number_of_iterations(self, number_of_iterations)` (line 80): Set the number of iterations per resolution level.
   - `def set_transform_type(self, transform_type)` (line 88): Set the type of transform: Deformable, Affine, or Rigid.
   - `def set_metric(self, metric)` (line 99): Set the similarity metric (CC→NCC, Mattes→NMI, MeanSquares→SSD).
-  - `def registration_method(self, moving_image, moving_mask=None, moving_image_pre=None, initial_forward_transform=None)` (line 260): Register moving image to fixed image using Greedy.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 260): Register moving image to fixed image using Greedy.
 
 ## src/physiomotion4d/register_images_icon.py
 
@@ -201,7 +202,7 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_multi_modality(self, enable)` (line 101): Enable or disable multi-modality registration.
   - `def set_mass_preservation(self, enable)` (line 118): Enable or disable mass preservation constraint.
   - `def preprocess(self, image, modality='ct')` (line 135): Preprocess the image for ICON registration.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_image_pre=None, initial_forward_transform=None)` (line 155): Register moving image to fixed image using ICON registration algorithm.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 155): Register moving image to fixed image using ICON registration algorithm.
 
 ## src/physiomotion4d/register_models_distance_maps.py
 
@@ -248,9 +249,9 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_modality(self, modality)` (line 149): Set the imaging modality for registration optimization.
   - `def set_fixed_image(self, fixed_image)` (line 159): Set the fixed image for registration.
   - `def set_fixed_mask(self, fixed_mask)` (line 170): Set a binary mask for the fixed image region of interest.
-  - `def register_time_series(self, moving_images, moving_masks=None, reference_frame=0, register_reference=True, prior_weight=0.0)` (line 180): Register a time series of images to the fixed image.
-  - `def reconstruct_time_series(self, moving_images, inverse_transforms, upsample_to_fixed_resolution=False)` (line 500): Reconstruct time series images using inverse transforms.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_image_pre=None, initial_forward_transform=None)` (line 630): Registration method required by RegisterImagesBase.
+  - `def register_time_series(self, moving_images, moving_masks=None, moving_labelmaps=None, reference_frame=0, register_reference=True, prior_weight=0.0)` (line 180): Register a time series of images to the fixed image.
+  - `def reconstruct_time_series(self, moving_images, inverse_transforms, upsample_to_fixed_resolution=False)` (line 534): Reconstruct time series images using inverse transforms.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 664): Registration method required by RegisterImagesBase.
 
 ## src/physiomotion4d/segment_anatomy_base.py
 

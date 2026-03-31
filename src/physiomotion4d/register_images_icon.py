@@ -10,7 +10,7 @@ deformable registration with mass preservation constraints.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import icon_registration as icon
 import icon_registration.itk_wrapper
@@ -156,9 +156,10 @@ class RegisterImagesICON(RegisterImagesBase):
         self,
         moving_image: itk.Image,
         moving_mask: Optional[itk.Image] = None,
+        moving_labelmap: Optional[itk.Image] = None,
         moving_image_pre: Optional[itk.Image] = None,
         initial_forward_transform: Optional[itk.Transform] = None,
-    ) -> dict[str, object]:
+    ) -> dict[str, Union[itk.Transform, float]]:
         """Register moving image to fixed image using ICON registration algorithm.
 
         Implementation of the abstract register() method from RegisterImagesBase.
@@ -220,32 +221,40 @@ class RegisterImagesICON(RegisterImagesBase):
                 self.fixed_image,
             )
 
+        # Prefer labelmap over binary mask when both sides have a labelmap.
+        use_labelmaps = moving_labelmap is not None and self.fixed_labelmap is not None
+        moving_effective_mask = moving_labelmap if use_labelmaps else moving_mask
+        fixed_effective_mask = self.fixed_labelmap if use_labelmaps else self.fixed_mask
+
         if self.net is None:
+            dice_loss_weight = 1.0 if use_labelmaps else 0.0
             if self.use_multi_modality:
                 self.net = get_multigradicon(
                     loss_fn=icon.LNCC(sigma=5),
                     # loss_fn=icon.losses.MINDSSC(radius=2, dilation=2),
                     apply_intensity_conservation_loss=self.use_mass_preservation,
                     weights_location=self.weights_path,
+                    dice_loss_weight=dice_loss_weight,
                 )
             else:
                 self.net = get_unigradicon(
                     loss_fn=icon.LNCC(sigma=5),
                     apply_intensity_conservation_loss=self.use_mass_preservation,
                     weights_location=self.weights_path,
+                    dice_loss_weight=dice_loss_weight,
                 )
 
         inverse_transform = None
         forward_transform = None
         loss_artifacts = None
-        if self.fixed_mask is not None and moving_mask is not None:
+        if fixed_effective_mask is not None and moving_effective_mask is not None:
             inverse_transform, forward_transform, loss_artifacts = (
                 icon_registration.itk_wrapper.register_pair_with_mask(
                     self.net,
                     self.fixed_image_pre,
                     new_moving_image_pre,
-                    self.fixed_mask,
-                    moving_mask,
+                    fixed_effective_mask,
+                    moving_effective_mask,
                     finetune_steps=self.number_of_iterations,
                     return_artifacts=True,
                 )

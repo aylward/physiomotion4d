@@ -16,7 +16,7 @@ the register() method with their specific algorithm (e.g., Icon, ANTs, etc.).
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import itk
 import numpy as np
@@ -91,10 +91,12 @@ class RegisterImagesBase(PhysioMotion4DBase):
         self.fixed_image: Optional[itk.Image] = None
         self.fixed_image_pre: Optional[itk.Image] = None
         self.fixed_mask: Optional[itk.Image] = None
+        self.fixed_labelmap: Optional[itk.Image] = None
 
         self.moving_image: Optional[itk.Image] = None
         self.moving_image_pre: Optional[itk.Image] = None
         self.moving_mask: Optional[itk.Image] = None
+        self.moving_labelmap: Optional[itk.Image] = None
 
         self.mask_dilation_mm: float = 5.0
 
@@ -189,6 +191,19 @@ class RegisterImagesBase(PhysioMotion4DBase):
             )
             self.fixed_mask = imMath.GetOutputUChar()
 
+    def set_fixed_labelmap(self, fixed_labelmap: Optional[itk.Image]) -> None:
+        """Set the fixed image labelmap (multi-label segmentation).
+
+        Args:
+            fixed_labelmap (itk.Image, optional): Multi-label segmentation
+                co-registered with the fixed image, or None to clear.
+        """
+        self.fixed_labelmap = fixed_labelmap
+        self.forward_transform = None
+        self.inverse_transform = None
+        self.loss = None
+        self.moving_image_registered = None
+
     def preprocess(self, image: itk.Image, modality: str = "ct") -> itk.Image:
         """Preprocess the image based on modality-specific requirements.
 
@@ -214,9 +229,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
         self,
         moving_image: itk.Image,
         moving_mask: Optional[itk.Image] = None,
+        moving_labelmap: Optional[itk.Image] = None,
         moving_image_pre: Optional[itk.Image] = None,
         initial_forward_transform: Optional[itk.Transform] = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[itk.Transform, float]]:
         """Main registration method to align moving image to fixed image.
 
         This method serves as the primary interface for performing image
@@ -229,6 +245,7 @@ class RegisterImagesBase(PhysioMotion4DBase):
         Args:
             moving_image (itk.image): The 3D image to be registered to the fixed image
             moving_mask (itk.image, optional): Binary mask for moving image ROI
+            moving_labelmap (itk.image, optional): Multi-label segmentation for the moving image
             moving_image_pre (itk.image, optional): Preprocessed moving image
             initial_forward_transform (itk.Transform, optional): Initial transformation from moving to fixed
 
@@ -247,9 +264,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
         self,
         moving_image: itk.Image,
         moving_mask: Optional[itk.Image] = None,
+        moving_labelmap: Optional[itk.Image] = None,
         moving_image_pre: Optional[itk.Image] = None,
         initial_forward_transform: Optional[itk.Transform] = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Union[itk.Transform, float]]:
         """Register a moving image to the fixed image.
 
         This is the main registration method that must be implemented by
@@ -259,6 +277,7 @@ class RegisterImagesBase(PhysioMotion4DBase):
         Args:
             moving_image (itk.image): The 3D image to be registered to the fixed image
             moving_mask (itk.image, optional): Binary mask for moving image ROI
+            moving_labelmap (itk.image, optional): Multi-label segmentation for the moving image
             moving_image_pre (itk.image, optional): Preprocessed moving image
             initial_forward_transform (itk.Transform, optional): Initial transformation from moving to fixed
 
@@ -308,10 +327,12 @@ class RegisterImagesBase(PhysioMotion4DBase):
         self.moving_image = moving_image
         self.moving_image_pre = moving_image_pre
         self.moving_mask = new_moving_mask
+        self.moving_labelmap = moving_labelmap
 
         result = self.registration_method(
             moving_image,
             moving_mask=new_moving_mask,
+            moving_labelmap=moving_labelmap,
             moving_image_pre=moving_image_pre,
             initial_forward_transform=initial_forward_transform,
         )

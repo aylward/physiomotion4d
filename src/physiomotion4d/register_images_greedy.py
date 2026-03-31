@@ -261,6 +261,7 @@ class RegisterImagesGreedy(RegisterImagesBase):
         self,
         moving_image: itk.Image,
         moving_mask: Optional[itk.Image] = None,
+        moving_labelmap: Optional[itk.Image] = None,
         moving_image_pre: Optional[itk.Image] = None,
         initial_forward_transform: Optional[itk.Transform] = None,
     ) -> dict[str, Union[itk.Transform, float]]:

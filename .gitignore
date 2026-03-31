@@ -1,4 +1,5 @@
 # Project files
+*_cache
 .coverage
 *.code-workspace
 coverage.xml

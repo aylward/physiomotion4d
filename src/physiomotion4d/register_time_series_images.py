@@ -181,6 +181,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         self,
         moving_images: list[itk.Image],
         moving_masks: Optional[list[Optional[itk.Image]]] = None,
+        moving_labelmaps: Optional[list[Optional[itk.Image]]] = None,
         reference_frame: int = 0,
         register_reference: bool = True,
         prior_weight: float = 0.0,
@@ -200,6 +201,9 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             moving_masks (list[itk.Image], optional): List of binary masks,
                 one for each moving image. If None, no masks are used. If provided,
                 must have the same length as moving_images. Default: None
+            moving_labelmaps (list[itk.Image], optional): Per-frame multi-label
+                segmentations, one for each moving image. If None, no labelmaps are
+                used. If provided, must have the same length as moving_images. Default: None
             reference_frame (int, optional): Index of the reference image to register first.
                 Registration proceeds forward from this index to the end, then
                 backward from this index to the beginning. Default: 0
@@ -268,23 +272,27 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
             self.registrar_ants.set_number_of_iterations(self.number_of_iterations_ants)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
+            self.registrar_ants.set_fixed_labelmap(self.fixed_labelmap)
         elif self.registration_method_name == "icon":
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
             self.registrar_icon.set_number_of_iterations(self.number_of_iterations_icon)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
+            self.registrar_icon.set_fixed_labelmap(self.fixed_labelmap)
         elif self.registration_method_name == "ants_icon":
             self.registrar_ants.set_fixed_image(self.fixed_image)
             self.registrar_ants.set_modality(self.modality)
             self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
             self.registrar_ants.set_number_of_iterations(self.number_of_iterations_ants)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
+            self.registrar_ants.set_fixed_labelmap(self.fixed_labelmap)
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
             self.registrar_icon.set_number_of_iterations(self.number_of_iterations_icon)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
+            self.registrar_icon.set_fixed_labelmap(self.fixed_labelmap)
 
         num_images = len(moving_images)
 
@@ -299,6 +307,12 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         if moving_masks is not None and len(moving_masks) != num_images:
             raise ValueError(
                 f"moving_masks length ({len(moving_masks)}) must match "
+                f"moving_images length ({num_images})"
+            )
+
+        if moving_labelmaps is not None and len(moving_labelmaps) != num_images:
+            raise ValueError(
+                f"moving_labelmaps length ({len(moving_labelmaps)}) must match "
                 f"moving_images length ({num_images})"
             )
 
@@ -320,25 +334,34 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             reference_mask = (
                 moving_masks[reference_frame] if moving_masks is not None else None
             )
+            reference_labelmap = (
+                moving_labelmaps[reference_frame]
+                if moving_labelmaps is not None
+                else None
+            )
             if self.registration_method_name == "ants":
                 result = self.registrar_ants.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
+                    moving_labelmap=reference_labelmap,
                 )
             elif self.registration_method_name == "icon":
                 result = self.registrar_icon.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
+                    moving_labelmap=reference_labelmap,
                 )
             elif self.registration_method_name == "ants_icon":
                 result = self.registrar_ants.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
+                    moving_labelmap=reference_labelmap,
                 )
                 forward_ants = result["forward_transform"]
                 result = self.registrar_icon.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
+                    moving_labelmap=reference_labelmap,
                     initial_forward_transform=forward_ants,
                 )
             else:
@@ -386,27 +409,34 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 moving_mask = (
                     moving_masks[img_idx] if moving_masks is not None else None
                 )
+                moving_labelmap = (
+                    moving_labelmaps[img_idx] if moving_labelmaps is not None else None
+                )
 
                 # Try registration with identity initialization
                 if self.registration_method_name == "ants":
                     result_init_identity = self.registrar_ants.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
+                        moving_labelmap=moving_labelmap,
                     )
                 elif self.registration_method_name == "icon":
                     result_init_identity = self.registrar_icon.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
+                        moving_labelmap=moving_labelmap,
                     )
                 elif self.registration_method_name == "ants_icon":
                     result_init_identity = self.registrar_ants.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
+                        moving_labelmap=moving_labelmap,
                     )
                     forward_ants = result_init_identity["forward_transform"]
                     result_init_identity = self.registrar_icon.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
+                        moving_labelmap=moving_labelmap,
                         initial_forward_transform=forward_ants,
                     )
                 else:
@@ -424,24 +454,28 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                         result_init_prior = self.registrar_ants.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
+                            moving_labelmap=moving_labelmap,
                             initial_forward_transform=prior_forward,
                         )
                     elif self.registration_method_name == "icon":
                         result_init_prior = self.registrar_icon.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
+                            moving_labelmap=moving_labelmap,
                             initial_forward_transform=prior_forward,
                         )
                     elif self.registration_method_name == "ants_icon":
                         result_init_prior = self.registrar_ants.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
+                            moving_labelmap=moving_labelmap,
                             initial_forward_transform=prior_forward,
                         )
                         forward_ants = result_init_prior["forward_transform"]
                         result_init_prior = self.registrar_icon.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
+                            moving_labelmap=moving_labelmap,
                             initial_forward_transform=forward_ants,
                         )
                     else:
@@ -631,6 +665,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         self,
         moving_image: itk.Image,
         moving_mask: Optional[itk.Image] = None,
+        moving_labelmap: Optional[itk.Image] = None,
         moving_image_pre: Optional[itk.Image] = None,
         initial_forward_transform: Optional[itk.Transform] = None,
     ) -> dict[str, Union[itk.Transform, float]]:
@@ -652,6 +687,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             res = self.registrar_ants.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
+                moving_labelmap=moving_labelmap,
                 moving_image_pre=moving_image_pre,
                 initial_forward_transform=initial_forward_transform,
             )
@@ -664,6 +700,7 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             res = self.registrar_icon.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
+                moving_labelmap=moving_labelmap,
                 moving_image_pre=moving_image_pre,
                 initial_forward_transform=initial_forward_transform,
             )
@@ -676,12 +713,14 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             ants_res = self.registrar_ants.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
+                moving_labelmap=moving_labelmap,
                 moving_image_pre=moving_image_pre,
             )
             forward_ants = ants_res["forward_transform"]
             icon_res = self.registrar_icon.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
+                moving_labelmap=moving_labelmap,
                 moving_image_pre=moving_image_pre,
                 initial_forward_transform=forward_ants,
             )
