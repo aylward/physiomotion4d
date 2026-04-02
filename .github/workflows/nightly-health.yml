@@ -1,0 +1,191 @@
+name: Nightly Health
+
+# Run the full test suite (including experiments) on the GPU runner every night.
+#
+# Schedule: 07:00 UTC daily ≈ 02:00 EST / 03:00 EDT
+#
+# Outputs:
+#   - GitHub Actions job summary (visible in the Actions UI after each run)
+#   - Artifact "health-dashboard": index.html + status.json (90-day retention)
+#   - Artifact "health-test-results": JUnit XML + coverage reports (90-day retention)
+#
+# The dashboard is NOT deployed to GitHub Pages to avoid overwriting the
+# documentation site published by docs.yml.  Use the workflow status badge
+# for a live pass/fail indicator in README:
+#
+#   [![Nightly Health](https://github.com/Project-MONAI/physiomotion4d/actions/workflows/nightly-health.yml/badge.svg)](https://github.com/Project-MONAI/physiomotion4d/actions/workflows/nightly-health.yml)
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 07:00 UTC = ~02:00 EST / 03:00 EDT
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual health check'
+        # Branch selection is handled by the standard GitHub UI branch picker —
+        # no free-text ref input, so arbitrary non-default refs cannot be used
+        # to produce a misleading public artifact or dashboard.
+
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. Run the full test suite on the GPU Windows runner
+  # ──────────────────────────────────────────────────────────────────────────
+  health-tests:
+    name: Health Tests (GPU)
+    runs-on: [self-hosted, Windows, X64, gpu]
+    timeout-minutes: 360
+
+    outputs:
+      # Captures the pytest step's actual outcome (success / failure / skipped)
+      # even though the job itself is not failed by a test failure.
+      test-outcome: ${{ steps.run-tests.outcome }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Check GPU availability
+        run: nvidia-smi
+
+      - name: Create venv in RUNNER_TEMP
+        run: |
+          & "C:\Program Files\Python310\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
+          echo "$env:RUNNER_TEMP\physiomotion4d-venv\Scripts" >> $env:GITHUB_PATH
+
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\uv\cache
+          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: |
+            tests/data/
+            tests/results/
+          key: test-data-${{ hashFiles('tests/test_*.py') }}-v2
+          restore-keys: |
+            test-data-
+
+      - name: Install uv and package
+        # Invoke via python -m uv so uv targets the active venv interpreter.
+        run: |
+          python -m pip install --upgrade pip uv
+          python -m uv pip install -e ".[test,cuda13]"
+
+      - name: Assert CUDA is accessible
+        run: |
+          python -c "
+          import sys, torch, cupy
+          print(f'PyTorch {torch.__version__}  |  CUDA toolkit {torch.version.cuda}  |  CuPy {cupy.__version__}')
+          if not torch.cuda.is_available():
+              print('ERROR: torch.cuda.is_available() returned False', file=sys.stderr)
+              sys.exit(1)
+          n = torch.cuda.device_count()
+          if n == 0:
+              print('ERROR: torch.cuda.device_count() == 0', file=sys.stderr)
+              sys.exit(1)
+          cn = cupy.cuda.runtime.getDeviceCount()
+          if cn == 0:
+              print('ERROR: cupy.cuda.runtime.getDeviceCount() == 0', file=sys.stderr)
+              sys.exit(1)
+          print(f'OK: {n} GPU(s) visible to PyTorch and CuPy')
+          "
+
+      - name: Run health test suite
+        id: run-tests
+        # continue-on-error keeps the job running so artifacts are always uploaded.
+        # The step outcome (success/failure) is still captured and passed downstream.
+        continue-on-error: true
+        run: |
+          pytest tests/ -v --run-experiments `
+            --cov=physiomotion4d `
+            --cov-report=xml `
+            --cov-report=json `
+            --junitxml=test-results.xml
+        env:
+          CUDA_VISIBLE_DEVICES: 0
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: health-test-results
+          path: |
+            test-results.xml
+            coverage.xml
+            coverage.json
+          retention-days: 90
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. Build the HTML dashboard from test results (runs even if tests failed)
+  # ──────────────────────────────────────────────────────────────────────────
+  build-dashboard:
+    name: Build Dashboard
+    runs-on: ubuntu-latest
+    needs: health-tests
+    if: always()
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: health-test-results
+          path: results/
+        # Artifact may be absent if health-tests was cancelled before upload.
+        continue-on-error: true
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build dashboard
+        run: |
+          python .github/scripts/build_dashboard.py \
+            --results-dir results/ \
+            --output-dir dashboard/ \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --timestamp "$(python -c 'from datetime import datetime, timezone; print(datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))')" \
+            --health-outcome "${{ needs.health-tests.outputs.test-outcome }}"
+
+      - name: Write GitHub Actions job summary
+        run: cat dashboard/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dashboard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-dashboard
+          path: dashboard/
+          retention-days: 90
+
+      - name: Push status.json to nightly-status branch
+        # Force-push a single-file orphan branch so docs.yml can fetch
+        # status.json via the GitHub API and include it in the Pages bundle.
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp dashboard/status.json /tmp/status.json
+          git checkout --orphan nightly-status-tmp
+          git rm -rf . --quiet || true
+          cp /tmp/status.json status.json
+          git add status.json
+          git commit -m "chore: update nightly status [skip ci]"
+          git push origin HEAD:nightly-status --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

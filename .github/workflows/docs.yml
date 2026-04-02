@@ -85,6 +85,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -97,7 +98,24 @@ jobs:
       with:
         name: documentation
         path: ./docs-html
-        
+
+    - name: Fetch nightly status.json from nightly-status branch
+      # The nightly-health workflow maintains a single-file orphan branch
+      # (nightly-status) containing status.json.  Fetch it via the GitHub
+      # contents API so no checkout is required.  Silently omitted on the
+      # first docs deploy before any nightly run has pushed the branch.
+      run: |
+        if content=$(gh api \
+            "repos/${{ github.repository }}/contents/status.json?ref=nightly-status" \
+            --jq '.content' 2>/dev/null); then
+          printf '%s' "$content" | base64 -d > ./docs-html/status.json
+          echo "status.json merged into docs"
+        else
+          echo "No nightly-status branch yet; status.json omitted"
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Setup Pages
       uses: actions/configure-pages@v4
       

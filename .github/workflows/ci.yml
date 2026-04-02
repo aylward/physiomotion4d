@@ -245,16 +245,12 @@ jobs:
   # if no self-hosted runner is available. Enable manually via workflow_dispatch
   # or by setting the 'run-gpu-tests' label on the PR.
   gpu-tests:
-    name: GPU Tests (Python ${{ matrix.python-version }})
-    runs-on: [self-hosted, linux, gpu, cuda13]
+    name: GPU Tests
+    runs-on: [self-hosted, Windows, X64, gpu]
     needs: unit-tests
     timeout-minutes: 30
     # Only run GPU tests on manual trigger or if 'run-gpu-tests' label is present
     if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-gpu-tests')
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11"]
     continue-on-error: true
 
     steps:
@@ -263,25 +259,21 @@ jobs:
       with:
         lfs: true
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+    - name: Create venv in RUNNER_TEMP
+      run: |
+        & "C:\Program Files\Python310\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
+        echo "$env:RUNNER_TEMP\physiomotion4d-venv\Scripts" >> $env:GITHUB_PATH
 
     - name: Check GPU availability
-      run: |
-        nvidia-smi || echo "No GPU available"
-        python -c "import torch; print(f'PyTorch CUDA available: {torch.cuda.is_available()}')" || echo "PyTorch not installed yet"
+      run: nvidia-smi
 
-    - name: Cache pip packages
+    - name: Cache uv packages
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-gpu-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+        path: ~\AppData\Local\uv\cache
+        key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
-          ${{ runner.os }}-pip-gpu-${{ matrix.python-version }}-
-          ${{ runner.os }}-pip-gpu-
-          ${{ runner.os }}-pip-
+          ${{ runner.os }}-uv-
 
     - name: Upgrade pip and build tools
       run: |
@@ -289,15 +281,28 @@ jobs:
 
     - name: Install package with test dependencies
       # uv respects [tool.uv.sources], routing torch to pytorch-cu130 for cuda13
+      # Invoke via python -m uv so uv targets the active venv interpreter.
       run: |
-        uv pip install --system -e ".[test,cuda13]"
+        python -m uv pip install -e ".[test,cuda13]"
 
-    - name: Verify GPU setup
+    - name: Assert CUDA is accessible
       run: |
-        python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
-        python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-        python -c "import torch; print(f'CUDA version: {torch.version.cuda}')" || echo "CUDA not available"
-        python -c "import torch; print(f'Number of GPUs: {torch.cuda.device_count()}')" || echo "No GPUs"
+        python -c "
+        import sys, torch, cupy
+        print(f'PyTorch {torch.__version__}  |  CUDA toolkit {torch.version.cuda}  |  CuPy {cupy.__version__}')
+        if not torch.cuda.is_available():
+            print('ERROR: torch.cuda.is_available() returned False', file=sys.stderr)
+            sys.exit(1)
+        n = torch.cuda.device_count()
+        if n == 0:
+            print('ERROR: torch.cuda.device_count() == 0', file=sys.stderr)
+            sys.exit(1)
+        cn = cupy.cuda.runtime.getDeviceCount()
+        if cn == 0:
+            print('ERROR: cupy.cuda.runtime.getDeviceCount() == 0', file=sys.stderr)
+            sys.exit(1)
+        print(f'OK: {n} GPU(s) visible to PyTorch and CuPy')
+        "
 
     - name: List installed packages
       run: |
@@ -311,16 +316,14 @@ jobs:
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
-      if: matrix.python-version == '3.10'
       with:
         file: ./coverage.xml
         flags: gpu-tests
-        name: codecov-gpu-py${{ matrix.python-version }}
+        name: codecov-gpu
         fail_ci_if_error: false
 
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
-      if: matrix.python-version == '3.10'
       with:
         name: coverage-report-gpu
         path: htmlcov/
