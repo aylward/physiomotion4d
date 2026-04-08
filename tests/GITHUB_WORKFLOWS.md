@@ -218,12 +218,6 @@ These tests are **NOT** run in CI (even on GPU runners) because they require ext
    - Run locally: `pytest tests/test_segment_chest_total_segmentator.py -v -s`
    - Why excluded: Requires GPU, model inference
 
-5. **VISTA-3D Tests** (`test_segment_chest_vista_3d.py`)
-   - Requires: CUDA GPU, VISTA-3D model weights
-   - Markers: `@pytest.mark.requires_data`, `@pytest.mark.slow`
-   - Run locally: `pytest tests/test_segment_chest_vista_3d.py -v -s`
-   - Why excluded: Requires GPU, model inference
-
 **Why excluded**:
 - These tests take 5-15 minutes each, even with GPU acceleration
 - Registration algorithms are computationally intensive
@@ -240,7 +234,7 @@ pytest tests/ -v -m "slow"
 pytest tests/test_register_images_ants.py tests/test_register_images_icon.py -v -s
 
 # Run only segmentation tests
-pytest tests/test_segment_chest_total_segmentator.py tests/test_segment_chest_vista_3d.py -v -s
+pytest tests/test_segment_chest_total_segmentator.py -v -s
 ```
 
 **Scheduled slow tests**:

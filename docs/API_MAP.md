@@ -31,10 +31,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def transform_contours(contours, transform_filenames, frame_indices, base_name, output_dir)` (line 31)
 - `def convert_contours(base_name, output_dir, project_name, compute_normals=False)` (line 49)
 
-## experiments/Heart-GatedCT_To_USD/test_vista3d_inMem.py
-
-- `def vista3d_inference_from_itk(itk_image, label_prompt=None, points=None, point_labels=None, device=None, bundle_path=None, model_cache_dir=None)` (line 8)
-
 ## experiments/Lung-GatedCT_To_USD/0-register_dirlab_4dct.py
 
 - `def dilate_mask(mask, dilation)` (line 30)
@@ -136,56 +132,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def convert_sitk_image_to_itk(self, sitk_image)` (line 151): Convert a SimpleITK image to an ITK image.
   - `def convert_array_to_image_of_vectors(self, arr_data, reference_image, ptype=itk.D)` (line 218): Convert a numpy array to an ITK image of vector type.
   - `def flip_image(self, in_image, in_mask=None, flip_x=False, flip_y=False, flip_z=False, flip_and_make_identity=False)` (line 249): Flip the image and mask.
-
-## src/physiomotion4d/network_weights/vista3d/hugging_face_pipeline.py
-
-- **class HuggingFacePipelineHelper** (line 7)
-  - `def __init__(self, pipeline_name='vista3d')` (line 9)
-  - `def get_pipeline(self)` (line 18)
-  - `def init_pipeline(self, pretrained_model_name_or_path, **kwargs)` (line 30)
-
-## src/physiomotion4d/network_weights/vista3d/scripts/early_stop_score_function.py
-
-- `def score_function(engine)` (line 7)
-
-## src/physiomotion4d/network_weights/vista3d/scripts/evaluator.py
-
-- **class Vista3dEvaluator** (line 39): Supervised detection evaluation method with image and label, inherits from ``SupervisedEvaluator`` and ``Workflow``.
-  - `def __init__(self, device, val_data_loader, network, epoch_length=None, non_blocking=False, prepare_batch=default_prepare_batch, iteration_update=None, inferer=None, postprocessing=None, key_val_metric=None, additional_metrics=None, metric_cmp_fn=default_metric_cmp_fn, val_handlers=None, amp=False, mode=ForwardMode.EVAL, event_names=None, event_to_attr=None, decollate=True, to_kwargs=None, amp_kwargs=None, hyper_kwargs=None)` (line 85)
-  - `def transform_points(self, point, affine)` (line 137): transform point to the coordinates of the transformed image
-  - `def check_prompts_format(self, label_prompt, points, point_labels)` (line 148): check the format of user prompts
-
-## src/physiomotion4d/network_weights/vista3d/scripts/inferer.py
-
-- **class Vista3dInferer** (line 21): Vista3D Inferer
-  - `def __init__(self, roi_size, overlap, use_point_window=False, sw_batch_size=1)` (line 30)
-
-## src/physiomotion4d/network_weights/vista3d/scripts/trainer.py
-
-- **class Vista3dTrainer** (line 39): Supervised detection training method with image and label, inherits from ``Trainer`` and ``Workflow``.
-  - `def __init__(self, device, max_epochs, train_data_loader, network, optimizer, loss_function, epoch_length=None, non_blocking=False, prepare_batch=default_prepare_batch, iteration_update=None, inferer=None, postprocessing=None, key_train_metric=None, additional_metrics=None, metric_cmp_fn=default_metric_cmp_fn, train_handlers=None, amp=False, event_names=None, event_to_attr=None, decollate=True, optim_set_to_none=False, to_kwargs=None, amp_kwargs=None, hyper_kwargs=None)` (line 88)
-
-## src/physiomotion4d/network_weights/vista3d/vista3d_config.py
-
-- **class VISTA3DConfig** (line 4): Configuration class for vista3d
-  - `def __init__(self, encoder_embed_dim=48, input_channels=1, **kwargs)` (line 9): Set the hyperparameters for the VISTA3D model.
-
-## src/physiomotion4d/network_weights/vista3d/vista3d_model.py
-
-- **class VISTA3DModel** (line 9): VISTA3D model for hugging face
-  - `def __init__(self, config)` (line 14)
-  - `def forward(self, input)` (line 22)
-- `def register_my_model()` (line 26): Utility function to register VISTA3D model so that it can be instantiate by the AutoModel function.
-
-## src/physiomotion4d/network_weights/vista3d/vista3d_pipeline.py
-
-- **class VISTA3DPipeline** (line 48): Define the VISTA3D pipeline.
-  - `def __init__(self, model, **kwargs)` (line 80)
-  - `def check_prompts_format(self, label_prompt, points, point_labels)` (line 213): check the format of user prompts
-  - `def transform_points(self, point, affine)` (line 287): transform point to the coordinates of the transformed image
-  - `def preprocess(self, inputs, **kwargs)` (line 298)
-  - `def postprocess(self, outputs, **kwargs)` (line 435)
-- `def register_simple_pipeline()` (line 454)
 
 ## src/physiomotion4d/notebook_utils.py
 
@@ -321,10 +267,8 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/segment_chest_ensemble.py
 
-- **class SegmentChestEnsemble** (line 20): A class that inherits from physioSegmentChest and implements the
-  - `def __init__(self, log_level=logging.INFO)` (line 26): Initialize the vista3d class.
-  - `def ensemble_segmentation(self, labelmap_vista, labelmap_totseg)` (line 309): Combine two segmentation results using label mapping and priority rules.
-  - `def segmentation_method(self, preprocessed_image)` (line 398): Run VISTA3D on the preprocessed image and return result.
+- **class SegmentChestEnsemble** (line 12): Ensemble chest CT segmentation.
+  - `def __init__(self, log_level=logging.INFO)` (line 29)
 
 ## src/physiomotion4d/segment_chest_total_segmentator.py
 
@@ -474,13 +418,13 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/workflow_convert_ct_to_vtk.py
 
-- **class WorkflowConvertCTToVTK** (line 59): Segment a CT image and produce per-anatomy-group VTK surfaces and meshes.
-  - `def __init__(self, segmentation_method='total_segmentator', log_level=logging.INFO)` (line 100): Initialize the workflow.
-  - `def run_workflow(self, input_image, contrast_enhanced_study=False, anatomy_groups=None)` (line 247): Segment the CT image and extract per-anatomy-group VTK objects.
-  - `def save_surfaces(surfaces, output_dir, prefix='')` (line 350): Save each group surface to its own VTP file.
-  - `def save_meshes(meshes, output_dir, prefix='')` (line 377): Save each group voxel mesh to its own VTU file.
-  - `def save_combined_surface(surfaces, output_dir, prefix='')` (line 403): Merge all group surfaces into a single VTP file.
-  - `def save_combined_mesh(meshes, output_dir, prefix='')` (line 438): Merge all group meshes into a single VTU file.
+- **class WorkflowConvertCTToVTK** (line 58): Segment a CT image and produce per-anatomy-group VTK surfaces and meshes.
+  - `def __init__(self, segmentation_method='total_segmentator', log_level=logging.INFO)` (line 98): Initialize the workflow.
+  - `def run_workflow(self, input_image, contrast_enhanced_study=False, anatomy_groups=None)` (line 240): Segment the CT image and extract per-anatomy-group VTK objects.
+  - `def save_surfaces(surfaces, output_dir, prefix='')` (line 343): Save each group surface to its own VTP file.
+  - `def save_meshes(meshes, output_dir, prefix='')` (line 370): Save each group voxel mesh to its own VTU file.
+  - `def save_combined_surface(surfaces, output_dir, prefix='')` (line 396): Merge all group surfaces into a single VTP file.
+  - `def save_combined_mesh(meshes, output_dir, prefix='')` (line 431): Merge all group meshes into a single VTU file.
 
 ## src/physiomotion4d/workflow_convert_heart_gated_ct_to_usd.py
 
@@ -535,27 +479,26 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## tests/conftest.py
 
-- `def pytest_addoption(parser)` (line 37): Add custom command-line options for pytest.
-- `def pytest_configure(config)` (line 53): Configure pytest with custom markers and settings.
-- `def pytest_collection_modifyitems(config, items)` (line 76): Automatically skip experiment tests unless --run-experiments is passed.
-- `def pytest_runtest_logreport(report)` (line 96): Collect test timing information after each test completes.
-- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 120): Print comprehensive test timing report after all tests complete.
-- `def test_directories()` (line 254): Set up test directories for data and results.
-- `def download_truncal_valve_data(test_directories)` (line 269): Download TruncalValve 4D CT data.
-- `def converted_3d_images(download_truncal_valve_data, test_directories)` (line 316): Convert 4D NRRD to 3D time series and return slice files.
-- `def test_images(converted_3d_images)` (line 344): Load time points from the converted 3D data for testing.
-- `def segmenter_total_segmentator()` (line 385): Create a SegmentChestTotalSegmentator instance.
-- `def segmenter_vista_3d()` (line 391): Create a SegmentChestVista3D instance.
-- `def segmenter_simpleware()` (line 397): Create a SegmentHeartSimpleware instance.
-- `def heart_simpleware_image_path()` (line 403): Path to cardiac CT image used by experiments/Heart-Simpleware_Segmentation notebook.
-- `def heart_simpleware_image(heart_simpleware_image_path)` (line 422): Load cardiac CT image for SegmentHeartSimpleware tests (same as notebook).
-- `def segmentation_results(segmenter_total_segmentator, test_images, test_directories)` (line 428): Get or create segmentation results using TotalSegmentator.
-- `def contour_tools()` (line 489): Create a ContourTools instance.
-- `def registrar_ants()` (line 500): Create a RegisterImagesANTs instance.
-- `def registrar_greedy()` (line 506): Create a RegisterImagesGreedy instance.
-- `def registrar_icon()` (line 512): Create a RegisterImagesICON instance.
-- `def ants_registration_results(registrar_ants, test_images, test_directories)` (line 518): Perform ANTs registration and return results.
-- `def transform_tools()` (line 571): Create a TransformTools instance.
+- `def pytest_addoption(parser)` (line 36): Add custom command-line options for pytest.
+- `def pytest_configure(config)` (line 52): Configure pytest with custom markers and settings.
+- `def pytest_collection_modifyitems(config, items)` (line 75): Automatically skip experiment tests unless --run-experiments is passed.
+- `def pytest_runtest_logreport(report)` (line 95): Collect test timing information after each test completes.
+- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 119): Print comprehensive test timing report after all tests complete.
+- `def test_directories()` (line 253): Set up test directories for data and results.
+- `def download_truncal_valve_data(test_directories)` (line 268): Download TruncalValve 4D CT data.
+- `def converted_3d_images(download_truncal_valve_data, test_directories)` (line 315): Convert 4D NRRD to 3D time series and return slice files.
+- `def test_images(converted_3d_images)` (line 343): Load time points from the converted 3D data for testing.
+- `def segmenter_total_segmentator()` (line 384): Create a SegmentChestTotalSegmentator instance.
+- `def segmenter_simpleware()` (line 390): Create a SegmentHeartSimpleware instance.
+- `def heart_simpleware_image_path()` (line 396): Path to cardiac CT image used by experiments/Heart-Simpleware_Segmentation notebook.
+- `def heart_simpleware_image(heart_simpleware_image_path)` (line 415): Load cardiac CT image for SegmentHeartSimpleware tests (same as notebook).
+- `def segmentation_results(segmenter_total_segmentator, test_images, test_directories)` (line 421): Get or create segmentation results using TotalSegmentator.
+- `def contour_tools()` (line 482): Create a ContourTools instance.
+- `def registrar_ants()` (line 493): Create a RegisterImagesANTs instance.
+- `def registrar_greedy()` (line 499): Create a RegisterImagesGreedy instance.
+- `def registrar_icon()` (line 505): Create a RegisterImagesICON instance.
+- `def ants_registration_results(registrar_ants, test_images, test_directories)` (line 511): Perform ANTs registration and return results.
+- `def transform_tools()` (line 564): Create a TransformTools instance.
 
 ## tests/test_contour_tools.py
 
@@ -609,12 +552,12 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def test_experiment_reconstruct_4dct()` (line 331): Test Reconstruct4DCT experiment scripts.
 - `def test_experiment_heart_vtk_series_to_usd()` (line 350): Test Heart-VTKSeries_To_USD experiment scripts.
 - `def test_experiment_heart_gated_ct_to_usd()` (line 371): Test Heart-GatedCT_To_USD experiment scripts.
-- `def test_experiment_convert_vtk_to_usd()` (line 397): Test Convert_VTK_To_USD experiment scripts.
-- `def test_experiment_create_statistical_model()` (line 417): Test Heart-Create_Statistical_Model experiment scripts.
-- `def test_experiment_heart_statistical_model_to_patient()` (line 442): Test Heart-Statistical_Model_To_Patient experiment scripts.
-- `def test_experiment_lung_gated_ct_to_usd()` (line 477): Test Lung-GatedCT_To_USD experiment scripts.
-- `def test_experiment_structure()` (line 522): Validate the structure of the experiments directory.
-- `def test_list_scripts_in_subdir(subdir_name)` (line 576): List all scripts in each experiment subdirectory.
+- `def test_experiment_convert_vtk_to_usd()` (line 395): Test Convert_VTK_To_USD experiment scripts.
+- `def test_experiment_create_statistical_model()` (line 415): Test Heart-Create_Statistical_Model experiment scripts.
+- `def test_experiment_heart_statistical_model_to_patient()` (line 440): Test Heart-Statistical_Model_To_Patient experiment scripts.
+- `def test_experiment_lung_gated_ct_to_usd()` (line 475): Test Lung-GatedCT_To_USD experiment scripts.
+- `def test_experiment_structure()` (line 520): Validate the structure of the experiments directory.
+- `def test_list_scripts_in_subdir(subdir_name)` (line 574): List all scripts in each experiment subdirectory.
 
 ## tests/test_image_tools.py
 
@@ -718,19 +661,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def test_contrast_detection(self, segmenter_total_segmentator, test_images)` (line 177): Test contrast detection functionality.
   - `def test_preprocessing(self, segmenter_total_segmentator, test_images)` (line 204): Test preprocessing functionality.
   - `def test_postprocessing(self, segmenter_total_segmentator, test_images)` (line 224): Test postprocessing functionality.
-
-## tests/test_segment_chest_vista_3d.py
-
-- **class TestSegmentChestVista3D** (line 16): Test suite for VISTA-3D chest CT segmentation.
-  - `def test_segmenter_initialization(self, segmenter_vista_3d)` (line 19): Test that SegmentChestVista3D initializes correctly.
-  - `def test_segment_single_image(self, segmenter_vista_3d, test_images, test_directories)` (line 51): Test automatic segmentation on a single time point.
-  - `def test_segment_multiple_images(self, segmenter_vista_3d, test_images, test_directories)` (line 107): Test automatic segmentation on two time points.
-  - `def test_anatomy_group_masks(self, segmenter_vista_3d, test_images)` (line 138): Test that anatomy group masks are created correctly.
-  - `def test_label_prompt_segmentation(self, segmenter_vista_3d, test_images, test_directories)` (line 177): Test segmentation with specific label prompts.
-  - `def test_contrast_detection(self, segmenter_vista_3d, test_images)` (line 213): Test contrast detection functionality.
-  - `def test_preprocessing(self, segmenter_vista_3d, test_images)` (line 241): Test preprocessing functionality.
-  - `def test_postprocessing(self, segmenter_vista_3d, test_images)` (line 260): Test postprocessing functionality.
-  - `def test_set_and_reset_prompts(self, segmenter_vista_3d)` (line 288): Test setting and resetting label prompt mode.
 
 ## tests/test_segment_heart_simpleware.py
 

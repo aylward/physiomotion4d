@@ -22,7 +22,6 @@ from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
-from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
 from physiomotion4d.transform_tools import TransformTools
 
@@ -385,12 +384,6 @@ def test_images(converted_3d_images):
 def segmenter_total_segmentator():
     """Create a SegmentChestTotalSegmentator instance."""
     return SegmentChestTotalSegmentator()
-
-
-@pytest.fixture(scope="session")
-def segmenter_vista_3d():
-    """Create a SegmentChestVista3D instance."""
-    return SegmentChestVista3D()
 
 
 @pytest.fixture(scope="session")

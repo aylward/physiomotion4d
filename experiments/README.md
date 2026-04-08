@@ -64,7 +64,7 @@ visualization and manipulation.
 
 **Pipeline stages:**
 1. 4D CT reconstruction (using methods from `Reconstruct4DCT`)
-2. AI segmentation (TotalSegmentator, Vista3D/Clara Segment Open Model as NIM or local)
+2. AI segmentation (TotalSegmentator)
 3. Per-organ mesh generation
 4. OpenUSD conversion with animation
 5. Tissue property mapping (subsurface scatter, color, etc.)
@@ -317,7 +317,7 @@ Each subdirectory represents a different experimental domain:
 This experimental code was instrumental in:
 1. Defining the final library architecture
 2. Testing registration algorithms (ICON, SyN, LDDMM)
-3. Evaluating segmentation approaches (TotalSegmentator, VISTA-3D)
+3. Evaluating segmentation approaches (TotalSegmentator)
 4. Developing the USD export pipeline
 5. Optimizing the complete 4D CT → USD workflow
 6. Identifying modular extension points for new anatomical regions and tasks

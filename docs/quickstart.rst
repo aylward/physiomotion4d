@@ -116,11 +116,11 @@ If you only need segmentation:
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestVista3D
+   from physiomotion4d import SegmentChestTotalSegmentator
    import itk
 
    # Initialize segmenter
-   segmenter = SegmentChestVista3D()
+   segmenter = SegmentChestTotalSegmentator()
 
    # Load and segment image
    image = itk.imread("chest_ct.nrrd")

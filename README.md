@@ -7,7 +7,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 ## 🚀 Key Features
 
 - **Complete 4D Medical Imaging Pipeline**: End-to-end processing from 4D CT data to animated USD models
-- **Multiple AI Segmentation Methods**: TotalSegmentator, VISTA-3D, and ensemble approaches
+- **Multiple AI Segmentation Methods**: TotalSegmentator and ensemble approaches
 - **Deep Learning Registration**: GPU-accelerated image registration using Icon algorithm
 - **NVIDIA Omniverse Integration**: Direct USD file export for medical visualization
 - **Physiological Motion Analysis**: Capture and visualize cardiac and respiratory motion
@@ -106,8 +106,6 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
   - `WorkflowFitStatisticalModelToPatient`: Model-to-patient registration workflow
 - **Segmentation Classes**: Multiple AI-based chest segmentation implementations
   - `SegmentChestTotalSegmentator`: TotalSegmentator-based segmentation
-  - `SegmentChestVista3D`: VISTA-3D model-based segmentation
-  - `SegmentChestVista3DNIM`: NVIDIA NIM version of VISTA-3D
   - `SegmentChestEnsemble`: Ensemble segmentation combining multiple methods
   - `SegmentAnatomyBase`: Base class for custom segmentation methods
 - **Registration Classes**: Multiple registration methods for different use cases
@@ -142,7 +140,7 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 - **AI/ML**: PyTorch, CuPy (CUDA 13 default; CUDA 12 via `[cuda12]` extra), transformers, MONAI
 - **Registration**: icon-registration, unigradicon
 - **Visualization**: USD-core, PyVista
-- **Segmentation**: TotalSegmentator, VISTA-3D models
+- **Segmentation**: TotalSegmentator
 
 ## 🎯 Quick Start
 
@@ -262,11 +260,11 @@ registered_mesh = workflow.run_workflow()
 ### Custom Segmentation
 
 ```python
-from physiomotion4d import SegmentChestVista3D
+from physiomotion4d import SegmentChestTotalSegmentator
 import itk
 
-# Initialize VISTA-3D segmentation
-segmenter = SegmentChestVista3D()
+# Initialize TotalSegmentator segmentation
+segmenter = SegmentChestTotalSegmentator()
 
 # Load and segment image
 image = itk.imread("chest_ct.nrrd")
@@ -578,14 +576,12 @@ pytest tests/test_register_images_greedy.py -v             # Greedy registration
 pytest tests/test_register_images_icon.py -v                # Icon registration
 pytest tests/test_register_time_series_images.py -v         # Time series registration
 pytest tests/test_segment_chest_total_segmentator.py -v     # TotalSegmentator
-pytest tests/test_segment_chest_vista_3d.py -v              # VISTA-3D segmentation
 pytest tests/test_contour_tools.py -v                       # Mesh and contour tools
 pytest tests/test_image_tools.py -v                         # Image processing utilities
 pytest tests/test_transform_tools.py -v                     # Transform operations
 
 # Skip GPU-dependent tests (segmentation and registration)
 pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py \
-              --ignore=tests/test_segment_chest_vista_3d.py \
               --ignore=tests/test_register_images_icon.py
 
 # Run with coverage report
@@ -594,7 +590,7 @@ pytest tests/ --cov=src/physiomotion4d --cov-report=html
 
 **Test Categories:**
 - **Data Pipeline**: Download, conversion, and preprocessing
-- **Segmentation**: TotalSegmentator and VISTA-3D (GPU required)
+- **Segmentation**: TotalSegmentator (GPU required)
 - **Registration**: ANTs, Icon, and time series methods (slow, ~5-10 min)
 - **Geometry & Visualization**: Contour tools, transform tools, VTK to USD
 - **USD Utilities**: Merging, time preservation, material handling
@@ -767,7 +763,7 @@ This project is licensed under the Apache 2.0 License - see the LICENSE file for
 - **NVIDIA Omniverse** team for USD format and visualization platform
 - **MONAI** community for medical imaging AI tools
 - **DirLab** for providing the 4D-CT benchmark datasets
-- **TotalSegmentator** and **VISTA-3D** teams for segmentation models
+- **TotalSegmentator** team for segmentation models
 - **Icon Registration** team for deep learning registration methods
 
 ## 📞 Support

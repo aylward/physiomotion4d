@@ -47,7 +47,6 @@ keywords = [
     "ai",
     "deep-learning",
     "totalsegmentator",
-    "vista-3d",
     "icon",
     "ants",
     "physiological-motion",
@@ -230,7 +229,6 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 show_error_codes = true
-exclude = '(?x)(^src[/\\\\]physiomotion4d[/\\\\]network_weights[/\\\\]vista3d[/\\\\])'
 # Third-party libs (itk, pyvista, pxr, vtk, simpleware, etc.) have no stubs
 disable_error_code = ["import-not-found", "import-untyped"]
 

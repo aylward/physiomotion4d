@@ -95,7 +95,6 @@ def register_image(
 
 
 # %%
-# seg_image = SegmentChestVista3D()
 seg_image = SegmentChestTotalSegmentator()
 
 os.makedirs(output_dir, exist_ok=True)

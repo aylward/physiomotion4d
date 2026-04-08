@@ -43,15 +43,6 @@ Examples
     --input-image chest_ct.nii.gz \\
     --output-dir ./results
 
-  # VISTA-3D, contrast-enhanced, split per group
-  %(prog)s \\
-    --input-image chest_ct.nii.gz \\
-    --segmentation-method vista_3d \\
-    --contrast \\
-    --split-files \\
-    --output-dir ./results \\
-    --output-prefix patient01
-
   # Simpleware heart-only, cardiac anatomy groups, combined output
   %(prog)s \\
     --input-image chest_ct.nii.gz \\
@@ -85,10 +76,7 @@ Examples
         "--segmentation-method",
         default="total_segmentator",
         choices=list(WorkflowConvertCTToVTK.SEGMENTATION_METHODS),
-        help=(
-            "Segmentation backend.  "
-            "total_segmentator (default) | vista_3d | simpleware_heart"
-        ),
+        help=("Segmentation backend.  total_segmentator (default) | simpleware_heart"),
     )
     parser.add_argument(
         "--contrast",

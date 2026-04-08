@@ -383,7 +383,6 @@ jobs:
 # - tests/test_register_images_icon.py (requires CUDA for ICON)
 # - tests/test_transform_tools.py (depends on slow registration tests)
 # - tests/test_segment_chest_total_segmentator.py (requires CUDA for TotalSegmentator)
-# - tests/test_segment_chest_vista_3d.py (requires CUDA for VISTA-3D, 20GB+ RAM)
 #
 # Experiment tests (EXTREMELY SLOW - hours to complete):
 # - tests/test_experiments.py (runs all notebooks in experiments/ subdirectories)

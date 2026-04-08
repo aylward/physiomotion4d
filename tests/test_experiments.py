@@ -380,8 +380,6 @@ def test_experiment_heart_gated_ct_to_usd():
     3. 2-generate_segmentation.py (segments registered images)
     4. 3-transform_dynamic_and_static_contours.py (transforms segmentations)
     5. 4-merge_dynamic_and_static_usd.py (merges into final USD)
-    6. test_vista3d_class.py (tests segmentation class)
-    7. test_vista3d_inMem.py (tests in-memory segmentation)
 
     Each script depends on outputs from previous scripts.
     Execution stops on first failure to prevent cascading errors.

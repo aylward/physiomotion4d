@@ -6,7 +6,7 @@ This guide explains how to set up and use the PhysioMotion4D test suite.
 
 The test suite validates the complete PhysioMotion4D pipeline:
 - **Data download and conversion** - 4D NRRD to 3D time series
-- **Segmentation** - TotalSegmentator and VISTA-3D chest CT segmentation
+- **Segmentation** - TotalSegmentator chest CT segmentation
 - **Registration** - ANTs and ICON deformable registration
 - **Contour extraction** - PyVista mesh generation from segmentation masks
 - **USD conversion** - VTK to USD format for Omniverse
@@ -80,8 +80,8 @@ test_convert_nrrd_4d_to_3d
     ↓                    ├─→ test_register_images_icon
     ↓                    ↓
 test_segment_chest_total_segmentator ────→ test_contour_tools
-    ↓                                           ↓
-test_segment_chest_vista_3d                test_convert_vtk_to_usd_polymesh
+                                                ↓
+                                           test_convert_vtk_to_usd_polymesh
 ```
 
 ### Test Markers
@@ -97,7 +97,6 @@ Some tests are skipped or marked slow due to:
 
 **GPU-Dependent Tests** (skipped in CI):
 - `test_segment_chest_total_segmentator.py` - Requires GPU for inference
-- `test_segment_chest_vista_3d.py` - Requires GPU + 20GB+ RAM
 
 **Computationally Intensive Tests**:
 - Registration tests (ANTs, ICON) - Marked slow, run locally only
@@ -142,7 +141,6 @@ tests/
 │       └── slice_001.mha
 └── results/                             # Test outputs
     ├── segmentation_total_segmentator/
-    ├── segmentation_vista3d/
     ├── contour_tools/
     ├── usd_polymesh/
     ├── registration_ants/
@@ -164,15 +162,15 @@ tests/
 
 **Manual fix**: Place `TruncalValve_4DCT.seq.nrrd` in `data/Slicer-Heart-CT/`
 
-### Memory Errors (VISTA-3D Tests)
+### Memory Errors (Segmentation Tests)
 
-**Problem**: `RuntimeError: not enough memory: you tried to allocate 20GB`
+**Problem**: `RuntimeError: not enough memory`
 
-**Root Cause**: VISTA-3D requires full-resolution CT images, needs 20GB+ RAM
+**Root Cause**: Segmentation models require significant RAM and GPU memory
 
 **Solutions**:
-- Skip VISTA-3D tests: `pytest tests/ --ignore=tests/test_segment_chest_vista_3d.py`
-- Run on system with 24GB+ RAM
+- Skip segmentation tests: `pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py`
+- Run on system with sufficient RAM and GPU memory
 - Tests are automatically skipped in CI
 
 ### Test Timeout
@@ -205,7 +203,6 @@ size = (int(size_itk[0]), int(size_itk[1]), int(size_itk[2]))
 
 **Solution**: ✅ **Fixed!** Tests now use correct fixture names:
 - `segmenter_total_segmentator` for TotalSegmentator
-- `segmenter_vista_3d` for VISTA-3D
 - `registrar_ants` for ANTs
 - `registrar_icon` for ICON
 
@@ -329,9 +326,9 @@ pytest tests/test_usd_merge.py::TestUSDMerge::test_specific_test -v
 
 **Q: What if I don't have a GPU?**
 - Most tests run on CPU (slower but functional)
-- Segmentation tests (TotalSegmentator, VISTA-3D) require GPU
+- Segmentation tests (TotalSegmentator) require GPU
 - Registration tests (ANTs, ICON) benefit from GPU but work on CPU
-- Skip GPU tests: `pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py --ignore=tests/test_segment_chest_vista_3d.py`
+- Skip GPU tests: `pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py`
 
 **Q: How do I run tests without downloading data?**
 Place `TruncalValve_4DCT.seq.nrrd` in `data/Slicer-Heart-CT/` or `tests/data/Slicer-Heart-CT/` before running tests. The test will automatically detect and use it.
@@ -341,7 +338,7 @@ Yes! Modify the `download_truncal_valve_data` fixture in `tests/conftest.py` to 
 
 **Q: Why do some tests take so long?**
 - Registration (ANTs/ICON): 5-10 minutes each (deformable registration is computationally intensive)
-- Segmentation (TotalSegmentator/VISTA-3D): 10-15 minutes (deep learning inference on full CT volumes)
+- Segmentation (TotalSegmentator): 10-15 minutes (deep learning inference on full CT volumes)
 - Data download: First time only (~1.2GB file)
 - Everything else: <1 minute
 

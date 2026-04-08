@@ -4,7 +4,8 @@ Ensemble Segmentation
 
 .. currentmodule:: physiomotion4d
 
-Combine multiple segmentation methods for improved accuracy and robustness.
+Ensemble segmentation provides a stable API entry point that currently delegates
+to :class:`SegmentChestTotalSegmentator`.
 
 Class Reference
 ===============
@@ -18,59 +19,27 @@ Class Reference
 Overview
 ========
 
-Ensemble segmentation combines predictions from multiple methods using voting or averaging strategies to achieve higher accuracy than any single method.
+``SegmentChestEnsemble`` inherits from :class:`SegmentChestTotalSegmentator` and
+exposes the same interface.  Using this class keeps downstream code stable if the
+ensemble strategy changes in a future release.
 
-**Key Features**:
-   * Combines TotalSegmentator and VISTA-3D
-   * Voting or averaging fusion strategies
-   * Improved boundary delineation
-   * Higher confidence in predictions
-   * Better robustness to image variations
-
-Usage Examples
-==============
-
-Basic Ensemble
---------------
+Usage Example
+=============
 
 .. code-block:: python
 
    from physiomotion4d import SegmentChestEnsemble
-   
-   # Combine methods with voting
-   segmentator = SegmentChestEnsemble(
-       methods=['totalsegmentator', 'vista3d'],
-       fusion_strategy='voting',
-       verbose=True
-   )
-   
-   labelmap = segmentator.segment("ct_scan.nrrd")
-   
-   # Get confidence map
-   confidence = segmentator.get_confidence_map()
 
-With Weighted Fusion
---------------------
-
-.. code-block:: python
-
-   # Weight methods differently
-   segmentator = SegmentChestEnsemble(
-       methods=['totalsegmentator', 'vista3d'],
-       fusion_strategy='weighted',
-       weights=[0.4, 0.6],  # Trust VISTA-3D more
-       verbose=True
-   )
-   
-   labelmap = segmentator.segment("cardiac_ct.nrrd")
+   segmenter = SegmentChestEnsemble()
+   result = segmenter.segment(ct_image, contrast_enhanced_study=False)
+   labelmap = result['labelmap']
 
 See Also
 ========
 
 * :doc:`index` - Segmentation overview
-* :doc:`totalsegmentator` - Fast baseline method
-* :doc:`vista3d` - High-accuracy method
+* :doc:`totalsegmentator` - Underlying segmentation method
 
 .. rubric:: Navigation
 
-:doc:`vista3d_nim` | :doc:`index` | :doc:`../registration/index`
+:doc:`totalsegmentator` | :doc:`index` | :doc:`../registration/index`

@@ -64,8 +64,6 @@ from .register_time_series_images import RegisterTimeSeriesImages
 from .segment_anatomy_base import SegmentAnatomyBase
 from .segment_chest_ensemble import SegmentChestEnsemble
 from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
-from .segment_chest_vista_3d import SegmentChestVista3D
-from .segment_chest_vista_3d_nim import SegmentChestVista3DNIM
 from .segment_heart_simpleware import SegmentHeartSimpleware
 from .transform_tools import TransformTools
 from .usd_anatomy_tools import USDAnatomyTools
@@ -93,8 +91,6 @@ __all__ = [
     "SegmentAnatomyBase",
     "SegmentChestEnsemble",
     "SegmentChestTotalSegmentator",
-    "SegmentChestVista3D",
-    "SegmentChestVista3DNIM",
     "SegmentHeartSimpleware",
     # Registration classes
     "RegisterImagesBase",
