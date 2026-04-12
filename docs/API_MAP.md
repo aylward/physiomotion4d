@@ -484,13 +484,13 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def test_images(download_test_data, test_directories)` (line 309): Convert and resample 4D NRRD data; return pre-resampled time points.
 - `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 361): Segment each time point with TotalSegmentator and return result dicts.
 - `def test_transforms(registrar_ants, test_images, test_directories)` (line 402): Perform ANTs registration and return results.
-- `def segmenter_total_segmentator()` (line 457): Create a SegmentChestTotalSegmentator instance.
-- `def segmenter_simpleware()` (line 463): Create a SegmentHeartSimpleware instance.
-- `def contour_tools()` (line 469): Create a ContourTools instance.
-- `def registrar_ants()` (line 475): Create a RegisterImagesANTs instance.
-- `def registrar_greedy()` (line 481): Create a RegisterImagesGreedy instance.
-- `def registrar_icon()` (line 487): Create a RegisterImagesICON instance.
-- `def transform_tools()` (line 493): Create a TransformTools instance.
+- `def segmenter_total_segmentator()` (line 458): Create a SegmentChestTotalSegmentator instance.
+- `def segmenter_simpleware()` (line 464): Create a SegmentHeartSimpleware instance.
+- `def contour_tools()` (line 470): Create a ContourTools instance.
+- `def registrar_ants()` (line 476): Create a RegisterImagesANTs instance.
+- `def registrar_greedy()` (line 482): Create a RegisterImagesGreedy instance.
+- `def registrar_icon()` (line 488): Create a RegisterImagesICON instance.
+- `def transform_tools()` (line 494): Create a TransformTools instance.
 
 ## tests/test_contour_tools.py
 
@@ -624,23 +624,23 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 ## tests/test_register_time_series_images.py
 
 - **class TestRegisterTimeSeriesImages** (line 25): Test suite for time series image registration.
-  - `def test_registrar_initialization_ants(self)` (line 28): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
-  - `def test_registrar_initialization_icon(self)` (line 42): Test that RegisterTimeSeriesImages initializes correctly with ICON.
-  - `def test_registrar_initialization_invalid_method(self)` (line 56): Test that invalid registration method raises error.
-  - `def test_set_modality(self)` (line 63): Test setting imaging modality.
-  - `def test_set_fixed_image(self, test_images)` (line 71): Test setting fixed image.
-  - `def test_set_number_of_iterations(self)` (line 82): Test setting number of iterations.
-  - `def test_register_time_series_basic(self, test_images, test_directories)` (line 102): Test basic time series registration without prior transform.
-  - `def test_register_time_series_with_prior(self, test_images, test_directories)` (line 184): Test time series registration with prior transform usage.
-  - `def test_register_time_series_identity_start(self, test_images)` (line 245): Test time series registration with identity for starting image.
-  - `def test_register_time_series_different_starting_indices(self, test_images)` (line 271): Test time series registration with different starting indices.
-  - `def test_register_time_series_error_no_fixed_image(self)` (line 301): Test that error is raised if fixed image not set.
-  - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 312): Test that error is raised for invalid starting index.
-  - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 335): Test that error is raised for invalid prior portion value.
-  - `def test_transform_application_time_series(self, test_images, test_directories)` (line 360): Test applying transforms from time series registration.
-  - `def test_register_time_series_icon(self, test_images)` (line 412): Test time series registration with ICON method.
-  - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 437): Test time series registration with fixed image mask.
-  - `def test_bidirectional_registration(self, test_images)` (line 482): Test that bidirectional registration works correctly.
+  - `def test_registrar_initialization_ants(self)` (line 30): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
+  - `def test_registrar_initialization_icon(self)` (line 44): Test that RegisterTimeSeriesImages initializes correctly with ICON.
+  - `def test_registrar_initialization_invalid_method(self)` (line 58): Test that invalid registration method raises error.
+  - `def test_set_modality(self)` (line 65): Test setting imaging modality.
+  - `def test_set_fixed_image(self, test_images)` (line 73): Test setting fixed image.
+  - `def test_set_number_of_iterations(self)` (line 84): Test setting number of iterations.
+  - `def test_register_time_series_basic(self, test_images, test_directories)` (line 104): Test basic time series registration without prior transform.
+  - `def test_register_time_series_with_prior(self, test_images, test_directories)` (line 186): Test time series registration with prior transform usage.
+  - `def test_register_time_series_identity_start(self, test_images)` (line 247): Test time series registration with identity for starting image.
+  - `def test_register_time_series_different_starting_indices(self, test_images)` (line 273): Test time series registration with different starting indices.
+  - `def test_register_time_series_error_no_fixed_image(self)` (line 303): Test that error is raised if fixed image not set.
+  - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 314): Test that error is raised for invalid starting index.
+  - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 337): Test that error is raised for invalid prior portion value.
+  - `def test_transform_application_time_series(self, test_images, test_directories)` (line 362): Test applying transforms from time series registration.
+  - `def test_register_time_series_icon(self, test_images)` (line 414): Test time series registration with ICON method.
+  - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 439): Test time series registration with fixed image mask.
+  - `def test_bidirectional_registration(self, test_images)` (line 484): Test that bidirectional registration works correctly.
 
 ## tests/test_segment_chest_total_segmentator.py
 

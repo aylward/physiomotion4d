@@ -479,7 +479,7 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
 
         # Extract surface if needed
         if isinstance(vtk_mesh, pv.UnstructuredGrid) and self.convert_to_surface:
-            vtk_mesh = vtk_mesh.extract_surface()
+            vtk_mesh = vtk_mesh.extract_surface(algorithm="dataset_surface")
 
         # Get boundary labels
         if "boundary_labels" not in vtk_mesh.cell_data:

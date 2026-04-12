@@ -411,8 +411,9 @@ def test_transforms(
     """
     data_dir = test_directories["data"]
 
-    inverse_transform_path = data_dir / "ants_inverse_transform.hdf"
-    forward_transform_path = data_dir / "ants_forward_transform.hdf"
+    frame_tag = "001_to_007"
+    inverse_transform_path = data_dir / f"ants_inverse_transform_{frame_tag}.hdf"
+    forward_transform_path = data_dir / f"ants_forward_transform_{frame_tag}.hdf"
 
     if inverse_transform_path.exists() and forward_transform_path.exists():
         print("\nLoading existing ANTs registration results...")

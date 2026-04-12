@@ -91,7 +91,7 @@ Poor Segmentation Quality
 
    .. code-block:: python
 
-      processor.set_segmentation_method('ensemble')
+      processor.set_segmentation_method('simpleware')
 
 2. Check if image is contrast-enhanced:
 

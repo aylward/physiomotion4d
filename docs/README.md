@@ -70,11 +70,10 @@ docs/
 │   ├── index.rst               # Main API hub
 │   ├── base.rst                # Core base class
 │   ├── workflows.rst           # Workflow classes
-│   ├── segmentation/           # Segmentation (4 files)
+│   ├── segmentation/           # Segmentation (3 files)
 │   │   ├── index.rst
 │   │   ├── base.rst
-│   │   ├── totalsegmentator.rst
-│   │   └── ensemble.rst
+│   │   └── totalsegmentator.rst
 │   ├── registration/           # Image registration (5 files)
 │   │   ├── index.rst
 │   │   ├── base.rst

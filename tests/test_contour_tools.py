@@ -102,7 +102,7 @@ class TestContourTools:
 
         # Test on multiple anatomy groups
         anatomy_groups = ["lung", "heart", "bone"]
-        contours_dict: dict[str, Any] = {}
+        contours_dict: dict[str, pv.PolyData] = {}
 
         for group in anatomy_groups:
             mask = test_labelmaps[0][group]

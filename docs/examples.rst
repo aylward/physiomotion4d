@@ -434,11 +434,11 @@ Segment multiple images in parallel:
    def segment_image(filename):
        segmenter = SegmentChestTotalSegmentator()
        image = itk.imread(filename)
-       masks = segmenter.segment(image, contrast_enhanced_study=True)
+       result = segmenter.segment(image, contrast_enhanced_study=True)
 
        # Save heart mask
        output_name = filename.replace('.nrrd', '_heart.nrrd')
-       itk.imwrite(masks[0], output_name)
+       itk.imwrite(result['heart'], output_name)
        return output_name
 
    # Process in parallel
@@ -533,8 +533,8 @@ Mix and match different components:
 
    # Segment reference
    segmenter = SegmentChestTotalSegmentator()
-   masks = segmenter.segment(reference, contrast_enhanced_study=True)
-   heart_mask = masks[0]
+   result = segmenter.segment(reference, contrast_enhanced_study=True)
+   heart_mask = result['heart']
 
    # Extract reference contour
    contour_tools = ContourTools()

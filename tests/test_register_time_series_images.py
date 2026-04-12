@@ -25,6 +25,8 @@ from physiomotion4d import (
 class TestRegisterTimeSeriesImages:
     """Test suite for time series image registration."""
 
+    _class_name = "registration_time_series_images"
+
     def test_registrar_initialization_ants(self) -> None:
         """Test that RegisterTimeSeriesImages initializes correctly with ANTs."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
@@ -162,7 +164,7 @@ class TestRegisterTimeSeriesImages:
         )
 
         test_tools = TestTools(
-            class_name="registration_time_series_images",
+            class_name=self._class_name,
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -170,14 +172,14 @@ class TestRegisterTimeSeriesImages:
         test_tools.write_result_transform(
             forward_transforms[0], "basic_forward_transform_0.hdf"
         )
-        test_tools.compare_result_to_baseline_transform(
+        assert test_tools.compare_result_to_baseline_transform(
             "basic_forward_transform_0.hdf",
         )
 
         test_tools.write_result_image(
             moving_image, "basic_time_series_registered_0.mha"
         )
-        test_tools.compare_result_to_baseline_image(
+        assert test_tools.compare_result_to_baseline_image(
             "basic_time_series_registered_0.mha",
         )
 
@@ -223,7 +225,7 @@ class TestRegisterTimeSeriesImages:
         print(f"  Losses: {[f'{loss:.6f}' for loss in losses]}")
 
         test_tools = TestTools(
-            class_name="registration_time_series_images",
+            class_name=self._class_name,
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -231,14 +233,14 @@ class TestRegisterTimeSeriesImages:
         test_tools.write_result_transform(
             forward_transforms[0], "prior_forward_transform_0.hdf"
         )
-        test_tools.compare_result_to_baseline_transform(
+        assert test_tools.compare_result_to_baseline_transform(
             "prior_forward_transform_0.hdf",
         )
 
         test_tools.write_result_image(
             moving_image, "prior_time_series_registered_0.mha"
         )
-        test_tools.compare_result_to_baseline_image(
+        assert test_tools.compare_result_to_baseline_image(
             "prior_time_series_registered_0.mha",
         )
 
@@ -397,7 +399,7 @@ class TestRegisterTimeSeriesImages:
 
         # Save registered image
         test_tools = TestTools(
-            class_name="registration_time_series_images",
+            class_name=self._class_name,
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -405,7 +407,7 @@ class TestRegisterTimeSeriesImages:
         test_tools.write_result_image(
             registered_image, "transform_application_time_series_0.mha"
         )
-        test_tools.compare_result_to_baseline_image(
+        assert test_tools.compare_result_to_baseline_image(
             "transform_application_time_series_0.mha",
         )
 

@@ -74,7 +74,7 @@ dependencies = [
     "unigradicon>=1.0.0",
 
     # Visualization and USD
-    "pyvista[all]>=0.42.0",
+    "pyvista[all]>=0.43.0",
     "usd-core>=23.11",
     "trimesh>=4.0.0",
 

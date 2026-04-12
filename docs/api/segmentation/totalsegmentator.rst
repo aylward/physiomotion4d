@@ -376,7 +376,7 @@ Incorrect Boundaries
 If boundaries are imprecise:
 * Disable fast mode for better quality
 * Apply custom post-processing (smoothing, morphological operations)
-* Use ensemble approach combining multiple methods
+* Try Simpleware segmentation for higher-quality cardiac boundaries
 
 Performance Issues
 ------------------

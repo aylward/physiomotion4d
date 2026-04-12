@@ -379,7 +379,7 @@ class TestRegisterImagesICON:
         initial_tfm_forward.SetOffset([-5.0, -5.0, -5.0])
 
         print("\nRegistering with initial transform...")
-        print("  Initial offset: [5.0, 5.0, 5.0]")
+        print("  Initial offset: [-5.0, -5.0, -5.0]")
 
         registrar_icon.set_modality("ct")
         registrar_icon.set_fixed_image(fixed_image)
