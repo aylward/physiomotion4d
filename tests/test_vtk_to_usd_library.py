@@ -66,7 +66,9 @@ def get_or_create_average_surface(test_directories: dict[str, Path]) -> Path:
     Returns:
         Path to the average_surface.vtp file
     """
-    output_dir = test_directories["output"]
+    output_dir = test_directories["output"] / "vtk_to_usd_library"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     surface_file = output_dir / "average_surface.vtp"
 
     # If surface file already exists, return it
@@ -84,14 +86,14 @@ def get_or_create_average_surface(test_directories: dict[str, Path]) -> Path:
     vtk_mesh = pv.read(str(vtk_file))
 
     # Extract surface
-    surface = vtk_mesh.extract_surface()
+    surface = vtk_mesh.extract_surface(algorithm="dataset_surface")
 
     # Save to output directory
     surface.save(str(surface_file))
 
     print(f"Created and saved surface: {surface_file}")
     print(f"  Points: {surface.n_points:,}")
-    print(f"  Faces: {surface.n_faces:,}")
+    print(f"  Faces: {surface.n_faces_strict:,}")
 
     return surface_file
 

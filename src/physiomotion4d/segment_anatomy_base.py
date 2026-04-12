@@ -177,7 +177,7 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
             self.log_info("Input image has spacing: %s", str(input_image.GetSpacing()))
             self.log_info("Resampling to isotropic: %.3f", self.target_spacing)
             interpolator = itk.LinearInterpolateImageFunction.New(input_image)
-            results_image = itk.ResampleImageFilter(
+            results_image = itk.resample_image_filter(
                 input_image,
                 interpolator=interpolator,
                 output_spacing=[
@@ -272,7 +272,7 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
             interpolator = itk.LabelImageGaussianInterpolateImageFunction.New(
                 labelmap_image
             )
-            results_image = itk.ResampleImageFilter(
+            results_image = itk.resample_image_filter(
                 labelmap_image,
                 interpolator=interpolator,
                 ReferenceImage=input_image,
@@ -378,7 +378,7 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
             ...     preprocessed_image, labels, 700, 4000, mask_id=135
             ... )
         """
-        thresh_image = itk.BinaryThresholdImageFilter(
+        thresh_image = itk.binary_threshold_image_filter(
             Input=preprocessed_image,
             LowerThreshold=lower_threshold,
             UpperThreshold=upper_threshold,
@@ -396,7 +396,7 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
         label_image = itk.GetImageFromArray(label_arr.astype(np.int16))
         label_image.CopyInformation(labelmap_image)
 
-        connected_component_image = itk.ConnectedComponentImageFilter(
+        connected_component_image = itk.connected_component_image_filter(
             Input=thresh_image,
             MaskImage=label_image,
         )
@@ -415,7 +415,7 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
         ids = ids[ids != 0]
         component_sums = [np.sum(connected_component_arr == id) for id in ids]
         largest_id = ids[np.argmax(component_sums)]
-        connected_component_image = itk.BinaryThresholdImageFilter(
+        connected_component_image = itk.binary_threshold_image_filter(
             Input=connected_component_image,
             LowerThreshold=int(largest_id),
             UpperThreshold=int(largest_id),

@@ -291,7 +291,6 @@ def run_experiment_scripts(subdir_name: str, timeout_per_script: int = 3600) -> 
 
 @pytest.mark.experiment
 @pytest.mark.slow
-@pytest.mark.timeout(7200)  # 2 hours total timeout
 @pytest.mark.xdist_group(
     name="experiment_colormap"
 )  # Prevent parallel execution within group
@@ -313,7 +312,6 @@ def test_experiment_colormap_vtk_to_usd() -> None:
 # DISABLED - Scripts not ready
 # @pytest.mark.experiment
 # @pytest.mark.slow
-# @pytest.mark.timeout(7200)  # 2 hours total timeout
 # def test_experiment_displacement_field_to_usd():
 #     """
 #     Test DisplacementField_To_USD experiment scripts.
@@ -327,7 +325,6 @@ def test_experiment_colormap_vtk_to_usd() -> None:
 @pytest.mark.experiment
 @pytest.mark.slow
 @pytest.mark.requires_gpu
-@pytest.mark.timeout(14400)  # 4 hours total timeout
 @pytest.mark.xdist_group(name="experiment_reconstruct4dct")
 def test_experiment_reconstruct_4dct() -> None:
     """
@@ -346,7 +343,6 @@ def test_experiment_reconstruct_4dct() -> None:
 @pytest.mark.experiment
 @pytest.mark.slow
 @pytest.mark.requires_data
-@pytest.mark.timeout(10800)  # 3 hours total timeout
 @pytest.mark.xdist_group(name="experiment_heart_vtk")
 def test_experiment_heart_vtk_series_to_usd() -> None:
     """
@@ -367,7 +363,6 @@ def test_experiment_heart_vtk_series_to_usd() -> None:
 @pytest.mark.slow
 @pytest.mark.requires_gpu
 @pytest.mark.requires_data
-@pytest.mark.timeout(21600)  # 6 hours total timeout
 @pytest.mark.xdist_group(name="experiment_heart_gated_ct")
 def test_experiment_heart_gated_ct_to_usd() -> None:
     """
@@ -391,7 +386,6 @@ def test_experiment_heart_gated_ct_to_usd() -> None:
 @pytest.mark.experiment
 @pytest.mark.slow
 @pytest.mark.requires_data
-@pytest.mark.timeout(7200)  # 2 hours total timeout
 @pytest.mark.xdist_group(name="experiment_convert_vtk_to_usd")
 def test_experiment_convert_vtk_to_usd() -> None:
     """
@@ -411,7 +405,6 @@ def test_experiment_convert_vtk_to_usd() -> None:
 @pytest.mark.experiment
 @pytest.mark.slow
 @pytest.mark.requires_data
-@pytest.mark.timeout(10800)  # 3 hours total timeout
 @pytest.mark.xdist_group(name="experiment_create_statistical_model")
 def test_experiment_create_statistical_model() -> None:
     """
@@ -436,7 +429,6 @@ def test_experiment_create_statistical_model() -> None:
 @pytest.mark.slow
 @pytest.mark.requires_gpu
 @pytest.mark.requires_data
-@pytest.mark.timeout(14400)  # 4 hours total timeout
 @pytest.mark.xdist_group(name="experiment_heart_statistical_model")
 def test_experiment_heart_statistical_model_to_patient() -> None:
     """
@@ -471,7 +463,6 @@ def test_experiment_heart_statistical_model_to_patient() -> None:
 @pytest.mark.slow
 @pytest.mark.requires_gpu
 @pytest.mark.requires_data
-@pytest.mark.timeout(21600)  # 6 hours total timeout
 @pytest.mark.xdist_group(name="experiment_lung_gated_ct")
 def test_experiment_lung_gated_ct_to_usd() -> None:
     """
@@ -499,7 +490,6 @@ def test_experiment_lung_gated_ct_to_usd() -> None:
 # @pytest.mark.slow
 # @pytest.mark.requires_gpu
 # @pytest.mark.requires_data
-# @pytest.mark.timeout(7200)  # 2 hours total timeout
 # def test_experiment_lung_vessels_airways():
 #     """
 #     Test Lung-VesselsAirways experiment scripts.

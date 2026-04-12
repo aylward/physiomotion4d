@@ -172,7 +172,7 @@ class ContourTools(PhysioMotion4DBase):
 
         # Create trimesh object with LPS coordinates
         if isinstance(mesh, pv.UnstructuredGrid):
-            mesh = mesh.extract_surface()
+            mesh = mesh.extract_surface(algorithm="dataset_surface")
 
         if hasattr(mesh, "n_faces_strict"):
             # PyVista PolyData

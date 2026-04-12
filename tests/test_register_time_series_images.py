@@ -13,9 +13,11 @@ import itk
 import numpy as np
 import pytest
 
-from physiomotion4d import RegisterTimeSeriesImages
-from physiomotion4d.test_tools import TestTools
-from physiomotion4d.transform_tools import TransformTools
+from physiomotion4d import (
+    RegisterTimeSeriesImages,
+    TestTools,
+    TransformTools,
+)
 
 
 @pytest.mark.requires_data
@@ -160,7 +162,7 @@ class TestRegisterTimeSeriesImages:
         )
 
         test_tools = TestTools(
-            class_name="TestRegisterTimeSeriesImages",
+            class_name="registration_time_series_images",
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -221,7 +223,7 @@ class TestRegisterTimeSeriesImages:
         print(f"  Losses: {[f'{loss:.6f}' for loss in losses]}")
 
         test_tools = TestTools(
-            class_name="TestRegisterTimeSeriesImages",
+            class_name="registration_time_series_images",
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -395,7 +397,7 @@ class TestRegisterTimeSeriesImages:
 
         # Save registered image
         test_tools = TestTools(
-            class_name="TestRegisterTimeSeriesImages",
+            class_name="registration_time_series_images",
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )

@@ -26,10 +26,10 @@ from physiomotion4d.transform_tools import TransformTools
 def _extract_surface(mesh: pv.DataSet) -> pv.PolyData:
     """Extract surface from a mesh (PolyData or UnstructuredGrid)."""
     if isinstance(mesh, pv.UnstructuredGrid):
-        return mesh.extract_surface()
+        return mesh.extract_surface(algorithm="dataset_surface")
     if isinstance(mesh, pv.PolyData):
         return mesh
-    return mesh.extract_surface()
+    return mesh.extract_surface(algorithm="dataset_surface")
 
 
 class WorkflowCreateStatisticalModel(PhysioMotion4DBase):
@@ -138,13 +138,15 @@ class WorkflowCreateStatisticalModel(PhysioMotion4DBase):
         if self.solve_for_surface_pca:
             reference_surface = self.reference_model
         else:
-            reference_surface = self.reference_model.extract_surface()
+            reference_surface = self.reference_model.extract_surface(
+                algorithm="dataset_surface"
+            )
         for i, (sid, moving) in enumerate(zip(self.sample_ids, self.sample_models)):
             self.log_info(
                 "ICP aligning %s (%d/%d)", sid, i + 1, len(self.sample_models)
             )
             # Always extract surfaces for ICP alignment
-            moving_surface = moving.extract_surface()
+            moving_surface = moving.extract_surface(algorithm="dataset_surface")
             registrar = RegisterModelsICP(fixed_model=reference_surface)
             result = registrar.register(
                 moving_model=moving_surface,
@@ -290,7 +292,9 @@ class WorkflowCreateStatisticalModel(PhysioMotion4DBase):
             self.pca_mean_surface = pca_mean_model
         else:
             self.pca_mean_mesh = pca_mean_model
-            self.pca_mean_surface = pca_mean_model.extract_surface()
+            self.pca_mean_surface = pca_mean_model.extract_surface(
+                algorithm="dataset_surface"
+            )
 
     def _build_result(self) -> dict[str, Any]:
         """Build result dictionary: surfaces, meshes, and PCA model structure."""

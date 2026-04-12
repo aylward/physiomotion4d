@@ -38,6 +38,9 @@ class TestTools(PhysioMotion4DBase):
     for logging. All image I/O uses ITK .mha with compression.
     """
 
+    # Prevent pytest from collecting this as a test class
+    __test__ = False
+
     def __init__(
         self,
         results_dir: Path,

@@ -112,7 +112,7 @@ patient_model.save(str(output_dir / "patient_mesh.vtp"))
 patient_model = pv.read(str(output_dir / "patient_mesh.vtp"))
 
 template_model = pv.read(str(atlas_vtu_path))
-template_model_surface = template_model.extract_surface()
+template_model_surface = template_model.extract_surface(algorithm="dataset_surface")
 template_model_surface.save(str(output_dir / "model_surface.vtp"))
 template_model_surface = pv.read(str(output_dir / "model_surface.vtp"))
 template_labelmap = itk.imread(str(atlas_labelmap_path))

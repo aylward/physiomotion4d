@@ -64,6 +64,7 @@ from .register_time_series_images import RegisterTimeSeriesImages
 from .segment_anatomy_base import SegmentAnatomyBase
 from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from .segment_heart_simpleware import SegmentHeartSimpleware
+from .test_tools import TestTools
 from .transform_tools import TransformTools
 from .usd_anatomy_tools import USDAnatomyTools
 from .usd_tools import USDTools
@@ -104,6 +105,7 @@ __all__ = [
     "PhysioMotion4DBase",
     # Utility classes
     "ImageTools",
+    "TestTools",
     "TransformTools",
     "USDTools",
     "ContourTools",
