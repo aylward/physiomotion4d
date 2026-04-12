@@ -259,11 +259,11 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def preprocess_input(self, input_image)` (line 123): Preprocess the input image for segmentation.
   - `def postprocess_labelmap(self, labelmap_image, input_image)` (line 245): Resample the labelmap to match the input image spacing.
   - `def segment_connected_component(self, preprocessed_image, labelmap_image, lower_threshold, upper_threshold, labelmap_ids=None, mask_id=0, use_mid_slice=True, hole_fill=2)` (line 341): Segment connected components based on intensity thresholding.
-  - `def segment_contrast_agent(self, preprocessed_image, labelmap_image)` (line 440): Include contrast-enhanced blood in the labelmap.
-  - `def create_anatomy_group_masks(self, labelmap_image)` (line 482): Create binary masks for different anatomical groups from the labelmap.
-  - `def segmentation_method(self, preprocessed_image)` (line 568): Abstract method for image segmentation - must be implemented by subclasses.
-  - `def dilate_mask(self, mask, dilation)` (line 590): Dilate a binary mask using morphological operations.
-  - `def segment(self, input_image, contrast_enhanced_study=False)` (line 613): Perform complete chest CT segmentation.
+  - `def segment_contrast_agent(self, preprocessed_image, labelmap_image)` (line 448): Include contrast-enhanced blood in the labelmap.
+  - `def create_anatomy_group_masks(self, labelmap_image)` (line 490): Create binary masks for different anatomical groups from the labelmap.
+  - `def segmentation_method(self, preprocessed_image)` (line 576): Abstract method for image segmentation - must be implemented by subclasses.
+  - `def dilate_mask(self, mask, dilation)` (line 598): Dilate a binary mask using morphological operations.
+  - `def segment(self, input_image, contrast_enhanced_study=False)` (line 621): Perform complete chest CT segmentation.
 
 ## src/physiomotion4d/segment_chest_total_segmentator.py
 

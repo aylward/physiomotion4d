@@ -413,6 +413,14 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
 
         ids = np.unique(connected_component_arr)
         ids = ids[ids != 0]
+        if ids.size == 0:
+            self.log_debug(
+                "segment_connected_component: no connected components found "
+                "in threshold [%d, %d]; returning labelmap unchanged",
+                lower_threshold,
+                upper_threshold,
+            )
+            return labelmap_image
         component_sums = [np.sum(connected_component_arr == id) for id in ids]
         largest_id = ids[np.argmax(component_sums)]
         connected_component_image = itk.binary_threshold_image_filter(
