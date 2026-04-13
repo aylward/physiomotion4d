@@ -70,13 +70,10 @@ docs/
 │   ├── index.rst               # Main API hub
 │   ├── base.rst                # Core base class
 │   ├── workflows.rst           # Workflow classes
-│   ├── segmentation/           # Segmentation (6 files)
+│   ├── segmentation/           # Segmentation (3 files)
 │   │   ├── index.rst
 │   │   ├── base.rst
-│   │   ├── totalsegmentator.rst
-│   │   ├── vista3d.rst
-│   │   ├── vista3d_nim.rst
-│   │   └── ensemble.rst
+│   │   └── totalsegmentator.rst
 │   ├── registration/           # Image registration (5 files)
 │   │   ├── index.rst
 │   │   ├── base.rst

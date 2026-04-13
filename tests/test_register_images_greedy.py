@@ -6,10 +6,14 @@ Uses the same fixtures as test_register_images_ants (converted 3D CT images).
 Requires the picsl-greedy package and test data.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import numpy as np
 import pytest
 
+from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.transform_tools import TransformTools
 
 
@@ -18,15 +22,17 @@ from physiomotion4d.transform_tools import TransformTools
 class TestRegisterImagesGreedy:
     """Test suite for Greedy-based image registration."""
 
-    def test_registrar_initialization(self, registrar_greedy) -> None:
+    def test_registrar_initialization(
+        self, registrar_greedy: RegisterImagesGreedy
+    ) -> None:
         """Test that RegisterImagesGreedy initializes correctly."""
         assert registrar_greedy is not None, "Registrar not initialized"
         assert hasattr(registrar_greedy, "fixed_image"), "Missing fixed_image attribute"
         assert hasattr(registrar_greedy, "fixed_mask"), "Missing fixed_mask attribute"
 
-        print("\n✓ Greedy registrar initialized successfully")
+        print("\nGreedy registrar initialized successfully")
 
-    def test_set_modality(self, registrar_greedy) -> None:
+    def test_set_modality(self, registrar_greedy: RegisterImagesGreedy) -> None:
         """Test setting imaging modality."""
         registrar_greedy.set_modality("ct")
         assert registrar_greedy.modality == "ct", "Modality not set correctly"
@@ -34,9 +40,11 @@ class TestRegisterImagesGreedy:
         registrar_greedy.set_modality("mr")
         assert registrar_greedy.modality == "mr", "Modality change failed"
 
-        print("\n✓ Modality setting works correctly")
+        print("\nModality setting works correctly")
 
-    def test_set_transform_type_and_metric(self, registrar_greedy) -> None:
+    def test_set_transform_type_and_metric(
+        self, registrar_greedy: RegisterImagesGreedy
+    ) -> None:
         """Test setting transform type and metric."""
         registrar_greedy.set_transform_type("Rigid")
         assert registrar_greedy.transform_type == "Rigid"
@@ -59,19 +67,24 @@ class TestRegisterImagesGreedy:
         with pytest.raises(ValueError, match="Invalid metric"):
             registrar_greedy.set_metric("Invalid")
 
-        print("\n✓ Transform type and metric setting work correctly")
+        print("\nTransform type and metric setting work correctly")
 
-    def test_set_fixed_image(self, registrar_greedy, test_images) -> None:
+    def test_set_fixed_image(
+        self, registrar_greedy: RegisterImagesGreedy, test_images: list[Any]
+    ) -> None:
         """Test setting fixed image."""
         fixed_image = test_images[0]
         registrar_greedy.set_fixed_image(fixed_image)
         assert registrar_greedy.fixed_image is not None, "Fixed image not set"
 
-        print("\n✓ Fixed image set successfully")
+        print("\nFixed image set successfully")
         print(f"  Image size: {itk.size(registrar_greedy.fixed_image)}")
 
     def test_register_affine_without_mask(
-        self, registrar_greedy, test_images, test_directories
+        self,
+        registrar_greedy: RegisterImagesGreedy,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
     ) -> None:
         """Test affine registration without masks."""
         output_dir = test_directories["output"]
@@ -99,7 +112,7 @@ class TestRegisterImagesGreedy:
         assert inverse_transform is not None, "inverse_transform is None"
         assert forward_transform is not None, "forward_transform is None"
 
-        print("✓ Greedy affine registration complete without mask")
+        print("Greedy affine registration complete without mask")
 
         itk.transformwrite(
             [inverse_transform],
@@ -113,7 +126,10 @@ class TestRegisterImagesGreedy:
         )
 
     def test_register_affine_with_mask(
-        self, registrar_greedy, test_images, test_directories
+        self,
+        registrar_greedy: RegisterImagesGreedy,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
     ) -> None:
         """Test affine registration with binary masks."""
         output_dir = test_directories["output"]
@@ -167,10 +183,13 @@ class TestRegisterImagesGreedy:
         assert result["inverse_transform"] is not None
         assert result["forward_transform"] is not None
 
-        print("✓ Greedy affine registration complete with masks")
+        print("Greedy affine registration complete with masks")
 
     def test_transform_application(
-        self, registrar_greedy, test_images, test_directories
+        self,
+        registrar_greedy: RegisterImagesGreedy,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
     ) -> None:
         """Test applying registration transform to moving image."""
         output_dir = test_directories["output"]
@@ -200,7 +219,7 @@ class TestRegisterImagesGreedy:
             np.abs(moving_arr.astype(float) - registered_arr.astype(float))
         )
 
-        print("✓ Greedy transform applied successfully")
+        print("Greedy transform applied successfully")
         print(f"  Registered image size: {itk.size(registered_image)}")
         print(f"  Total difference: {difference:.2f}")
 

@@ -51,7 +51,6 @@ ANATOMY_GROUPS: tuple[str, ...] = (
 #: Supported segmentation backend identifiers.
 SEGMENTATION_METHODS: tuple[str, ...] = (
     "total_segmentator",
-    "vista_3d",
     "simpleware_heart",
 )
 
@@ -63,7 +62,6 @@ class WorkflowConvertCTToVTK(PhysioMotion4DBase):
 
     - ``'total_segmentator'`` — :class:`SegmentChestTotalSegmentator` (CPU-capable,
       default).
-    - ``'vista_3d'`` — :class:`SegmentChestVista3D` (GPU-accelerated MONAI VISTA-3D).
     - ``'simpleware_heart'`` — :class:`SegmentHeartSimpleware` (cardiac only; requires
       a Simpleware Medical installation).
 
@@ -106,8 +104,7 @@ class WorkflowConvertCTToVTK(PhysioMotion4DBase):
 
         Args:
             segmentation_method: Segmentation backend to use.  One of
-                ``'total_segmentator'`` (default), ``'vista_3d'``, or
-                ``'simpleware_heart'``.
+                ``'total_segmentator'`` (default) or ``'simpleware_heart'``.
             log_level: Logging level.  Default: ``logging.INFO``.
 
         Raises:
@@ -147,10 +144,6 @@ class WorkflowConvertCTToVTK(PhysioMotion4DBase):
             )
 
             return SegmentChestTotalSegmentator(log_level=self.log_level)
-        if self.segmentation_method_name == "vista_3d":
-            from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
-
-            return SegmentChestVista3D(log_level=self.log_level)
         if self.segmentation_method_name == "simpleware_heart":
             from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
 

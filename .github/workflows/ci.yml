@@ -107,6 +107,7 @@ jobs:
       uses: codecov/codecov-action@v4
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
         flags: unittests
         name: codecov-unit-${{ matrix.os }}-py${{ matrix.python-version }}
@@ -233,6 +234,7 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
         flags: integration-tests
         name: codecov-integration
@@ -317,6 +319,7 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
         flags: gpu-tests
         name: codecov-gpu
@@ -380,7 +383,6 @@ jobs:
 # - tests/test_register_images_icon.py (requires CUDA for ICON)
 # - tests/test_transform_tools.py (depends on slow registration tests)
 # - tests/test_segment_chest_total_segmentator.py (requires CUDA for TotalSegmentator)
-# - tests/test_segment_chest_vista_3d.py (requires CUDA for VISTA-3D, 20GB+ RAM)
 #
 # Experiment tests (EXTREMELY SLOW - hours to complete):
 # - tests/test_experiments.py (runs all notebooks in experiments/ subdirectories)

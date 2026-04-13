@@ -6,14 +6,15 @@ This file defines fixtures that are available to all test modules
 in the tests directory via pytest's automatic fixture discovery.
 """
 
-import shutil
+import os
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Optional
 
 import itk
 import pytest
-from itk import TubeTK as ttk
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
@@ -21,7 +22,6 @@ from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
-from physiomotion4d.segment_chest_vista_3d import SegmentChestVista3D
 from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
 from physiomotion4d.transform_tools import TransformTools
 
@@ -30,10 +30,10 @@ from physiomotion4d.transform_tools import TransformTools
 # ============================================================================
 
 # Module-level variable to store config for access in hooks
-_pytest_config = None
+_pytest_config: Optional[pytest.Config] = None
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: pytest.Parser) -> None:
     """Add custom command-line options for pytest."""
     parser.addoption(
         "--run-experiments",
@@ -49,7 +49,7 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest with custom markers and settings."""
     global _pytest_config
     _pytest_config = config
@@ -65,14 +65,16 @@ def pytest_configure(config):
         "experiment: marks tests that run experiment notebooks (extremely slow, manual only)",
     )
     # Initialize test timing storage
-    config._test_timings = {
+    config._test_timings = {  # type: ignore[attr-defined]
         "tests": [],
         "total_time": 0.0,
         "start_time": datetime.now(),
     }
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
     """
     Automatically skip experiment tests unless --run-experiments is passed.
 
@@ -92,7 +94,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_experiments)
 
 
-def pytest_runtest_logreport(report):
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     """
     Collect test timing information after each test completes.
 
@@ -112,18 +114,22 @@ def pytest_runtest_logreport(report):
             "is_experiment": "experiment" in report.keywords,
         }
 
-        _pytest_config._test_timings["tests"].append(test_info)
-        _pytest_config._test_timings["total_time"] += report.duration
+        _pytest_config._test_timings["tests"].append(test_info)  # type: ignore[attr-defined]
+        _pytest_config._test_timings["total_time"] += report.duration  # type: ignore[attr-defined]
 
 
-def pytest_terminal_summary(terminalreporter, exitstatus, config):
+def pytest_terminal_summary(
+    terminalreporter: Any,
+    exitstatus: int,
+    config: pytest.Config,
+) -> None:
     """
     Print comprehensive test timing report after all tests complete.
 
     This hook is called at the end of the test session to display
     timing statistics for all tests, including experiment tests.
     """
-    timings = config._test_timings
+    timings = config._test_timings  # type: ignore[attr-defined]
     tests = timings["tests"]
 
     if not tests:
@@ -168,7 +174,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         # Show all regular tests with timing
         terminalreporter.write_line("Individual Test Times:")
         for test in sorted_regular:
-            outcome_symbol = "✓" if test["outcome"] == "passed" else "✗"
+            outcome_symbol = "+" if test["outcome"] == "passed" else "x"
             duration_str = _format_duration(test["duration"])
             terminalreporter.write_line(
                 f"  {outcome_symbol} {duration_str:>10s}  {test['nodeid']}"
@@ -195,7 +201,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         # Show all experiment tests with timing
         terminalreporter.write_line("Individual Test Times:")
         for test in sorted_experiments:
-            outcome_symbol = "✓" if test["outcome"] == "passed" else "✗"
+            outcome_symbol = "+" if test["outcome"] == "passed" else "x"
             duration_str = _format_duration(test["duration"])
             terminalreporter.write_line(
                 f"  {outcome_symbol} {duration_str:>10s}  {test['nodeid']}"
@@ -208,7 +214,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         sorted_all = sorted(tests, key=lambda x: x["duration"], reverse=True)[:10]
 
         for i, test in enumerate(sorted_all, 1):
-            outcome_symbol = "✓" if test["outcome"] == "passed" else "✗"
+            outcome_symbol = "+" if test["outcome"] == "passed" else "x"
             duration_str = _format_duration(test["duration"])
             test_type = "[EXP]" if test["is_experiment"] else "[REG]"
             terminalreporter.write_line(
@@ -228,7 +234,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     terminalreporter.write_line("")
 
 
-def _format_duration(seconds):
+def _format_duration(seconds: float) -> str:
     """Format duration in a human-readable way."""
     if seconds < 1:
         return f"{seconds * 1000:.0f}ms"
@@ -250,11 +256,11 @@ def _format_duration(seconds):
 
 
 @pytest.fixture(scope="session")
-def test_directories():
+def test_directories() -> dict[str, Path]:
     """Set up test directories for data and results."""
-    data_dir = Path("tests/data/Slicer-Heart-CT")
-    output_dir = Path("tests/results")
-    baselines_dir = Path("tests/baselines")
+    data_dir = Path(__file__).parent.parent / "data" / "test"
+    output_dir = Path(__file__).parent / "results"
+    baselines_dir = Path(__file__).parent / "baselines"
 
     # Create directories if they don't exist
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -265,38 +271,32 @@ def test_directories():
 
 
 @pytest.fixture(scope="session")
-def download_truncal_valve_data(test_directories):
+def download_test_data(test_directories: dict[str, Path]) -> Path:
     """Download TruncalValve 4D CT data."""
     data_dir = test_directories["data"]
     input_image_filename = data_dir / "TruncalValve_4DCT.seq.nrrd"
 
-    # Check if file already exists in test data directory
+    # Check if file already exists
     if input_image_filename.exists():
         print(f"\nData file already exists: {input_image_filename}")
         return input_image_filename
 
-    # Check if file exists in main data directory (one level up from project root)
-    main_data_file = Path("data/Slicer-Heart-CT/TruncalValve_4DCT.seq.nrrd")
-    if main_data_file.exists():
-        print(f"\nCopying data from main data directory: {main_data_file}")
-        import shutil
-
-        data_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy(str(main_data_file), str(input_image_filename))
-        print(f"Copied to {input_image_filename}")
-        return input_image_filename
-
     # Try to download if not found locally
-    input_image_url = "https://github.com/Slicer-Heart-CT/Slicer-Heart-CT/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
+    input_image_url = "https://github.com/SlicerHeart/SlicerHeart/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
     print(f"\nDownloading TruncalValve 4D CT data from {input_image_url}...")
 
     try:
         urllib.request.urlretrieve(input_image_url, str(input_image_filename))
         print(f"Downloaded to {input_image_filename}")
-    except urllib.error.HTTPError as e:
-        pytest.skip(
-            f"Could not download test data: {e}. Please manually place TruncalValve_4DCT.seq.nrrd in {data_dir}"
+    except urllib.error.URLError as e:
+        msg = (
+            f"Could not download test data: {e}. "
+            f"Please manually place TruncalValve_4DCT.seq.nrrd in {data_dir}"
         )
+        if os.environ.get("CI"):
+            pytest.fail(msg)
+        else:
+            pytest.skip(msg)
 
     return input_image_filename
 
@@ -307,219 +307,114 @@ def download_truncal_valve_data(test_directories):
 
 
 @pytest.fixture(scope="session")
-def converted_3d_images(download_truncal_valve_data, test_directories):
-    """Convert 4D NRRD to 3D time series and return slice files."""
+def test_images(
+    download_test_data: Path,
+    test_directories: dict[str, Path],
+) -> list[Any]:
+    """Convert and resample 4D NRRD data; return pre-resampled time points."""
     data_dir = test_directories["data"]
-    output_dir = test_directories["output"]
-    input_4d_file = download_truncal_valve_data
 
-    # Check if conversion already done
+    # Convert 4D NRRD to 3D time series if not already done
     slice_000 = data_dir / "slice_000.mha"
     slice_007 = data_dir / "slice_007.mha"
-
     if not slice_000.exists() or not slice_007.exists():
-        # Convert 4D to 3D time series
         print("\nConverting 4D NRRD to 3D time series...")
         conv = ConvertNRRD4DTo3D()
-        conv.load_nrrd_4d(str(input_4d_file))
+        conv.load_nrrd_4d(str(download_test_data))
         conv.save_3d_images(str(data_dir / "slice"))
-
-        # Copy mid-stroke slice as fixed/reference image
-        fixed_image_output = output_dir / "slice_fixed.mha"
-        shutil.copyfile(str(slice_007), str(fixed_image_output))
-        print(f"Conversion complete, saved fixed image to: {fixed_image_output}")
     else:
         print("\n3D slice files already exist")
 
-    return data_dir
+    # Resample each slice_???.mha to 1.5x1.5x1.5 mm and save as slice_???_sml.mha
+    target_spacing = [1.5, 1.5, 1.5]
+    for slice_file in sorted(data_dir.glob("slice_???.mha")):
+        sml_file = slice_file.with_name(slice_file.stem + "_sml.mha")
+        if not sml_file.exists():
+            print(f"\nResampling {slice_file.name} -> {sml_file.name} ...")
+            img = itk.imread(str(slice_file))
+            input_spacing = list(img.GetSpacing())
+            input_size = list(itk.size(img))
+            output_size = [
+                int(round(input_size[i] * input_spacing[i] / target_spacing[i]))
+                for i in range(3)
+            ]
+            interpolator = itk.LinearInterpolateImageFunction.New(img)
+            resampler = itk.ResampleImageFilter.New(Input=img)
+            resampler.SetInterpolator(interpolator)
+            resampler.SetOutputSpacing(target_spacing)
+            resampler.SetSize(output_size)
+            resampler.SetOutputOrigin(img.GetOrigin())
+            resampler.SetOutputDirection(img.GetDirection())
+            resampler.Update()
+            itk.imwrite(resampler.GetOutput(), str(sml_file), compression=True)
+    print("\nResampled slice files up to date")
 
+    slice_files = sorted(data_dir.glob("slice_???_sml.mha"))
+    if len(slice_files) < 3:
+        pytest.skip("Resampled slice files not found.")
 
-@pytest.fixture(scope="session")
-def test_images(converted_3d_images):
-    """Load time points from the converted 3D data for testing."""
-    data_dir = converted_3d_images
-
-    # Load time points
-    slice_000 = data_dir / "slice_000.mha"
-    slice_001 = data_dir / "slice_001.mha"
-    slice_002 = data_dir / "slice_002.mha"
-    slice_003 = data_dir / "slice_003.mha"
-    slice_004 = data_dir / "slice_004.mha"
-    slice_005 = data_dir / "slice_005.mha"
-
-    # Ensure the files exist
-    if not slice_000.exists() or not slice_001.exists() or not slice_002.exists():
-        pytest.skip("Converted 3D slice files not found. Run conversion test first.")
-
-    images = [
-        itk.imread(str(slice_000)),
-        itk.imread(str(slice_001)),
-        itk.imread(str(slice_002)),
-        itk.imread(str(slice_003)),
-        itk.imread(str(slice_004)),
-        itk.imread(str(slice_005)),
-    ]
-
-    for i, img in enumerate(images):
-        resampler = ttk.ResampleImage.New(Input=img)
-        resampler.SetResampleFactor([0.5, 0.5, 0.5])
-        resampler.Update()
-        images[i] = resampler.GetOutput()
-
+    images = [itk.imread(str(f)) for f in slice_files]
     print(f"\nLoaded {len(images)} time points for testing")
     return images
 
 
-# ============================================================================
-# Segmentation Fixtures
-# ============================================================================
-
-
 @pytest.fixture(scope="session")
-def segmenter_total_segmentator():
-    """Create a SegmentChestTotalSegmentator instance."""
-    return SegmentChestTotalSegmentator()
-
-
-@pytest.fixture(scope="session")
-def segmenter_vista_3d():
-    """Create a SegmentChestVista3D instance."""
-    return SegmentChestVista3D()
-
-
-@pytest.fixture(scope="session")
-def segmenter_simpleware():
-    """Create a SegmentHeartSimpleware instance."""
-    return SegmentHeartSimpleware()
-
-
-@pytest.fixture(scope="session")
-def heart_simpleware_image_path():
-    """Path to cardiac CT image used by experiments/Heart-Simpleware_Segmentation notebook."""
-    # Heart-Simpleware_Segmentation uses same data as the notebook: data/CHOP-Valve4D/CT/RVOT28-Dias.nii.gz
-    image_path = (
-        Path(__file__).resolve().parent.parent
-        / "data"
-        / "CHOP-Valve4D"
-        / "CT"
-        / "RVOT28-Dias.nii.gz"
-    )
-    if not image_path.exists():
-        pytest.skip(
-            f"Heart Simpleware test data not found: {image_path}. "
-            "Place RVOT28-Dias.nii.gz there or run from repo with data/CHOP-Valve4D/CT/ populated."
-        )
-    return image_path
-
-
-@pytest.fixture(scope="session")
-def heart_simpleware_image(heart_simpleware_image_path):
-    """Load cardiac CT image for SegmentHeartSimpleware tests (same as notebook)."""
-    return itk.imread(str(heart_simpleware_image_path))
-
-
-@pytest.fixture(scope="session")
-def segmentation_results(segmenter_total_segmentator, test_images, test_directories):
+def test_labelmaps(
+    segmenter_total_segmentator: SegmentChestTotalSegmentator,
+    test_images: list[Any],
+    test_directories: dict[str, Path],
+) -> list[dict[str, Any]]:
     """
-    Get or create segmentation results using TotalSegmentator.
-    Used by multiple tests (contour, USD conversion, etc.)
+    Segment each time point with TotalSegmentator and return result dicts.
+    Labelmaps are cached at data_dir / slice_???_sml_labelmap.mha.
     """
-    output_dir = test_directories["output"]
-    seg_output_dir = output_dir / "segmentation_total_segmentator"
+    data_dir = test_directories["data"]
+    slice_files = sorted(data_dir.glob("slice_???_sml.mha"))
 
-    # Check if segmentation files exist
-    labelmap_000 = seg_output_dir / "slice_000_labelmap.mha"
-    labelmap_001 = seg_output_dir / "slice_001_labelmap.mha"
-
-    if not labelmap_000.exists() or not labelmap_001.exists():
-        # Run segmentation if results don't exist
-        print("\nSegmentation results not found, generating them...")
-        seg_output_dir.mkdir(parents=True, exist_ok=True)
-
-        results = []
-        for i, input_image in enumerate(test_images):
+    results: list[dict[str, Any]] = []
+    for img, slice_file in zip(test_images, slice_files):
+        labelmap_file = data_dir / f"{slice_file.stem}_labelmap.mha"
+        if not labelmap_file.exists():
+            print(f"\nSegmenting {slice_file.name} ...")
             result = segmenter_total_segmentator.segment(
-                input_image, contrast_enhanced_study=False
+                img, contrast_enhanced_study=False
             )
-            results.append(result)
+            itk.imwrite(result["labelmap"], str(labelmap_file), compression=True)
 
-            # Save labelmap
-            labelmap = result["labelmap"]
-            output_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
-            itk.imwrite(labelmap, str(output_file), compression=True)
-
-        return results
-    # Load existing segmentation results
-    print("\nLoading existing segmentation results...")
-    results = []
-    for i in range(2):
-        labelmap_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
         labelmap = itk.imread(str(labelmap_file))
-
-        # Create anatomy group masks from labelmap
         masks = segmenter_total_segmentator.create_anatomy_group_masks(labelmap)
-
-        result = {
-            "labelmap": labelmap,
-            "lung": masks["lung"],
-            "heart": masks["heart"],
-            "major_vessels": masks["major_vessels"],
-            "bone": masks["bone"],
-            "soft_tissue": masks["soft_tissue"],
-            "other": masks["other"],
-            "contrast": masks["contrast"],
-        }
-        results.append(result)
+        results.append(
+            {
+                "labelmap": labelmap,
+                "lung": masks["lung"],
+                "heart": masks["heart"],
+                "major_vessels": masks["major_vessels"],
+                "bone": masks["bone"],
+                "soft_tissue": masks["soft_tissue"],
+                "other": masks["other"],
+                "contrast": masks["contrast"],
+            }
+        )
 
     return results
 
 
-# ============================================================================
-# Contour Tool Fixtures
-# ============================================================================
-
-
 @pytest.fixture(scope="session")
-def contour_tools():
-    """Create a ContourTools instance."""
-    return ContourTools()
-
-
-# ============================================================================
-# Registration Fixtures
-# ============================================================================
-
-
-@pytest.fixture(scope="session")
-def registrar_ants():
-    """Create a RegisterImagesANTs instance."""
-    return RegisterImagesANTs()
-
-
-@pytest.fixture(scope="session")
-def registrar_greedy():
-    """Create a RegisterImagesGreedy instance."""
-    return RegisterImagesGreedy()
-
-
-@pytest.fixture(scope="session")
-def registrar_icon():
-    """Create a RegisterImagesICON instance."""
-    return RegisterImagesICON()
-
-
-@pytest.fixture(scope="session")
-def ants_registration_results(registrar_ants, test_images, test_directories):
+def test_transforms(
+    registrar_ants: RegisterImagesANTs,
+    test_images: list[Any],
+    test_directories: dict[str, Path],
+) -> dict[str, Any]:
     """
     Perform ANTs registration and return results.
     Generates them if not already present, otherwise loads from disk.
+    Transforms are cached in data_dir alongside the slice files.
     """
-    output_dir = test_directories["output"]
-    reg_output_dir = output_dir / "registration_ants"
-    reg_output_dir.mkdir(exist_ok=True)
+    data_dir = test_directories["data"]
 
-    inverse_transform_path = reg_output_dir / "ants_inverse_transform_no_mask.hdf"
-    forward_transform_path = reg_output_dir / "ants_forward_transform_no_mask.hdf"
+    frame_tag = "001_to_007"
+    inverse_transform_path = data_dir / f"ants_inverse_transform_{frame_tag}.hdf"
+    forward_transform_path = data_dir / f"ants_forward_transform_{frame_tag}.hdf"
 
     if inverse_transform_path.exists() and forward_transform_path.exists():
         print("\nLoading existing ANTs registration results...")
@@ -533,13 +428,12 @@ def ants_registration_results(registrar_ants, test_images, test_directories):
         except (RuntimeError, Exception) as e:
             print(f"Error loading transforms: {e}")
             print("Regenerating registration results...")
-            # Delete corrupt files
             inverse_transform_path.unlink(missing_ok=True)
             forward_transform_path.unlink(missing_ok=True)
 
     # Perform registration if files don't exist or loading failed
     print("\nPerforming ANTs registration...")
-    fixed_image = test_images[0]
+    fixed_image = test_images[7]
     moving_image = test_images[1]
 
     registrar_ants.set_fixed_image(fixed_image)
@@ -557,11 +451,47 @@ def ants_registration_results(registrar_ants, test_images, test_directories):
 
 
 # ============================================================================
-# Transform Tool Fixtures
+# Fixtures
 # ============================================================================
 
 
 @pytest.fixture(scope="session")
-def transform_tools():
+def segmenter_total_segmentator() -> SegmentChestTotalSegmentator:
+    """Create a SegmentChestTotalSegmentator instance."""
+    return SegmentChestTotalSegmentator()
+
+
+@pytest.fixture(scope="session")
+def segmenter_simpleware() -> SegmentHeartSimpleware:
+    """Create a SegmentHeartSimpleware instance."""
+    return SegmentHeartSimpleware()
+
+
+@pytest.fixture(scope="session")
+def contour_tools() -> ContourTools:
+    """Create a ContourTools instance."""
+    return ContourTools()
+
+
+@pytest.fixture(scope="session")
+def registrar_ants() -> RegisterImagesANTs:
+    """Create a RegisterImagesANTs instance."""
+    return RegisterImagesANTs()
+
+
+@pytest.fixture(scope="session")
+def registrar_greedy() -> RegisterImagesGreedy:
+    """Create a RegisterImagesGreedy instance."""
+    return RegisterImagesGreedy()
+
+
+@pytest.fixture(scope="session")
+def registrar_icon() -> RegisterImagesICON:
+    """Create a RegisterImagesICON instance."""
+    return RegisterImagesICON()
+
+
+@pytest.fixture(scope="session")
+def transform_tools() -> TransformTools:
     """Create a TransformTools instance."""
     return TransformTools()

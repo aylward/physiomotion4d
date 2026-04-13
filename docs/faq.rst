@@ -93,9 +93,8 @@ Typical processing time for 10-frame cardiac CT (with GPU):
 Which segmentation method should I use?
 ----------------------------------------
 
-* **TotalSegmentator**: Fast, good quality
-* **VISTA-3D**: Best quality, requires more GPU memory
-* **Ensemble**: Best quality, slowest
+* **TotalSegmentator**: Fast, good quality, general purpose
+* **Simpleware**: Best quality for cardiac imaging, requires Simpleware Medical
 
 See :doc:`api/segmentation/index` for comparison.
 

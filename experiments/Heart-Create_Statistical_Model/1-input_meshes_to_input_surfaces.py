@@ -37,7 +37,7 @@ for vtk_file in vtk_files:
         mesh = pv.read(input_dir / vtk_file)
 
         # Extract the surface
-        surface = mesh.extract_surface()
+        surface = mesh.extract_surface(algorithm="dataset_surface")
 
         # Generate the output filename
         base_name = Path(vtk_file).stem
@@ -62,7 +62,7 @@ print("Processing complete!")
 mesh = pv.read(_HERE / "../../data/KCL-Heart-Model/average_mesh.vtk")
 
 # Extract the surface
-surface = mesh.extract_surface()
+surface = mesh.extract_surface(algorithm="dataset_surface")
 
 # Save the surface as VTP
 surface.save(f"{output_dir}/../average_surface.vtp")

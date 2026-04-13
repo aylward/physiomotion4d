@@ -20,9 +20,6 @@ This section provides detailed documentation for all PhysioMotion4D classes, fun
    segmentation/index
    segmentation/base
    segmentation/totalsegmentator
-   segmentation/vista3d
-   segmentation/vista3d_nim
-   segmentation/ensemble
 
 .. toctree::
    :maxdepth: 2
@@ -82,9 +79,7 @@ By Category
 **Segmentation**
    * :class:`~physiomotion4d.SegmentAnatomyBase` - Base segmentation class
    * :class:`~physiomotion4d.SegmentChestTotalSegmentator` - TotalSegmentator
-   * :class:`~physiomotion4d.SegmentChestVista3D` - VISTA-3D model
-   * :class:`~physiomotion4d.SegmentChestVista3DNIM` - VISTA-3D NIM
-   * :class:`~physiomotion4d.SegmentChestEnsemble` - Ensemble segmentation
+   * :class:`~physiomotion4d.SegmentHeartSimpleware` - Simpleware cardiac segmentation
 
 **Image Registration**
    * :class:`~physiomotion4d.RegisterImagesBase` - Base registration class

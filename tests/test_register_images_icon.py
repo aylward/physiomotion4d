@@ -7,10 +7,14 @@ This test depends on test_convert_nrrd_4d_to_3d and uses the converted
 Note: ICON requires CUDA-enabled GPU.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import numpy as np
 import pytest
 
+from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.transform_tools import TransformTools
 
 
@@ -19,7 +23,7 @@ from physiomotion4d.transform_tools import TransformTools
 class TestRegisterImagesICON:
     """Test suite for ICON-based image registration."""
 
-    def test_registrar_initialization(self, registrar_icon):
+    def test_registrar_initialization(self, registrar_icon: RegisterImagesICON) -> None:
         """Test that RegisterImagesICON initializes correctly."""
         assert registrar_icon is not None, "Registrar not initialized"
         assert hasattr(registrar_icon, "fixed_image"), "Missing fixed_image attribute"
@@ -32,7 +36,7 @@ class TestRegisterImagesICON:
         print("\nICON registrar initialized successfully")
         print(f"  Default iterations: {registrar_icon.number_of_iterations}")
 
-    def test_set_modality(self, registrar_icon):
+    def test_set_modality(self, registrar_icon: RegisterImagesICON) -> None:
         """Test setting imaging modality."""
         registrar_icon.set_modality("ct")
         assert registrar_icon.modality == "ct", "Modality not set correctly"
@@ -42,7 +46,7 @@ class TestRegisterImagesICON:
 
         print("\nModality setting works correctly")
 
-    def test_set_number_of_iterations(self, registrar_icon):
+    def test_set_number_of_iterations(self, registrar_icon: RegisterImagesICON) -> None:
         """Test setting number of iterations."""
         registrar_icon.set_number_of_iterations(10)
         assert registrar_icon.number_of_iterations == 10, "Number of iterations not set"
@@ -54,7 +58,9 @@ class TestRegisterImagesICON:
 
         print("\nNumber of iterations setting works correctly")
 
-    def test_set_fixed_image(self, registrar_icon, test_images):
+    def test_set_fixed_image(
+        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+    ) -> None:
         """Test setting fixed image."""
         fixed_image = test_images[0]
 
@@ -65,7 +71,7 @@ class TestRegisterImagesICON:
         print(f"  Image size: {itk.size(registrar_icon.fixed_image)}")
         print(f"  Image spacing: {itk.spacing(registrar_icon.fixed_image)}")
 
-    def test_set_mass_preservation(self, registrar_icon):
+    def test_set_mass_preservation(self, registrar_icon: RegisterImagesICON) -> None:
         """Test setting mass preservation flag."""
         registrar_icon.set_mass_preservation(True)
         assert registrar_icon.use_mass_preservation, "Mass preservation not set"
@@ -77,7 +83,7 @@ class TestRegisterImagesICON:
 
         print("\nMass preservation setting works correctly")
 
-    def test_set_multi_modality(self, registrar_icon):
+    def test_set_multi_modality(self, registrar_icon: RegisterImagesICON) -> None:
         """Test setting multi-modality flag."""
         registrar_icon.set_multi_modality(True)
         assert registrar_icon.use_multi_modality, "Multi-modality not set"
@@ -87,7 +93,12 @@ class TestRegisterImagesICON:
 
         print("\nMulti-modality setting works correctly")
 
-    def test_register_without_mask(self, registrar_icon, test_images, test_directories):
+    def test_register_without_mask(
+        self,
+        registrar_icon: RegisterImagesICON,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test basic ICON registration without masks."""
         output_dir = test_directories["output"]
         reg_output_dir = output_dir / "registration_icon"
@@ -137,7 +148,12 @@ class TestRegisterImagesICON:
         )
         print(f"  Saved transforms to: {reg_output_dir}")
 
-    def test_register_with_mask(self, registrar_icon, test_images, test_directories):
+    def test_register_with_mask(
+        self,
+        registrar_icon: RegisterImagesICON,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test ICON registration with binary masks."""
         output_dir = test_directories["output"]
         reg_output_dir = output_dir / "registration_icon"
@@ -226,7 +242,12 @@ class TestRegisterImagesICON:
             compression=True,
         )
 
-    def test_transform_application(self, registrar_icon, test_images, test_directories):
+    def test_transform_application(
+        self,
+        registrar_icon: RegisterImagesICON,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test applying ICON registration transforms to images."""
         output_dir = test_directories["output"]
         reg_output_dir = output_dir / "registration_icon"
@@ -275,7 +296,9 @@ class TestRegisterImagesICON:
         )
         print(f"  Saved to: {reg_output_dir / 'icon_registered_image.mha'}")
 
-    def test_inverse_consistency(self, registrar_icon, test_images):
+    def test_inverse_consistency(
+        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+    ) -> None:
         """Test ICON's inverse consistency property."""
         fixed_image = test_images[0]
         moving_image = test_images[1]
@@ -319,7 +342,9 @@ class TestRegisterImagesICON:
         # ICON should have small inverse consistency error
         assert error < 5.0, f"Inverse consistency error too large: {error:.2f} mm"
 
-    def test_preprocess_images(self, registrar_icon, test_images):
+    def test_preprocess_images(
+        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+    ) -> None:
         """Test image preprocessing for ICON."""
         test_image = test_images[0]
 
@@ -336,8 +361,11 @@ class TestRegisterImagesICON:
         print(f"  Preprocessed spacing: {preprocessed_spacing}")
 
     def test_registration_with_initial_transform(
-        self, registrar_icon, test_images, test_directories
-    ):
+        self,
+        registrar_icon: RegisterImagesICON,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test ICON registration with initial transform."""
         output_dir = test_directories["output"]
         reg_output_dir = output_dir / "registration_icon"
@@ -347,14 +375,11 @@ class TestRegisterImagesICON:
         moving_image = test_images[1]
 
         # Create initial translation transform
-        initial_tfm_inverse = itk.TranslationTransform[itk.D, 3].New()
-        initial_tfm_inverse.SetOffset([5.0, 5.0, 5.0])
-
         initial_tfm_forward = itk.TranslationTransform[itk.D, 3].New()
         initial_tfm_forward.SetOffset([-5.0, -5.0, -5.0])
 
         print("\nRegistering with initial transform...")
-        print("  Initial offset: [5.0, 5.0, 5.0]")
+        print("  Initial offset: [-5.0, -5.0, -5.0]")
 
         registrar_icon.set_modality("ct")
         registrar_icon.set_fixed_image(fixed_image)
@@ -371,7 +396,9 @@ class TestRegisterImagesICON:
 
         print("Registration with initial transform complete")
 
-    def test_transform_types(self, registrar_icon, test_images):
+    def test_transform_types(
+        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+    ) -> None:
         """Test that ICON transforms are correct ITK types."""
         fixed_image = test_images[0]
         moving_image = test_images[1]
@@ -410,7 +437,9 @@ class TestRegisterImagesICON:
         print(f"  inverse_transform: {type(inverse_transform).__name__}")
         print(f"  forward_transform: {type(forward_transform).__name__}")
 
-    def test_different_iteration_counts(self, registrar_icon, test_images):
+    def test_different_iteration_counts(
+        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+    ) -> None:
         """Test ICON with different iteration counts."""
         fixed_image = test_images[0]
         moving_image = test_images[1]

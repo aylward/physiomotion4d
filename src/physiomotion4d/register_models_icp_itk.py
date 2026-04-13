@@ -33,7 +33,7 @@ class RegisterModelsICPITK(PhysioMotion4DBase):
 
     Note:
         The fixed_model and moving_model are typically extracted from VTU models
-        using model.extract_surface() before passing to this class.
+        using model.extract_surface(algorithm="dataset_surface") before passing to this class.
     """
 
     def __init__(

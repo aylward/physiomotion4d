@@ -71,7 +71,7 @@ vtp_file = output_dir / "average_surface.vtp"
 if not vtp_file.exists():
     vtk_mesh = pv.read(vtk_file)
     contour_tools = ContourTools()
-    vtp_surface = vtk_mesh.extract_surface()
+    vtp_surface = vtk_mesh.extract_surface(algorithm="dataset_surface")
     vtp_surface.save(vtp_file)
 print(f"  VTP: {vtp_file.exists()} - {vtp_file}")
 

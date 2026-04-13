@@ -91,7 +91,7 @@ for mesh_file in mesh_files:
     # Extract surface if needed (in case it's a volume mesh)
     if isinstance(moving_mesh, pv.UnstructuredGrid):
         print("  Extracting surface from volume mesh...")
-        moving_mesh = moving_mesh.extract_surface()
+        moving_mesh = moving_mesh.extract_surface(algorithm="dataset_surface")
         print(f"  Surface mesh: {moving_mesh.n_points} points")
 
     registrar = RegisterModelsICP(fixed_model=template_mesh)
@@ -139,7 +139,7 @@ for mesh_id in example_ids:
     # Load original mesh
     original_mesh = pv.read(_HERE / f"kcl-heart-model/surfaces/{mesh_id}.vtp")
     if isinstance(original_mesh, pv.UnstructuredGrid):
-        original_mesh = original_mesh.extract_surface()
+        original_mesh = original_mesh.extract_surface(algorithm="dataset_surface")
 
     # Create side-by-side comparison
     plotter = pv.Plotter(shape=(1, 2))

@@ -31,10 +31,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def transform_contours(contours, transform_filenames, frame_indices, base_name, output_dir)` (line 31)
 - `def convert_contours(base_name, output_dir, project_name, compute_normals=False)` (line 49)
 
-## experiments/Heart-GatedCT_To_USD/test_vista3d_inMem.py
-
-- `def vista3d_inference_from_itk(itk_image, label_prompt=None, points=None, point_labels=None, device=None, bundle_path=None, model_cache_dir=None)` (line 8)
-
 ## experiments/Lung-GatedCT_To_USD/0-register_dirlab_4dct.py
 
 - `def dilate_mask(mask, dilation)` (line 30)
@@ -136,56 +132,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def convert_sitk_image_to_itk(self, sitk_image)` (line 151): Convert a SimpleITK image to an ITK image.
   - `def convert_array_to_image_of_vectors(self, arr_data, reference_image, ptype=itk.D)` (line 218): Convert a numpy array to an ITK image of vector type.
   - `def flip_image(self, in_image, in_mask=None, flip_x=False, flip_y=False, flip_z=False, flip_and_make_identity=False)` (line 249): Flip the image and mask.
-
-## src/physiomotion4d/network_weights/vista3d/hugging_face_pipeline.py
-
-- **class HuggingFacePipelineHelper** (line 7)
-  - `def __init__(self, pipeline_name='vista3d')` (line 9)
-  - `def get_pipeline(self)` (line 18)
-  - `def init_pipeline(self, pretrained_model_name_or_path, **kwargs)` (line 30)
-
-## src/physiomotion4d/network_weights/vista3d/scripts/early_stop_score_function.py
-
-- `def score_function(engine)` (line 7)
-
-## src/physiomotion4d/network_weights/vista3d/scripts/evaluator.py
-
-- **class Vista3dEvaluator** (line 39): Supervised detection evaluation method with image and label, inherits from ``SupervisedEvaluator`` and ``Workflow``.
-  - `def __init__(self, device, val_data_loader, network, epoch_length=None, non_blocking=False, prepare_batch=default_prepare_batch, iteration_update=None, inferer=None, postprocessing=None, key_val_metric=None, additional_metrics=None, metric_cmp_fn=default_metric_cmp_fn, val_handlers=None, amp=False, mode=ForwardMode.EVAL, event_names=None, event_to_attr=None, decollate=True, to_kwargs=None, amp_kwargs=None, hyper_kwargs=None)` (line 85)
-  - `def transform_points(self, point, affine)` (line 137): transform point to the coordinates of the transformed image
-  - `def check_prompts_format(self, label_prompt, points, point_labels)` (line 148): check the format of user prompts
-
-## src/physiomotion4d/network_weights/vista3d/scripts/inferer.py
-
-- **class Vista3dInferer** (line 21): Vista3D Inferer
-  - `def __init__(self, roi_size, overlap, use_point_window=False, sw_batch_size=1)` (line 30)
-
-## src/physiomotion4d/network_weights/vista3d/scripts/trainer.py
-
-- **class Vista3dTrainer** (line 39): Supervised detection training method with image and label, inherits from ``Trainer`` and ``Workflow``.
-  - `def __init__(self, device, max_epochs, train_data_loader, network, optimizer, loss_function, epoch_length=None, non_blocking=False, prepare_batch=default_prepare_batch, iteration_update=None, inferer=None, postprocessing=None, key_train_metric=None, additional_metrics=None, metric_cmp_fn=default_metric_cmp_fn, train_handlers=None, amp=False, event_names=None, event_to_attr=None, decollate=True, optim_set_to_none=False, to_kwargs=None, amp_kwargs=None, hyper_kwargs=None)` (line 88)
-
-## src/physiomotion4d/network_weights/vista3d/vista3d_config.py
-
-- **class VISTA3DConfig** (line 4): Configuration class for vista3d
-  - `def __init__(self, encoder_embed_dim=48, input_channels=1, **kwargs)` (line 9): Set the hyperparameters for the VISTA3D model.
-
-## src/physiomotion4d/network_weights/vista3d/vista3d_model.py
-
-- **class VISTA3DModel** (line 9): VISTA3D model for hugging face
-  - `def __init__(self, config)` (line 14)
-  - `def forward(self, input)` (line 22)
-- `def register_my_model()` (line 26): Utility function to register VISTA3D model so that it can be instantiate by the AutoModel function.
-
-## src/physiomotion4d/network_weights/vista3d/vista3d_pipeline.py
-
-- **class VISTA3DPipeline** (line 48): Define the VISTA3D pipeline.
-  - `def __init__(self, model, **kwargs)` (line 80)
-  - `def check_prompts_format(self, label_prompt, points, point_labels)` (line 213): check the format of user prompts
-  - `def transform_points(self, point, affine)` (line 287): transform point to the coordinates of the transformed image
-  - `def preprocess(self, inputs, **kwargs)` (line 298)
-  - `def postprocess(self, outputs, **kwargs)` (line 435)
-- `def register_simple_pipeline()` (line 454)
 
 ## src/physiomotion4d/notebook_utils.py
 
@@ -313,40 +259,17 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def preprocess_input(self, input_image)` (line 123): Preprocess the input image for segmentation.
   - `def postprocess_labelmap(self, labelmap_image, input_image)` (line 245): Resample the labelmap to match the input image spacing.
   - `def segment_connected_component(self, preprocessed_image, labelmap_image, lower_threshold, upper_threshold, labelmap_ids=None, mask_id=0, use_mid_slice=True, hole_fill=2)` (line 341): Segment connected components based on intensity thresholding.
-  - `def segment_contrast_agent(self, preprocessed_image, labelmap_image)` (line 440): Include contrast-enhanced blood in the labelmap.
-  - `def create_anatomy_group_masks(self, labelmap_image)` (line 482): Create binary masks for different anatomical groups from the labelmap.
-  - `def segmentation_method(self, preprocessed_image)` (line 568): Abstract method for image segmentation - must be implemented by subclasses.
-  - `def dilate_mask(self, mask, dilation)` (line 590): Dilate a binary mask using morphological operations.
-  - `def segment(self, input_image, contrast_enhanced_study=False)` (line 613): Perform complete chest CT segmentation.
-
-## src/physiomotion4d/segment_chest_ensemble.py
-
-- **class SegmentChestEnsemble** (line 20): A class that inherits from physioSegmentChest and implements the
-  - `def __init__(self, log_level=logging.INFO)` (line 26): Initialize the vista3d class.
-  - `def ensemble_segmentation(self, labelmap_vista, labelmap_totseg)` (line 309): Combine two segmentation results using label mapping and priority rules.
-  - `def segmentation_method(self, preprocessed_image)` (line 398): Run VISTA3D on the preprocessed image and return result.
+  - `def segment_contrast_agent(self, preprocessed_image, labelmap_image)` (line 448): Include contrast-enhanced blood in the labelmap.
+  - `def create_anatomy_group_masks(self, labelmap_image)` (line 490): Create binary masks for different anatomical groups from the labelmap.
+  - `def segmentation_method(self, preprocessed_image)` (line 576): Abstract method for image segmentation - must be implemented by subclasses.
+  - `def dilate_mask(self, mask, dilation)` (line 598): Dilate a binary mask using morphological operations.
+  - `def segment(self, input_image, contrast_enhanced_study=False)` (line 621): Perform complete chest CT segmentation.
 
 ## src/physiomotion4d/segment_chest_total_segmentator.py
 
 - **class SegmentChestTotalSegmentator** (line 21): Chest CT segmentation using TotalSegmentator deep learning model.
   - `def __init__(self, log_level=logging.INFO)` (line 57): Initialize the TotalSegmentator-based chest segmentation.
   - `def segmentation_method(self, preprocessed_image)` (line 199): Run TotalSegmentator on the preprocessed image and return result.
-
-## src/physiomotion4d/segment_chest_vista_3d.py
-
-- **class SegmentChestVista3D** (line 32): Chest CT segmentation using NVIDIA VISTA-3D foundational model.
-  - `def __init__(self, log_level=logging.INFO)` (line 68): Initialize the VISTA-3D based chest segmentation.
-  - `def set_label_prompt(self, label_prompt)` (line 232): Set specific anatomical structure labels to segment.
-  - `def set_whole_image_segmentation(self)` (line 253): Configure for automatic whole-image segmentation.
-  - `def segment_soft_tissue(self, preprocessed_image, labelmap_image)` (line 269): Add soft tissue segmentation to fill gaps in VISTA-3D output.
-  - `def preprocess_input(self, input_image)` (line 302): Preprocess the input image for VISTA-3D segmentation.
-  - `def segmentation_method(self, preprocessed_image)` (line 329): Run VISTA-3D segmentation on the preprocessed image.
-
-## src/physiomotion4d/segment_chest_vista_3d_nim.py
-
-- **class SegmentChestVista3DNIM** (line 25): A class that inherits from physioSegmentChest and implements the
-  - `def __init__(self, log_level=logging.INFO)` (line 31): Initialize the vista3d class.
-  - `def segmentation_method(self, preprocessed_image)` (line 45): Run VISTA3D on the preprocessed image using the NIM and return result.
 
 ## src/physiomotion4d/segment_heart_simpleware.py
 
@@ -362,18 +285,17 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 - `def set_create_baseline_if_missing(value)` (line 28): Set whether to create baseline files when missing (used by pytest conftest).
 - **class TestTools** (line 34): Utilities for pytest image comparison: baseline directory, results directory,
-  - `def __init__(self, results_dir, baselines_dir, class_name, *, log_level=logging.INFO)` (line 41)
-  - `def compare_2d_to_3d_slice(self, image_2d, image_3d, slice_index, axis=0, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 75): Compare a 2D itk.Image to a slice of a 3D itk.Image. Converts to numpy only for computing differences.
-  - `def image_pass_fail_and_pixels_above_tolerance(self)` (line 149): Return (pass, value) for number of pixels above tolerance from the most recent compare_2d_to_3d_slice call.
-  - `def image_pass_fail_and_total_absolute_error(self)` (line 163): Return (pass, value) for total absolute error from the most recent compare_2d_to_3d_slice call.
-  - `def image_difference(self)` (line 177): Return the difference image (itk.Image) from the most recent compare_2d_to_3d_slice call.
-  - `def transform_pass_fail_and_number_of_values_above_tolerance(self)` (line 183): Return (pass, value) for number of values above tolerance from the most recent compare_result_to_baseline_transform call.
-  - `def transform_pass_fail_and_total_absolute_error(self)` (line 199): Return (pass, value) for total absolute error from the most recent compare_result_to_baseline_transform call.
-  - `def transform_difference(self)` (line 213): Return the difference transform (itk.Transform) from the most recent compare_result_to_baseline_transform call.
-  - `def write_result_image(self, image, filename)` (line 219): Write the image to the results directory.
-  - `def write_result_transform(self, transform, filename)` (line 223): Write the transform to the results directory.
-  - `def compare_result_to_baseline_transform(self, filename, *, per_value_absolute_error_tol=0.0, max_number_of_values_above_tol=0, total_absolute_error_tol=0.0)` (line 229): Compare the transform to the baseline transform.
-  - `def compare_result_to_baseline_image(self, filename, slice_index=None, axis=0, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 307): Load 3D image from results_filename and 2D baseline from baseline_filename (.mha), compare the given slice to baseline,
+  - `def __init__(self, results_dir, baselines_dir, class_name, *, log_level=logging.INFO)` (line 44)
+  - `def image_pass_fail_and_pixels_above_tolerance(self)` (line 78): Return (pass, value) for number of pixels above tolerance from the most
+  - `def image_pass_fail_and_total_absolute_error(self)` (line 93): Return (pass, value) for total absolute error from the most recent
+  - `def image_difference(self)` (line 108): Return the difference image (itk.Image) from the most recent
+  - `def transform_pass_fail_and_number_of_values_above_tolerance(self)` (line 115): Return (pass, value) for number of values above tolerance from the most recent compare_result_to_baseline_transform call.
+  - `def transform_pass_fail_and_total_absolute_error(self)` (line 131): Return (pass, value) for total absolute error from the most recent compare_result_to_baseline_transform call.
+  - `def transform_difference(self)` (line 145): Return the difference transform (itk.Transform) from the most recent compare_result_to_baseline_transform call.
+  - `def write_result_image(self, image, filename)` (line 151): Write the image to the results directory.
+  - `def write_result_transform(self, transform, filename)` (line 155): Write the transform to the results directory.
+  - `def compare_result_to_baseline_transform(self, filename, *, per_value_absolute_error_tol=0.0, max_number_of_values_above_tol=0, total_absolute_error_tol=0.0)` (line 161): Compare the transform to the baseline transform.
+  - `def compare_result_to_baseline_image(self, filename, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 239): Load a 3D result image and a 3D baseline image (.mha), compare the full
 
 ## src/physiomotion4d/transform_tools.py
 
@@ -391,9 +313,9 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def compute_jacobian_determinant_from_field(self, field)` (line 620): Compute Jacobian determinant of a displacement field.
   - `def detect_folding_in_field(self, jacobian_det, threshold=0.1)` (line 649): Detect spatial folding in a transform.
   - `def reduce_folding_in_field(self, field, jacobian_det, reduction_factor=0.8, threshold=0.1)` (line 673): Reduce folding by scaling displacement field in problematic regions.
-  - `def generate_grid_image(self, reference_image, grid_size=60, line_width=3)` (line 712): Generate a grid image.
-  - `def convert_field_to_grid_visualization(self, tfm, reference_image, grid_size=60, line_width=3)` (line 745): Generate a visual deformation grid for transform visualization.
-  - `def convert_itk_transform_to_usd_visualization(self, tfm, reference_image, output_filename, visualization_type='arrows', subsample_factor=4, arrow_scale=1.0, magnitude_threshold=0.0)` (line 781): Convert an ITK transform to a USD visualization for NVIDIA Omniverse.
+  - `def generate_grid_image(self, reference_image, grid_size=60, line_width=3)` (line 719): Generate a grid image.
+  - `def convert_field_to_grid_visualization(self, tfm, reference_image, grid_size=60, line_width=3)` (line 752): Generate a visual deformation grid for transform visualization.
+  - `def convert_itk_transform_to_usd_visualization(self, tfm, reference_image, output_filename, visualization_type='arrows', subsample_factor=4, arrow_scale=1.0, magnitude_threshold=0.0)` (line 788): Convert an ITK transform to a USD visualization for NVIDIA Omniverse.
 
 ## src/physiomotion4d/usd_anatomy_tools.py
 
@@ -490,13 +412,13 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/workflow_convert_ct_to_vtk.py
 
-- **class WorkflowConvertCTToVTK** (line 59): Segment a CT image and produce per-anatomy-group VTK surfaces and meshes.
-  - `def __init__(self, segmentation_method='total_segmentator', log_level=logging.INFO)` (line 100): Initialize the workflow.
-  - `def run_workflow(self, input_image, contrast_enhanced_study=False, anatomy_groups=None)` (line 247): Segment the CT image and extract per-anatomy-group VTK objects.
-  - `def save_surfaces(surfaces, output_dir, prefix='')` (line 350): Save each group surface to its own VTP file.
-  - `def save_meshes(meshes, output_dir, prefix='')` (line 377): Save each group voxel mesh to its own VTU file.
-  - `def save_combined_surface(surfaces, output_dir, prefix='')` (line 403): Merge all group surfaces into a single VTP file.
-  - `def save_combined_mesh(meshes, output_dir, prefix='')` (line 438): Merge all group meshes into a single VTU file.
+- **class WorkflowConvertCTToVTK** (line 58): Segment a CT image and produce per-anatomy-group VTK surfaces and meshes.
+  - `def __init__(self, segmentation_method='total_segmentator', log_level=logging.INFO)` (line 98): Initialize the workflow.
+  - `def run_workflow(self, input_image, contrast_enhanced_study=False, anatomy_groups=None)` (line 240): Segment the CT image and extract per-anatomy-group VTK objects.
+  - `def save_surfaces(surfaces, output_dir, prefix='')` (line 343): Save each group surface to its own VTP file.
+  - `def save_meshes(meshes, output_dir, prefix='')` (line 370): Save each group voxel mesh to its own VTU file.
+  - `def save_combined_surface(surfaces, output_dir, prefix='')` (line 396): Merge all group surfaces into a single VTP file.
+  - `def save_combined_mesh(meshes, output_dir, prefix='')` (line 431): Merge all group meshes into a single VTU file.
 
 ## src/physiomotion4d/workflow_convert_heart_gated_ct_to_usd.py
 
@@ -516,23 +438,23 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - **class WorkflowCreateStatisticalModel** (line 35): Create a PCA statistical shape model from a sample of meshes aligned to a reference.
   - `def __init__(self, sample_meshes, reference_mesh, pca_number_of_components=15, reference_spatial_resolution=1.0, reference_buffer_factor=0.25, solve_for_surface_pca=True, log_level=logging.INFO)` (line 56): Initialize the create-statistical-model workflow.
   - `def set_pca_number_of_components(self, n)` (line 102): Set number of PCA components to retain.
-  - `def run_workflow(self)` (line 310): Run the full pipeline and return a dictionary of results (no file I/O).
+  - `def run_workflow(self)` (line 314): Run the full pipeline and return a dictionary of results (no file I/O).
 
 ## src/physiomotion4d/workflow_fit_statistical_model_to_patient.py
 
 - **class WorkflowFitStatisticalModelToPatient** (line 44): Register anatomical models using multi-stage ICP, mask-based, and image-based
   - `def __init__(self, template_model, patient_models=None, patient_image=None, segmentation_method='simpleware_heart', log_level=logging.INFO)` (line 123): Initialize the model-to-image-and-model registration pipeline.
-  - `def set_mask_dilation_mm(self, mask_dilation_mm)` (line 330): Set mask dilation amount for auto-generated masks.
-  - `def set_roi_dilation_mm(self, roi_dilation_mm)` (line 339): Set ROI mask dilation amount.
-  - `def set_use_pca_registration(self, use_pca_registration, pca_model=None, pca_number_of_modes=0, pca_uses_surface=True)` (line 348): Set whether to use PCA-based registration and provide the PCA model.
-  - `def set_use_mask_to_mask_registration(self, use_mask_to_mask_registration)` (line 383): Set whether to use mask-to-mask registration.
-  - `def set_use_mask_to_image_registration(self, use_mask_to_image_registration, template_labelmap=None, template_labelmap_organ_mesh_ids=None, template_labelmap_organ_extra_ids=None, template_labelmap_background_ids=None)` (line 394): Set whether to use mask-to-image registration.
-  - `def register_model_to_model_icp(self)` (line 448): Perform ICP alignment of template model to patient model.
-  - `def register_model_to_model_pca(self)` (line 508): Perform PCA-based registration after ICP alignment.
-  - `def register_mask_to_mask(self, use_icon_refinement=False)` (line 632): Perform mask-based deformable registration of model to patient model.
-  - `def register_labelmap_to_image(self, use_icon_refinement=False)` (line 700): Perform labelmap-to-image refinement.
-  - `def transform_model(self, base_model=None)` (line 819): Apply registration transforms to the model.
-  - `def run_workflow(self, use_icon_registration_refinement=False)` (line 894): Execute the complete multi-stage registration workflow.
+  - `def set_mask_dilation_mm(self, mask_dilation_mm)` (line 337): Set mask dilation amount for auto-generated masks.
+  - `def set_roi_dilation_mm(self, roi_dilation_mm)` (line 346): Set ROI mask dilation amount.
+  - `def set_use_pca_registration(self, use_pca_registration, pca_model=None, pca_number_of_modes=0, pca_uses_surface=True)` (line 355): Set whether to use PCA-based registration and provide the PCA model.
+  - `def set_use_mask_to_mask_registration(self, use_mask_to_mask_registration)` (line 390): Set whether to use mask-to-mask registration.
+  - `def set_use_mask_to_image_registration(self, use_mask_to_image_registration, template_labelmap=None, template_labelmap_organ_mesh_ids=None, template_labelmap_organ_extra_ids=None, template_labelmap_background_ids=None)` (line 401): Set whether to use mask-to-image registration.
+  - `def register_model_to_model_icp(self)` (line 455): Perform ICP alignment of template model to patient model.
+  - `def register_model_to_model_pca(self)` (line 515): Perform PCA-based registration after ICP alignment.
+  - `def register_mask_to_mask(self, use_icon_refinement=False)` (line 639): Perform mask-based deformable registration of model to patient model.
+  - `def register_labelmap_to_image(self, use_icon_refinement=False)` (line 707): Perform labelmap-to-image refinement.
+  - `def transform_model(self, base_model=None)` (line 826): Apply registration transforms to the model.
+  - `def run_workflow(self, use_icon_registration_refinement=False)` (line 901): Execute the complete multi-stage registration workflow.
 
 ## src/physiomotion4d/workflow_reconstruct_highres_4d_ct.py
 
@@ -554,257 +476,239 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def pytest_addoption(parser)` (line 36): Add custom command-line options for pytest.
 - `def pytest_configure(config)` (line 52): Configure pytest with custom markers and settings.
 - `def pytest_collection_modifyitems(config, items)` (line 75): Automatically skip experiment tests unless --run-experiments is passed.
-- `def pytest_runtest_logreport(report)` (line 95): Collect test timing information after each test completes.
-- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 119): Print comprehensive test timing report after all tests complete.
-- `def test_directories()` (line 253): Set up test directories for data and results.
-- `def download_truncal_valve_data(test_directories)` (line 268): Download TruncalValve 4D CT data.
-- `def converted_3d_images(download_truncal_valve_data, test_directories)` (line 310): Convert 4D NRRD to 3D time series and return slice files.
-- `def test_images(converted_3d_images)` (line 338): Load time points from the converted 3D data for testing.
-- `def segmenter_total_segmentator()` (line 379): Create a SegmentChestTotalSegmentator instance.
-- `def segmenter_vista_3d()` (line 385): Create a SegmentChestVista3D instance.
-- `def segmenter_simpleware()` (line 391): Create a SegmentHeartSimpleware instance.
-- `def heart_simpleware_image_path()` (line 397): Path to cardiac CT image used by experiments/Heart-Simpleware_Segmentation notebook.
-- `def heart_simpleware_image(heart_simpleware_image_path)` (line 416): Load cardiac CT image for SegmentHeartSimpleware tests (same as notebook).
-- `def segmentation_results(segmenter_total_segmentator, test_images, test_directories)` (line 422): Get or create segmentation results using TotalSegmentator.
-- `def contour_tools()` (line 483): Create a ContourTools instance.
-- `def registrar_ants()` (line 494): Create a RegisterImagesANTs instance.
-- `def registrar_greedy()` (line 500): Create a RegisterImagesGreedy instance.
-- `def registrar_icon()` (line 506): Create a RegisterImagesICON instance.
-- `def ants_registration_results(registrar_ants, test_images, test_directories)` (line 512): Perform ANTs registration and return results.
-- `def transform_tools()` (line 565): Create a TransformTools instance.
+- `def pytest_runtest_logreport(report)` (line 97): Collect test timing information after each test completes.
+- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 121): Print comprehensive test timing report after all tests complete.
+- `def test_directories()` (line 259): Set up test directories for data and results.
+- `def download_test_data(test_directories)` (line 274): Download TruncalValve 4D CT data.
+- `def test_images(download_test_data, test_directories)` (line 310): Convert and resample 4D NRRD data; return pre-resampled time points.
+- `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 362): Segment each time point with TotalSegmentator and return result dicts.
+- `def test_transforms(registrar_ants, test_images, test_directories)` (line 403): Perform ANTs registration and return results.
+- `def segmenter_total_segmentator()` (line 459): Create a SegmentChestTotalSegmentator instance.
+- `def segmenter_simpleware()` (line 465): Create a SegmentHeartSimpleware instance.
+- `def contour_tools()` (line 471): Create a ContourTools instance.
+- `def registrar_ants()` (line 477): Create a RegisterImagesANTs instance.
+- `def registrar_greedy()` (line 483): Create a RegisterImagesGreedy instance.
+- `def registrar_icon()` (line 489): Create a RegisterImagesICON instance.
+- `def transform_tools()` (line 495): Create a TransformTools instance.
 
 ## tests/test_contour_tools.py
 
-- **class TestContourTools** (line 17): Test suite for ContourTools functionality.
-  - `def test_contour_tools_initialization(self, contour_tools)` (line 20): Test that ContourTools initializes correctly.
-  - `def test_extract_contours_from_heart_mask(self, contour_tools, segmentation_results, test_directories)` (line 25): Test extracting contours from heart mask.
-  - `def test_extract_contours_from_lung_mask(self, contour_tools, segmentation_results, test_directories)` (line 55): Test extracting contours from lung mask.
-  - `def test_extract_contours_multiple_anatomy(self, contour_tools, segmentation_results, test_directories)` (line 81): Test extracting contours from multiple anatomical structures.
-  - `def test_create_mask_from_mesh(self, contour_tools, segmentation_results, test_images, test_directories)` (line 116): Test creating a mask from extracted mesh.
-  - `def test_merge_meshes(self, contour_tools, segmentation_results, test_directories)` (line 153): Test merging multiple meshes.
-  - `def test_transform_contours_identity(self, contour_tools, segmentation_results, test_directories)` (line 198): Test transforming contours with identity transform.
-  - `def test_transform_contours_with_deformation(self, contour_tools, segmentation_results, test_directories)` (line 241): Test transforming contours with deformation magnitude calculation.
-  - `def test_contours_from_both_time_points(self, contour_tools, segmentation_results, test_directories)` (line 287): Test extracting contours from both time points.
+- **class TestContourTools** (line 22): Test suite for ContourTools functionality.
+  - `def test_contour_tools_initialization(self, contour_tools)` (line 25): Test that ContourTools initializes correctly.
+  - `def test_extract_contours_from_heart_mask(self, contour_tools, test_labelmaps, test_directories)` (line 30): Test extracting contours from heart mask.
+  - `def test_extract_contours_from_lung_mask(self, contour_tools, test_labelmaps, test_directories)` (line 63): Test extracting contours from lung mask.
+  - `def test_extract_contours_multiple_anatomy(self, contour_tools, test_labelmaps, test_directories)` (line 92): Test extracting contours from multiple anatomical structures.
+  - `def test_create_mask_from_mesh(self, contour_tools, test_labelmaps, test_images, test_directories)` (line 130): Test creating a mask from extracted mesh.
+  - `def test_merge_meshes(self, contour_tools, test_labelmaps, test_directories)` (line 171): Test merging multiple meshes.
+  - `def test_transform_contours_identity(self, contour_tools, test_labelmaps, test_directories)` (line 221): Test transforming contours with identity transform.
+  - `def test_transform_contours_with_deformation(self, contour_tools, test_labelmaps, test_directories)` (line 267): Test transforming contours with deformation magnitude calculation.
+  - `def test_contours_from_both_time_points(self, contour_tools, test_labelmaps, test_directories)` (line 316): Test extracting contours from both time points.
 
 ## tests/test_convert_nrrd_4d_to_3d.py
 
 - **class TestConvertNRRD4DTo3D** (line 17): Test suite for converting 4D NRRD to 3D time series.
-  - `def test_convert_4d_to_3d(self, download_truncal_valve_data, test_directories)` (line 20): Test conversion of 4D NRRD to 3D time series (replicates notebook cell 3).
-  - `def test_slice_files_created(self, download_truncal_valve_data, test_directories)` (line 50): Test that all expected slice files are present after conversion.
-  - `def test_fixed_image_output(self, download_truncal_valve_data, test_directories)` (line 66): Test that fixed/reference image is copied to output directory.
-  - `def test_load_nrrd_4d(self, download_truncal_valve_data)` (line 81): Test loading 4D NRRD file.
-  - `def test_save_3d_images(self, download_truncal_valve_data, test_directories)` (line 94): Test saving 3D images from 4D NRRD.
+  - `def test_convert_4d_to_3d(self, download_test_data, test_directories)` (line 20): Test conversion of 4D NRRD to 3D time series (replicates notebook cell 3).
+  - `def test_slice_files_created(self, download_test_data, test_directories)` (line 46): Test that all expected slice files are present after conversion.
+  - `def test_load_nrrd_4d(self, download_test_data)` (line 67): Test loading 4D NRRD file.
+  - `def test_save_3d_images(self, download_test_data, test_directories)` (line 80): Test saving 3D images from 4D NRRD.
 
 ## tests/test_convert_vtk_to_usd.py
 
-- **class TestConvertVTKToUSD** (line 19): Test suite for VTK to USD PolyMesh conversion.
-  - `def contour_meshes(self, contour_tools, segmentation_results, test_directories)` (line 23): Extract or load contour meshes for USD conversion testing.
-  - `def test_converter_initialization(self)` (line 56): Test that ConvertVTKToUSD initializes correctly.
-  - `def test_supports_mesh_type(self, contour_meshes)` (line 67): Test that converter correctly identifies supported mesh types.
-  - `def test_convert_single_time_point(self, contour_meshes, test_directories)` (line 80): Test converting a single time point to USD.
-  - `def test_convert_multiple_time_points(self, contour_meshes, test_directories)` (line 111): Test converting multiple time points to USD.
-  - `def test_convert_with_deformation(self, contour_tools, segmentation_results, test_directories)` (line 144): Test converting meshes with deformation magnitude.
-  - `def test_convert_with_colormap(self, contour_meshes, test_directories)` (line 182): Test converting meshes with colormap visualization.
-  - `def test_convert_unstructured_grid_to_surface(self, test_directories)` (line 219): Test converting UnstructuredGrid to surface mesh.
-  - `def test_usd_file_structure(self, contour_meshes, test_directories)` (line 265): Test the structure of generated USD file.
-  - `def test_time_varying_topology(self, contour_meshes, test_directories)` (line 295): Test handling of time-varying topology.
-  - `def test_batch_conversion(self, contour_tools, segmentation_results, test_directories)` (line 334): Test converting multiple anatomy structures in batch.
+- **class TestConvertVTKToUSD** (line 23): Test suite for VTK to USD PolyMesh conversion.
+  - `def contour_meshes(self, contour_tools, test_labelmaps, test_directories)` (line 27): Extract or load contour meshes for USD conversion testing.
+  - `def test_converter_initialization(self)` (line 65): Test that ConvertVTKToUSD initializes correctly.
+  - `def test_supports_mesh_type(self, contour_meshes)` (line 76): Test that converter correctly identifies supported mesh types.
+  - `def test_convert_single_time_point(self, contour_meshes, test_directories)` (line 89): Test converting a single time point to USD.
+  - `def test_convert_multiple_time_points(self, contour_meshes, test_directories)` (line 122): Test converting multiple time points to USD.
+  - `def test_convert_with_deformation(self, contour_tools, test_labelmaps, test_directories)` (line 157): Test converting meshes with deformation magnitude.
+  - `def test_convert_with_colormap(self, contour_meshes, test_directories)` (line 198): Test converting meshes with colormap visualization.
+  - `def test_convert_unstructured_grid_to_surface(self, test_directories)` (line 237): Test converting UnstructuredGrid to surface mesh.
+  - `def test_usd_file_structure(self, contour_meshes, test_directories)` (line 285): Test the structure of generated USD file.
+  - `def test_time_varying_topology(self, contour_meshes, test_directories)` (line 317): Test handling of time-varying topology.
+  - `def test_batch_conversion(self, contour_tools, test_labelmaps, test_directories)` (line 358): Test converting multiple anatomy structures in batch.
 
 ## tests/test_download_heart_data.py
 
-- **class TestDownloadHeartData** (line 13): Test suite for downloading and converting Slicer-Heart-CT data.
-  - `def test_directories_created(self, test_directories)` (line 16): Test that directories are created successfully.
-  - `def test_data_downloaded(self, download_truncal_valve_data, test_directories)` (line 26): Test that the TruncalValve 4D CT data file is downloaded.
+- **class TestDownloadHeartData** (line 15): Test suite for downloading and converting Slicer-Heart-CT data.
+  - `def test_directories_created(self, test_directories)` (line 18): Test that directories are created successfully.
+  - `def test_data_downloaded(self, download_test_data, test_directories)` (line 28): Test that the TruncalValve 4D CT data file is downloaded.
 
 ## tests/test_experiments.py
 
-- `def get_scripts_in_subdir(subdir_name)` (line 55): Get all Python scripts in a subdirectory, sorted alphanumerically.
-- `def execute_script(script_path, timeout=3600)` (line 73): Execute a Python experiment script.
-- `def run_experiment_scripts(subdir_name, timeout_per_script=3600)` (line 175): Run all Python scripts in an experiment subdirectory in alphanumeric order.
+- `def get_scripts_in_subdir(subdir_name)` (line 56): Get all Python scripts in a subdirectory, sorted alphanumerically.
+- `def execute_script(script_path, timeout=3600)` (line 74): Execute a Python experiment script.
+- `def run_experiment_scripts(subdir_name, timeout_per_script=3600)` (line 176): Run all Python scripts in an experiment subdirectory in alphanumeric order.
 - `def test_experiment_colormap_vtk_to_usd()` (line 297): Test Colormap-VTK_To_USD experiment scripts.
-- `def test_experiment_reconstruct_4dct()` (line 331): Test Reconstruct4DCT experiment scripts.
-- `def test_experiment_heart_vtk_series_to_usd()` (line 350): Test Heart-VTKSeries_To_USD experiment scripts.
-- `def test_experiment_heart_gated_ct_to_usd()` (line 371): Test Heart-GatedCT_To_USD experiment scripts.
-- `def test_experiment_convert_vtk_to_usd()` (line 397): Test Convert_VTK_To_USD experiment scripts.
-- `def test_experiment_create_statistical_model()` (line 417): Test Heart-Create_Statistical_Model experiment scripts.
-- `def test_experiment_heart_statistical_model_to_patient()` (line 442): Test Heart-Statistical_Model_To_Patient experiment scripts.
-- `def test_experiment_lung_gated_ct_to_usd()` (line 477): Test Lung-GatedCT_To_USD experiment scripts.
-- `def test_experiment_structure()` (line 522): Validate the structure of the experiments directory.
-- `def test_list_scripts_in_subdir(subdir_name)` (line 576): List all scripts in each experiment subdirectory.
+- `def test_experiment_reconstruct_4dct()` (line 329): Test Reconstruct4DCT experiment scripts.
+- `def test_experiment_heart_vtk_series_to_usd()` (line 347): Test Heart-VTKSeries_To_USD experiment scripts.
+- `def test_experiment_heart_gated_ct_to_usd()` (line 367): Test Heart-GatedCT_To_USD experiment scripts.
+- `def test_experiment_convert_vtk_to_usd()` (line 390): Test Convert_VTK_To_USD experiment scripts.
+- `def test_experiment_create_statistical_model()` (line 409): Test Heart-Create_Statistical_Model experiment scripts.
+- `def test_experiment_heart_statistical_model_to_patient()` (line 433): Test Heart-Statistical_Model_To_Patient experiment scripts.
+- `def test_experiment_lung_gated_ct_to_usd()` (line 467): Test Lung-GatedCT_To_USD experiment scripts.
+- `def test_experiment_structure()` (line 511): Validate the structure of the experiments directory.
+- `def test_list_scripts_in_subdir(subdir_name)` (line 565): List all scripts in each experiment subdirectory.
 
 ## tests/test_image_tools.py
 
-- **class TestImageTools** (line 19): Test suite for ImageTools conversions.
-  - `def image_tools(self)` (line 23): Create ImageTools instance.
-  - `def test_itk_to_sitk_scalar_image(self, image_tools)` (line 27): Test conversion of scalar ITK image to SimpleITK.
-  - `def test_sitk_to_itk_scalar_image(self, image_tools)` (line 62): Test conversion of scalar SimpleITK image to ITK.
-  - `def test_roundtrip_scalar_image(self, image_tools)` (line 94): Test roundtrip conversion: ITK -> SimpleITK -> ITK.
-  - `def test_itk_to_sitk_vector_image(self, image_tools)` (line 130): Test conversion of vector ITK image to SimpleITK.
-  - `def test_sitk_to_itk_vector_image(self, image_tools)` (line 168): Test conversion of vector SimpleITK image to ITK.
-  - `def test_roundtrip_vector_image(self, image_tools)` (line 199): Test roundtrip conversion for vector images: ITK -> SimpleITK -> ITK.
-  - `def test_imwrite_imread_vd3(self, image_tools, ants_registration_results, test_images, test_directories)` (line 238): Test reading and writing double precision vector images.
-- **class TestFlipImage** (line 331): Unit tests for ImageTools.flip_image (axis flips and direction reset).
-  - `def image_tools(self)` (line 335)
-  - `def test_flip_x_flips_along_last_array_axis(self, image_tools)` (line 338): flip_x flips the image along the x (last) array dimension.
-  - `def test_flip_y_flips_along_middle_array_axis(self, image_tools)` (line 351): flip_y flips the image along the y (middle) array dimension.
-  - `def test_flip_z_flips_along_first_array_axis(self, image_tools)` (line 365): flip_z flips the image along the z (first) array dimension.
-  - `def test_flip_xy_combines_flips(self, image_tools)` (line 377): flip_x and flip_y together flip both axes.
-  - `def test_no_flip_returns_same_image(self, image_tools)` (line 387): With no flip flags, image is returned unchanged.
-  - `def test_mask_flipped_in_lockstep_with_image(self, image_tools)` (line 398): When a mask is provided, it is flipped with the same axes as the image.
-  - `def test_flip_and_make_identity_sets_direction_to_identity(self, image_tools)` (line 419): flip_and_make_identity flips as needed and sets direction matrix to identity.
-  - `def test_flip_and_make_identity_with_mask_sets_both_directions_to_identity(self, image_tools)` (line 435): With mask and flip_and_make_identity, both image and mask get identity direction.
+- **class TestImageTools** (line 22): Test suite for ImageTools conversions.
+  - `def image_tools(self)` (line 26): Create ImageTools instance.
+  - `def test_itk_to_sitk_scalar_image(self, image_tools)` (line 30): Test conversion of scalar ITK image to SimpleITK.
+  - `def test_sitk_to_itk_scalar_image(self, image_tools)` (line 65): Test conversion of scalar SimpleITK image to ITK.
+  - `def test_roundtrip_scalar_image(self, image_tools)` (line 97): Test roundtrip conversion: ITK -> SimpleITK -> ITK.
+  - `def test_itk_to_sitk_vector_image(self, image_tools)` (line 133): Test conversion of vector ITK image to SimpleITK.
+  - `def test_sitk_to_itk_vector_image(self, image_tools)` (line 171): Test conversion of vector SimpleITK image to ITK.
+  - `def test_roundtrip_vector_image(self, image_tools)` (line 202): Test roundtrip conversion for vector images: ITK -> SimpleITK -> ITK.
+  - `def test_imwrite_imread_vd3(self, image_tools, test_transforms, test_images, test_directories)` (line 241): Test reading and writing double precision vector images.
+- **class TestFlipImage** (line 334): Unit tests for ImageTools.flip_image (axis flips and direction reset).
+  - `def image_tools(self)` (line 338)
+  - `def test_flip_x_flips_along_last_array_axis(self, image_tools)` (line 341): flip_x flips the image along the x (last) array dimension.
+  - `def test_flip_y_flips_along_middle_array_axis(self, image_tools)` (line 354): flip_y flips the image along the y (middle) array dimension.
+  - `def test_flip_z_flips_along_first_array_axis(self, image_tools)` (line 368): flip_z flips the image along the z (first) array dimension.
+  - `def test_flip_xy_combines_flips(self, image_tools)` (line 380): flip_x and flip_y together flip both axes.
+  - `def test_no_flip_returns_same_image(self, image_tools)` (line 390): With no flip flags, image is returned unchanged.
+  - `def test_mask_flipped_in_lockstep_with_image(self, image_tools)` (line 401): When a mask is provided, it is flipped with the same axes as the image.
+  - `def test_flip_and_make_identity_sets_direction_to_identity(self, image_tools)` (line 422): flip_and_make_identity flips as needed and sets direction matrix to identity.
+  - `def test_flip_and_make_identity_with_mask_sets_both_directions_to_identity(self, image_tools)` (line 438): With mask and flip_and_make_identity, both image and mask get identity direction.
 
 ## tests/test_register_images_ants.py
 
-- **class TestRegisterImagesANTs** (line 22): Test suite for ANTs-based image registration.
-  - `def test_registrar_initialization(self, registrar_ants)` (line 25): Test that RegisterImagesANTs initializes correctly.
-  - `def test_set_modality(self, registrar_ants)` (line 33): Test setting imaging modality.
-  - `def test_set_fixed_image(self, registrar_ants, test_images)` (line 43): Test setting fixed image.
-  - `def test_register_without_mask(self, registrar_ants, test_images, test_directories)` (line 54): Test basic registration without masks.
-  - `def test_register_with_mask(self, registrar_ants, test_images, test_directories)` (line 103): Test registration with binary masks.
-  - `def test_transform_application(self, registrar_ants, test_images, test_directories)` (line 191): Test applying registration transforms to images.
-  - `def test_preprocess_images(self, registrar_ants, test_images)` (line 240): Test image preprocessing.
-  - `def test_registration_with_initial_transform(self, registrar_ants, test_images, test_directories)` (line 256): Test registration with initial transform.
-  - `def test_multiple_registrations(self, registrar_ants, test_images)` (line 288): Test running multiple registrations in sequence.
-  - `def test_transform_types(self, registrar_ants, test_images)` (line 314): Test that transforms are correct ITK types.
-  - `def test_image_conversion_cycle_scalar(self, registrar_ants, test_images)` (line 340): Test round-trip conversion: ITK image -> ANTs -> ITK for scalar images.
-  - `def test_image_conversion_cycle_different_dtypes(self, registrar_ants, test_images)` (line 414): Test round-trip conversion with different data types.
-  - `def test_image_conversion_preserves_metadata(self, registrar_ants)` (line 444): Test that image conversion preserves all metadata.
-  - `def test_transform_conversion_cycle_affine(self, registrar_ants, test_images)` (line 489): Test round-trip conversion: ITK affine transform -> ANTs -> ITK.
-  - `def test_transform_conversion_cycle_displacement_field(self, registrar_ants, test_images)` (line 593): Test round-trip conversion: ITK displacement field -> ANTs -> ITK.
-  - `def test_transform_conversion_with_composite(self, registrar_ants, test_images)` (line 677): Test conversion of composite transforms.
+- **class TestRegisterImagesANTs** (line 25): Test suite for ANTs-based image registration.
+  - `def test_registrar_initialization(self, registrar_ants)` (line 28): Test that RegisterImagesANTs initializes correctly.
+  - `def test_set_modality(self, registrar_ants)` (line 36): Test setting imaging modality.
+  - `def test_set_fixed_image(self, registrar_ants, test_images)` (line 46): Test setting fixed image.
+  - `def test_register_without_mask(self, registrar_ants, test_images, test_directories)` (line 59): Test basic registration without masks.
+  - `def test_register_with_mask(self, registrar_ants, test_images, test_directories)` (line 113): Test registration with binary masks.
+  - `def test_transform_application(self, registrar_ants, test_images, test_directories)` (line 206): Test applying registration transforms to images.
+  - `def test_preprocess_images(self, registrar_ants, test_images)` (line 260): Test image preprocessing.
+  - `def test_registration_with_initial_transform(self, registrar_ants, test_images, test_directories)` (line 278): Test registration with initial transform.
+  - `def test_multiple_registrations(self, registrar_ants, test_images)` (line 313): Test running multiple registrations in sequence.
+  - `def test_transform_types(self, registrar_ants, test_images)` (line 341): Test that transforms are correct ITK types.
+  - `def test_image_conversion_cycle_scalar(self, registrar_ants, test_images)` (line 369): Test round-trip conversion: ITK image -> ANTs -> ITK for scalar images.
+  - `def test_image_conversion_cycle_different_dtypes(self, registrar_ants, test_images)` (line 445): Test round-trip conversion with different data types.
+  - `def test_image_conversion_preserves_metadata(self, registrar_ants)` (line 477): Test that image conversion preserves all metadata.
+  - `def test_transform_conversion_cycle_affine(self, registrar_ants, test_images)` (line 524): Test round-trip conversion: ITK affine transform -> ANTs -> ITK.
+  - `def test_transform_conversion_cycle_displacement_field(self, registrar_ants, test_images)` (line 630): Test round-trip conversion: ITK displacement field -> ANTs -> ITK.
+  - `def test_transform_conversion_with_composite(self, registrar_ants, test_images)` (line 714): Test conversion of composite transforms.
 
 ## tests/test_register_images_greedy.py
 
-- **class TestRegisterImagesGreedy** (line 18): Test suite for Greedy-based image registration.
-  - `def test_registrar_initialization(self, registrar_greedy)` (line 21): Test that RegisterImagesGreedy initializes correctly.
-  - `def test_set_modality(self, registrar_greedy)` (line 29): Test setting imaging modality.
-  - `def test_set_transform_type_and_metric(self, registrar_greedy)` (line 39): Test setting transform type and metric.
-  - `def test_set_fixed_image(self, registrar_greedy, test_images)` (line 64): Test setting fixed image.
-  - `def test_register_affine_without_mask(self, registrar_greedy, test_images, test_directories)` (line 73): Test affine registration without masks.
-  - `def test_register_affine_with_mask(self, registrar_greedy, test_images, test_directories)` (line 115): Test affine registration with binary masks.
-  - `def test_transform_application(self, registrar_greedy, test_images, test_directories)` (line 172): Test applying registration transform to moving image.
+- **class TestRegisterImagesGreedy** (line 22): Test suite for Greedy-based image registration.
+  - `def test_registrar_initialization(self, registrar_greedy)` (line 25): Test that RegisterImagesGreedy initializes correctly.
+  - `def test_set_modality(self, registrar_greedy)` (line 35): Test setting imaging modality.
+  - `def test_set_transform_type_and_metric(self, registrar_greedy)` (line 45): Test setting transform type and metric.
+  - `def test_set_fixed_image(self, registrar_greedy, test_images)` (line 72): Test setting fixed image.
+  - `def test_register_affine_without_mask(self, registrar_greedy, test_images, test_directories)` (line 83): Test affine registration without masks.
+  - `def test_register_affine_with_mask(self, registrar_greedy, test_images, test_directories)` (line 128): Test affine registration with binary masks.
+  - `def test_transform_application(self, registrar_greedy, test_images, test_directories)` (line 188): Test applying registration transform to moving image.
 
 ## tests/test_register_images_icon.py
 
-- **class TestRegisterImagesICON** (line 19): Test suite for ICON-based image registration.
-  - `def test_registrar_initialization(self, registrar_icon)` (line 22): Test that RegisterImagesICON initializes correctly.
-  - `def test_set_modality(self, registrar_icon)` (line 35): Test setting imaging modality.
-  - `def test_set_number_of_iterations(self, registrar_icon)` (line 45): Test setting number of iterations.
-  - `def test_set_fixed_image(self, registrar_icon, test_images)` (line 57): Test setting fixed image.
-  - `def test_set_mass_preservation(self, registrar_icon)` (line 68): Test setting mass preservation flag.
-  - `def test_set_multi_modality(self, registrar_icon)` (line 80): Test setting multi-modality flag.
-  - `def test_register_without_mask(self, registrar_icon, test_images, test_directories)` (line 90): Test basic ICON registration without masks.
-  - `def test_register_with_mask(self, registrar_icon, test_images, test_directories)` (line 140): Test ICON registration with binary masks.
-  - `def test_transform_application(self, registrar_icon, test_images, test_directories)` (line 229): Test applying ICON registration transforms to images.
-  - `def test_inverse_consistency(self, registrar_icon, test_images)` (line 278): Test ICON's inverse consistency property.
-  - `def test_preprocess_images(self, registrar_icon, test_images)` (line 322): Test image preprocessing for ICON.
-  - `def test_registration_with_initial_transform(self, registrar_icon, test_images, test_directories)` (line 338): Test ICON registration with initial transform.
-  - `def test_transform_types(self, registrar_icon, test_images)` (line 374): Test that ICON transforms are correct ITK types.
-  - `def test_different_iteration_counts(self, registrar_icon, test_images)` (line 413): Test ICON with different iteration counts.
+- **class TestRegisterImagesICON** (line 23): Test suite for ICON-based image registration.
+  - `def test_registrar_initialization(self, registrar_icon)` (line 26): Test that RegisterImagesICON initializes correctly.
+  - `def test_set_modality(self, registrar_icon)` (line 39): Test setting imaging modality.
+  - `def test_set_number_of_iterations(self, registrar_icon)` (line 49): Test setting number of iterations.
+  - `def test_set_fixed_image(self, registrar_icon, test_images)` (line 61): Test setting fixed image.
+  - `def test_set_mass_preservation(self, registrar_icon)` (line 74): Test setting mass preservation flag.
+  - `def test_set_multi_modality(self, registrar_icon)` (line 86): Test setting multi-modality flag.
+  - `def test_register_without_mask(self, registrar_icon, test_images, test_directories)` (line 96): Test basic ICON registration without masks.
+  - `def test_register_with_mask(self, registrar_icon, test_images, test_directories)` (line 151): Test ICON registration with binary masks.
+  - `def test_transform_application(self, registrar_icon, test_images, test_directories)` (line 245): Test applying ICON registration transforms to images.
+  - `def test_inverse_consistency(self, registrar_icon, test_images)` (line 299): Test ICON's inverse consistency property.
+  - `def test_preprocess_images(self, registrar_icon, test_images)` (line 345): Test image preprocessing for ICON.
+  - `def test_registration_with_initial_transform(self, registrar_icon, test_images, test_directories)` (line 363): Test ICON registration with initial transform.
+  - `def test_transform_types(self, registrar_icon, test_images)` (line 399): Test that ICON transforms are correct ITK types.
+  - `def test_different_iteration_counts(self, registrar_icon, test_images)` (line 440): Test ICON with different iteration counts.
 
 ## tests/test_register_time_series_images.py
 
-- **class TestRegisterTimeSeriesImages** (line 20): Test suite for time series image registration.
-  - `def test_registrar_initialization_ants(self)` (line 23): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
-  - `def test_registrar_initialization_icon(self)` (line 37): Test that RegisterTimeSeriesImages initializes correctly with ICON.
-  - `def test_registrar_initialization_invalid_method(self)` (line 51): Test that invalid registration method raises error.
-  - `def test_set_modality(self)` (line 58): Test setting imaging modality.
-  - `def test_set_fixed_image(self, test_images)` (line 66): Test setting fixed image.
-  - `def test_set_number_of_iterations(self)` (line 77): Test setting number of iterations.
-  - `def test_register_time_series_basic(self, test_images, test_directories)` (line 97): Test basic time series registration without prior transform.
-  - `def test_register_time_series_with_prior(self, test_images, test_directories)` (line 179): Test time series registration with prior transform usage.
-  - `def test_register_time_series_identity_start(self, test_images)` (line 241): Test time series registration with identity for starting image.
-  - `def test_register_time_series_different_starting_indices(self, test_images)` (line 267): Test time series registration with different starting indices.
-  - `def test_register_time_series_error_no_fixed_image(self)` (line 295): Test that error is raised if fixed image not set.
-  - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 306): Test that error is raised for invalid starting index.
-  - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 327): Test that error is raised for invalid prior portion value.
-  - `def test_transform_application_time_series(self, test_images, test_directories)` (line 350): Test applying transforms from time series registration.
-  - `def test_register_time_series_icon(self, test_images)` (line 404): Test time series registration with ICON method.
-  - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 429): Test time series registration with fixed image mask.
-  - `def test_bidirectional_registration(self, test_images)` (line 472): Test that bidirectional registration works correctly.
+- **class TestRegisterTimeSeriesImages** (line 25): Test suite for time series image registration.
+  - `def test_registrar_initialization_ants(self)` (line 30): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
+  - `def test_registrar_initialization_icon(self)` (line 44): Test that RegisterTimeSeriesImages initializes correctly with ICON.
+  - `def test_registrar_initialization_invalid_method(self)` (line 58): Test that invalid registration method raises error.
+  - `def test_set_modality(self)` (line 65): Test setting imaging modality.
+  - `def test_set_fixed_image(self, test_images)` (line 73): Test setting fixed image.
+  - `def test_set_number_of_iterations(self)` (line 84): Test setting number of iterations.
+  - `def test_register_time_series_basic(self, test_images, test_directories)` (line 104): Test basic time series registration without prior transform.
+  - `def test_register_time_series_with_prior(self, test_images, test_directories)` (line 186): Test time series registration with prior transform usage.
+  - `def test_register_time_series_identity_start(self, test_images)` (line 247): Test time series registration with identity for starting image.
+  - `def test_register_time_series_different_starting_indices(self, test_images)` (line 273): Test time series registration with different starting indices.
+  - `def test_register_time_series_error_no_fixed_image(self)` (line 303): Test that error is raised if fixed image not set.
+  - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 314): Test that error is raised for invalid starting index.
+  - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 337): Test that error is raised for invalid prior portion value.
+  - `def test_transform_application_time_series(self, test_images, test_directories)` (line 362): Test applying transforms from time series registration.
+  - `def test_register_time_series_icon(self, test_images)` (line 414): Test time series registration with ICON method.
+  - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 439): Test time series registration with fixed image mask.
+  - `def test_bidirectional_registration(self, test_images)` (line 484): Test that bidirectional registration works correctly.
 
 ## tests/test_segment_chest_total_segmentator.py
 
-- **class TestSegmentChestTotalSegmentator** (line 16): Test suite for TotalSegmentator chest CT segmentation.
-  - `def test_segmenter_initialization(self, segmenter_total_segmentator)` (line 19): Test that SegmentChestTotalSegmentator initializes correctly.
-  - `def test_segment_single_image(self, segmenter_total_segmentator, test_images, test_directories)` (line 54): Test segmentation on a single time point.
-  - `def test_segment_multiple_images(self, segmenter_total_segmentator, test_images, test_directories)` (line 109): Test segmentation on two time points.
-  - `def test_anatomy_group_masks(self, segmenter_total_segmentator, test_images)` (line 137): Test that anatomy group masks are created correctly.
-  - `def test_contrast_detection(self, segmenter_total_segmentator, test_images)` (line 177): Test contrast detection functionality.
-  - `def test_preprocessing(self, segmenter_total_segmentator, test_images)` (line 204): Test preprocessing functionality.
-  - `def test_postprocessing(self, segmenter_total_segmentator, test_images)` (line 224): Test postprocessing functionality.
-
-## tests/test_segment_chest_vista_3d.py
-
-- **class TestSegmentChestVista3D** (line 16): Test suite for VISTA-3D chest CT segmentation.
-  - `def test_segmenter_initialization(self, segmenter_vista_3d)` (line 19): Test that SegmentChestVista3D initializes correctly.
-  - `def test_segment_single_image(self, segmenter_vista_3d, test_images, test_directories)` (line 51): Test automatic segmentation on a single time point.
-  - `def test_segment_multiple_images(self, segmenter_vista_3d, test_images, test_directories)` (line 107): Test automatic segmentation on two time points.
-  - `def test_anatomy_group_masks(self, segmenter_vista_3d, test_images)` (line 138): Test that anatomy group masks are created correctly.
-  - `def test_label_prompt_segmentation(self, segmenter_vista_3d, test_images, test_directories)` (line 177): Test segmentation with specific label prompts.
-  - `def test_contrast_detection(self, segmenter_vista_3d, test_images)` (line 213): Test contrast detection functionality.
-  - `def test_preprocessing(self, segmenter_vista_3d, test_images)` (line 241): Test preprocessing functionality.
-  - `def test_postprocessing(self, segmenter_vista_3d, test_images)` (line 260): Test postprocessing functionality.
-  - `def test_set_and_reset_prompts(self, segmenter_vista_3d)` (line 288): Test setting and resetting label prompt mode.
+- **class TestSegmentChestTotalSegmentator** (line 21): Test suite for TotalSegmentator chest CT segmentation.
+  - `def test_segmenter_initialization(self, segmenter_total_segmentator)` (line 24): Test that SegmentChestTotalSegmentator initializes correctly.
+  - `def test_segment_single_image(self, segmenter_total_segmentator, test_images, test_directories)` (line 61): Test segmentation on a single time point.
+  - `def test_segment_multiple_images(self, segmenter_total_segmentator, test_images, test_directories)` (line 119): Test segmentation on two time points.
+  - `def test_anatomy_group_masks(self, segmenter_total_segmentator, test_images)` (line 150): Test that anatomy group masks are created correctly.
+  - `def test_contrast_detection(self, segmenter_total_segmentator, test_images)` (line 194): Test contrast detection functionality.
+  - `def test_preprocessing(self, segmenter_total_segmentator, test_images)` (line 225): Test preprocessing functionality.
+  - `def test_postprocessing(self, segmenter_total_segmentator, test_images)` (line 249): Test postprocessing functionality.
 
 ## tests/test_segment_heart_simpleware.py
 
-- **class TestSegmentHeartSimpleware** (line 28): Test suite for SegmentHeartSimpleware (Simpleware Medical ASCardio).
-  - `def test_segmenter_initialization(self, segmenter_simpleware)` (line 31): Test that SegmentHeartSimpleware initializes correctly.
-  - `def test_set_simpleware_executable_path(self, segmenter_simpleware)` (line 55): Test setting custom Simpleware executable path.
-  - `def test_segment_single_image(self, segmenter_simpleware, heart_simpleware_image, heart_simpleware_image_path, test_directories)` (line 66): Test segmentation on the same cardiac CT as the notebook (RVOT28-Dias.nii.gz).
-  - `def test_anatomy_group_masks(self, segmenter_simpleware, heart_simpleware_image, heart_simpleware_image_path)` (line 125): Test that anatomy group masks are created (heart, vessels, etc.).
-  - `def test_contrast_detection(self, segmenter_simpleware, heart_simpleware_image, heart_simpleware_image_path)` (line 160): Test contrast mask is returned (base class behavior).
-  - `def test_postprocessing(self, segmenter_simpleware, heart_simpleware_image, heart_simpleware_image_path)` (line 174): Test that output labelmap matches input size and spacing.
+- **class TestSegmentHeartSimpleware** (line 32): Test suite for SegmentHeartSimpleware (Simpleware Medical ASCardio).
+  - `def test_segmenter_initialization(self, segmenter_simpleware)` (line 35): Test that SegmentHeartSimpleware initializes correctly.
+  - `def test_set_simpleware_executable_path(self, segmenter_simpleware)` (line 61): Test setting custom Simpleware executable path.
+  - `def test_segment_single_image(self, segmenter_simpleware, test_images, test_directories)` (line 74): Test segmentation on a cardiac CT time point.
+  - `def test_anatomy_group_masks(self, segmenter_simpleware, test_images)` (line 129): Test that anatomy group masks are created (heart, vessels, etc.).
+  - `def test_contrast_detection(self, segmenter_simpleware, test_images)` (line 166): Test contrast mask is returned (base class behavior).
+  - `def test_postprocessing(self, segmenter_simpleware, test_images)` (line 182): Test that output labelmap matches input size and spacing.
 
 ## tests/test_transform_tools.py
 
-- **class TestTransformTools** (line 20): Test suite for TransformTools functionality.
-  - `def test_contour(self, test_images)` (line 24): Create a simple test contour mesh.
-  - `def test_transform_tools_initialization(self, transform_tools)` (line 30): Test that TransformTools initializes correctly.
-  - `def test_transform_image_linear(self, transform_tools, ants_registration_results, test_images, test_directories)` (line 35): Test transforming image with linear interpolation.
-  - `def test_transform_image_nearest(self, transform_tools, ants_registration_results, test_images, test_directories)` (line 71): Test transforming image with nearest neighbor interpolation.
-  - `def test_transform_image_sinc(self, transform_tools, ants_registration_results, test_images, test_directories)` (line 101): Test transforming image with sinc interpolation.
-  - `def test_transform_image_invalid_method(self, transform_tools, ants_registration_results, test_images)` (line 131): Test that invalid interpolation method raises error.
-  - `def test_transform_pvcontour_without_deformation(self, transform_tools, test_contour, ants_registration_results)` (line 151): Test transforming PyVista contour without deformation magnitude.
-  - `def test_transform_pvcontour_with_deformation(self, transform_tools, test_contour, ants_registration_results, test_directories)` (line 183): Test transforming PyVista contour with deformation magnitude.
-  - `def test_convert_transform_to_displacement_field(self, transform_tools, ants_registration_results, test_images, test_directories)` (line 222): Test converting transform to deformation field image.
-  - `def test_convert_vtk_matrix_to_itk_transform(self, transform_tools)` (line 259): Test converting VTK matrix to ITK transform.
-  - `def test_compute_jacobian_determinant_from_field(self, transform_tools, ants_registration_results, test_images, test_directories)` (line 289): Test computing Jacobian determinant from deformation field.
-  - `def test_detect_folding_in_field(self, transform_tools, ants_registration_results, test_images)` (line 336): Test detecting spatial folding in deformation field.
-  - `def test_interpolate_transforms(self, transform_tools, ants_registration_results, test_images)` (line 363): Test temporal interpolation between transforms.
-  - `def test_combine_displacement_field_transforms(self, transform_tools, ants_registration_results, test_images)` (line 397): Test composing two transforms with various weights.
-  - `def test_smooth_transform(self, transform_tools, ants_registration_results, test_images)` (line 508): Test smoothing a transform.
-  - `def test_combine_transforms_with_masks(self, transform_tools, ants_registration_results, test_images)` (line 531): Test combining transforms with spatial masks.
-  - `def test_multiple_transform_applications(self, transform_tools, ants_registration_results, test_images)` (line 575): Test applying multiple transforms in sequence.
-  - `def test_identity_transform(self, transform_tools, test_images)` (line 600): Test that identity transform doesn't change the image.
+- **class TestTransformTools** (line 24): Test suite for TransformTools functionality.
+  - `def test_contour(self, test_images)` (line 28): Create a simple test contour mesh.
+  - `def test_transform_tools_initialization(self, transform_tools)` (line 34): Test that TransformTools initializes correctly.
+  - `def test_transform_image_linear(self, transform_tools, test_transforms, test_images, test_directories)` (line 41): Test transforming image with linear interpolation.
+  - `def test_transform_image_nearest(self, transform_tools, test_transforms, test_images, test_directories)` (line 81): Test transforming image with nearest neighbor interpolation.
+  - `def test_transform_image_sinc(self, transform_tools, test_transforms, test_images, test_directories)` (line 115): Test transforming image with sinc interpolation.
+  - `def test_transform_image_invalid_method(self, transform_tools, test_transforms, test_images)` (line 149): Test that invalid interpolation method raises error.
+  - `def test_transform_pvcontour_without_deformation(self, transform_tools, test_contour, test_transforms)` (line 172): Test transforming PyVista contour without deformation magnitude.
+  - `def test_transform_pvcontour_with_deformation(self, transform_tools, test_contour, test_transforms, test_directories)` (line 207): Test transforming PyVista contour with deformation magnitude.
+  - `def test_convert_transform_to_displacement_field(self, transform_tools, test_transforms, test_images, test_directories)` (line 250): Test converting transform to deformation field image.
+  - `def test_convert_vtk_matrix_to_itk_transform(self, transform_tools)` (line 291): Test converting VTK matrix to ITK transform.
+  - `def test_compute_jacobian_determinant_from_field(self, transform_tools, test_transforms, test_images, test_directories)` (line 323): Test computing Jacobian determinant from deformation field.
+  - `def test_detect_folding_in_field(self, transform_tools, test_transforms, test_images)` (line 374): Test detecting spatial folding in deformation field.
+  - `def test_interpolate_transforms(self, transform_tools, test_transforms, test_images)` (line 404): Test temporal interpolation between transforms.
+  - `def test_combine_displacement_field_transforms(self, transform_tools, test_transforms, test_images)` (line 441): Test composing two transforms with various weights.
+  - `def test_smooth_transform(self, transform_tools, test_transforms, test_images)` (line 555): Test smoothing a transform.
+  - `def test_combine_transforms_with_masks(self, transform_tools, test_transforms, test_images)` (line 581): Test combining transforms with spatial masks.
+  - `def test_multiple_transform_applications(self, transform_tools, test_transforms, test_images)` (line 628): Test applying multiple transforms in sequence.
+  - `def test_identity_transform(self, transform_tools, test_images)` (line 656): Test that identity transform doesn't change the image.
 
 ## tests/test_usd_merge.py
 
-- `def analyze_usd_file(filepath)` (line 16): Analyze a USD file for materials and time samples.
-- **class TestUSDMerge** (line 72): Test suite for USD file merging.
-  - `def test_data_files(self)` (line 76): Locate test USD files with materials and time-varying data.
-  - `def output_dir(self, tmp_path_factory)` (line 91): Create temporary output directory for test results.
-  - `def input_stats(self, test_data_files)` (line 97): Analyze input USD files.
-  - `def test_merge_usd_files_copy_method(self, test_data_files, input_stats, output_dir)` (line 103): Test merge_usd_files() manual copy method.
-  - `def test_merge_usd_files_flattened_method(self, test_data_files, input_stats, output_dir)` (line 161): Test merge_usd_files_flattened() composition method.
-  - `def test_both_methods_produce_equivalent_results(self, test_data_files, output_dir)` (line 219): Verify both merge methods produce equivalent results.
+- `def analyze_usd_file(filepath)` (line 17): Analyze a USD file for materials and time samples.
+- **class TestUSDMerge** (line 73): Test suite for USD file merging.
+  - `def test_data_files(self)` (line 77): Locate test USD files with materials and time-varying data.
+  - `def output_dir(self, tmp_path_factory)` (line 92): Create temporary output directory for test results.
+  - `def input_stats(self, test_data_files)` (line 98): Analyze input USD files.
+  - `def test_merge_usd_files_copy_method(self, test_data_files, input_stats, output_dir)` (line 104): Test merge_usd_files() manual copy method.
+  - `def test_merge_usd_files_flattened_method(self, test_data_files, input_stats, output_dir)` (line 165): Test merge_usd_files_flattened() composition method.
+  - `def test_both_methods_produce_equivalent_results(self, test_data_files, output_dir)` (line 226): Verify both merge methods produce equivalent results.
 
 ## tests/test_usd_time_preservation.py
 
-- `def get_time_metadata(filepath)` (line 16): Extract time metadata from a USD file.
-- `def get_mesh_time_samples(filepath, mesh_name='inferior_vena_cava')` (line 40): Get time sample data for a specific mesh in a USD file.
-- **class TestUSDTimePreservation** (line 84): Test suite for USD time-varying data preservation.
-  - `def test_data_files(self)` (line 88): Locate test USD files with time-varying data.
-  - `def output_dir(self, tmp_path_factory)` (line 103): Create temporary output directory for test results.
-  - `def source_metadata(self, test_data_files)` (line 109): Get time metadata from source file.
-  - `def source_time_samples(self, test_data_files)` (line 114): Get time sample data from source file.
-  - `def test_merge_copy_preserves_time_metadata(self, test_data_files, source_metadata, output_dir)` (line 118): Test that merge_usd_files() preserves time metadata.
-  - `def test_merge_flattened_preserves_time_metadata(self, test_data_files, source_metadata, output_dir)` (line 147): Test that merge_usd_files_flattened() preserves time metadata.
-  - `def test_merge_copy_preserves_time_samples(self, test_data_files, source_time_samples, output_dir)` (line 176): Test that merge_usd_files() preserves actual time sample data.
-  - `def test_merge_flattened_preserves_time_samples(self, test_data_files, source_time_samples, output_dir)` (line 214): Test that merge_usd_files_flattened() preserves actual time sample data.
-  - `def test_animation_range_matches_actual_motion(self, test_data_files, source_time_samples, output_dir)` (line 252): Test that the full animation range is accessible.
+- `def get_time_metadata(filepath)` (line 17): Extract time metadata from a USD file.
+- `def get_mesh_time_samples(filepath, mesh_name='inferior_vena_cava')` (line 41): Get time sample data for a specific mesh in a USD file.
+- **class TestUSDTimePreservation** (line 88): Test suite for USD time-varying data preservation.
+  - `def test_data_files(self)` (line 92): Locate test USD files with time-varying data.
+  - `def output_dir(self, tmp_path_factory)` (line 107): Create temporary output directory for test results.
+  - `def source_metadata(self, test_data_files)` (line 113): Get time metadata from source file.
+  - `def source_time_samples(self, test_data_files)` (line 118): Get time sample data from source file.
+  - `def test_merge_copy_preserves_time_metadata(self, test_data_files, source_metadata, output_dir)` (line 124): Test that merge_usd_files() preserves time metadata.
+  - `def test_merge_flattened_preserves_time_metadata(self, test_data_files, source_metadata, output_dir)` (line 156): Test that merge_usd_files_flattened() preserves time metadata.
+  - `def test_merge_copy_preserves_time_samples(self, test_data_files, source_time_samples, output_dir)` (line 188): Test that merge_usd_files() preserves actual time sample data.
+  - `def test_merge_flattened_preserves_time_samples(self, test_data_files, source_time_samples, output_dir)` (line 229): Test that merge_usd_files_flattened() preserves actual time sample data.
+  - `def test_animation_range_matches_actual_motion(self, test_data_files, source_time_samples, output_dir)` (line 270): Test that the full animation range is accessible.
 
 ## tests/test_vtk_to_usd_library.py
 
@@ -812,28 +716,28 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def check_kcl_heart_data()` (line 42): Check if KCL Heart Model data is available.
 - `def check_valve4d_data()` (line 49): Check if CHOP Valve4D data is available.
 - `def get_or_create_average_surface(test_directories)` (line 56): Get or create average_surface.vtp from average_mesh.vtk.
-- `def kcl_average_surface(test_directories)` (line 100): Fixture providing the KCL average heart surface.
-- **class TestGenericArray** (line 116): Test GenericArray data structure validation and reshaping.
-  - `def test_scalar_1d_array(self)` (line 119): Test that 1D scalar arrays (num_components=1) are kept as-is.
-  - `def test_flat_multicomponent_array_reshape(self)` (line 132): Test that flat 1D arrays with num_components>1 are reshaped to 2D.
-  - `def test_2d_array_valid(self)` (line 148): Test that 2D arrays with correct shape are accepted.
-  - `def test_flat_array_not_divisible_raises_error(self)` (line 161): Test that flat arrays with length not divisible by num_components raise error.
-  - `def test_2d_array_wrong_shape_raises_error(self)` (line 172): Test that 2D arrays with wrong shape raise error.
-  - `def test_3d_array_raises_error(self)` (line 183): Test that 3D arrays are rejected.
-  - `def test_flat_array_large_components(self)` (line 194): Test reshaping with large num_components (e.g., 9 for 3x3 tensors).
-- **class TestVTKReader** (line 210): Test VTK file reading capabilities.
-  - `def test_read_vtp_file(self, kcl_average_surface)` (line 213): Test reading VTP (PolyData) files.
-  - `def test_read_legacy_vtk_file(self)` (line 234): Test reading legacy VTK files.
-  - `def test_generic_arrays_preserved(self, kcl_average_surface)` (line 261): Test that generic data arrays are preserved during reading.
-- **class TestVTKToUSDConversion** (line 285): Test VTK to USD conversion capabilities.
-  - `def test_single_file_conversion(self, test_directories, kcl_average_surface)` (line 288): Test converting a single VTK file to USD.
-  - `def test_conversion_with_material(self, test_directories, kcl_average_surface)` (line 328): Test conversion with custom material.
-  - `def test_conversion_settings(self, test_directories, kcl_average_surface)` (line 373): Test conversion with custom settings.
-  - `def test_primvar_preservation(self, test_directories, kcl_average_surface)` (line 406): Test that VTK data arrays are preserved as USD primvars.
-- **class TestTimeSeriesConversion** (line 444): Test time-series conversion capabilities.
-  - `def test_time_series_conversion(self, test_directories, kcl_average_surface)` (line 447): Test converting multiple VTK files as time series.
-- **class TestIntegration** (line 495): Integration tests combining multiple features.
-  - `def test_end_to_end_conversion(self, test_directories, kcl_average_surface)` (line 498): Test complete conversion workflow with all features.
+- `def kcl_average_surface(test_directories)` (line 102): Fixture providing the KCL average heart surface.
+- **class TestGenericArray** (line 118): Test GenericArray data structure validation and reshaping.
+  - `def test_scalar_1d_array(self)` (line 121): Test that 1D scalar arrays (num_components=1) are kept as-is.
+  - `def test_flat_multicomponent_array_reshape(self)` (line 134): Test that flat 1D arrays with num_components>1 are reshaped to 2D.
+  - `def test_2d_array_valid(self)` (line 150): Test that 2D arrays with correct shape are accepted.
+  - `def test_flat_array_not_divisible_raises_error(self)` (line 163): Test that flat arrays with length not divisible by num_components raise error.
+  - `def test_2d_array_wrong_shape_raises_error(self)` (line 174): Test that 2D arrays with wrong shape raise error.
+  - `def test_3d_array_raises_error(self)` (line 185): Test that 3D arrays are rejected.
+  - `def test_flat_array_large_components(self)` (line 196): Test reshaping with large num_components (e.g., 9 for 3x3 tensors).
+- **class TestVTKReader** (line 212): Test VTK file reading capabilities.
+  - `def test_read_vtp_file(self, kcl_average_surface)` (line 215): Test reading VTP (PolyData) files.
+  - `def test_read_legacy_vtk_file(self)` (line 236): Test reading legacy VTK files.
+  - `def test_generic_arrays_preserved(self, kcl_average_surface)` (line 263): Test that generic data arrays are preserved during reading.
+- **class TestVTKToUSDConversion** (line 287): Test VTK to USD conversion capabilities.
+  - `def test_single_file_conversion(self, test_directories, kcl_average_surface)` (line 290): Test converting a single VTK file to USD.
+  - `def test_conversion_with_material(self, test_directories, kcl_average_surface)` (line 332): Test conversion with custom material.
+  - `def test_conversion_settings(self, test_directories, kcl_average_surface)` (line 379): Test conversion with custom settings.
+  - `def test_primvar_preservation(self, test_directories, kcl_average_surface)` (line 414): Test that VTK data arrays are preserved as USD primvars.
+- **class TestTimeSeriesConversion** (line 454): Test time-series conversion capabilities.
+  - `def test_time_series_conversion(self, test_directories, kcl_average_surface)` (line 457): Test converting multiple VTK files as time series.
+- **class TestIntegration** (line 507): Integration tests combining multiple features.
+  - `def test_end_to_end_conversion(self, test_directories, kcl_average_surface)` (line 510): Test complete conversion workflow with all features.
 
 ## utils/claude_github_reviews.py
 

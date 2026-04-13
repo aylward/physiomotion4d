@@ -124,7 +124,7 @@ The script executes these steps automatically:
    * Selects reference image (default: 70% cardiac phase)
 
 2. **Segmentation**
-   * Segments reference image using AI ensemble methods
+   * Segments reference image using AI segmentation (TotalSegmentator or Simpleware)
    * Identifies: heart chambers, myocardium, vessels, lungs, bones
 
 3. **Registration**

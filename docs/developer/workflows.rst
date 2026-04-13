@@ -175,7 +175,7 @@ Configure workflow behavior programmatically:
        reference_image_filename="custom_ref.mha",
        
        # Segmentation configuration
-       segmentation_method='ensemble',  # Use ensemble
+       segmentation_method='totalsegmentator',  # Use TotalSegmentator
        
        # Output configuration
        verbose=True  # Enable detailed logging

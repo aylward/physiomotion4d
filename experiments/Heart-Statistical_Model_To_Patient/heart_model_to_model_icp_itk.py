@@ -148,7 +148,7 @@ patient_heart_surface = contour_tools.extract_contours(patient_heart_mask)
 # Load the pca model
 print("Loading template heart model...")
 template_model = pv.read(str(heart_model_path))
-template_model_surface = template_model.extract_surface()
+template_model_surface = template_model.extract_surface(algorithm="dataset_surface")
 
 icp_registrar = RegisterModelsICPITK(
     fixed_model=patient_heart_surface, reference_image=patient_image

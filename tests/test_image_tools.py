@@ -8,6 +8,9 @@ scalar and vector images.
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, Optional
+
 import itk
 import numpy as np
 import pytest
@@ -57,7 +60,7 @@ class TestImageTools:
         array_sitk = sitk.GetArrayFromImage(sitk_image)
         assert np.allclose(array_sitk, 42.0)
 
-        print("✓ ITK to SimpleITK scalar conversion successful")
+        print("ITK to SimpleITK scalar conversion successful")
 
     def test_sitk_to_itk_scalar_image(self, image_tools: ImageTools) -> None:
         """Test conversion of scalar SimpleITK image to ITK."""
@@ -89,7 +92,7 @@ class TestImageTools:
         array_itk = itk.array_from_image(itk_image)
         assert np.allclose(array_itk, 99.0)
 
-        print("✓ SimpleITK to ITK scalar conversion successful")
+        print("SimpleITK to ITK scalar conversion successful")
 
     def test_roundtrip_scalar_image(self, image_tools: ImageTools) -> None:
         """Test roundtrip conversion: ITK -> SimpleITK -> ITK."""
@@ -125,7 +128,7 @@ class TestImageTools:
         array_final = itk.array_from_image(itk_image_final)
         assert np.allclose(array_original, array_final)
 
-        print("✓ Roundtrip scalar conversion successful")
+        print("Roundtrip scalar conversion successful")
 
     def test_itk_to_sitk_vector_image(self, image_tools: ImageTools) -> None:
         """Test conversion of vector ITK image to SimpleITK."""
@@ -163,7 +166,7 @@ class TestImageTools:
         array_sitk = sitk.GetArrayFromImage(sitk_image)
         assert np.allclose(array, array_sitk)
 
-        print("✓ ITK to SimpleITK vector conversion successful")
+        print("ITK to SimpleITK vector conversion successful")
 
     def test_sitk_to_itk_vector_image(self, image_tools: ImageTools) -> None:
         """Test conversion of vector SimpleITK image to ITK."""
@@ -194,7 +197,7 @@ class TestImageTools:
         array_itk = itk.array_from_image(itk_image)
         assert np.allclose(array, array_itk)
 
-        print("✓ SimpleITK to ITK vector conversion successful")
+        print("SimpleITK to ITK vector conversion successful")
 
     def test_roundtrip_vector_image(self, image_tools: ImageTools) -> None:
         """Test roundtrip conversion for vector images: ITK -> SimpleITK -> ITK."""
@@ -231,16 +234,16 @@ class TestImageTools:
         array_final = itk.array_from_image(itk_image_final)
         assert np.allclose(array_original, array_final)
 
-        print("✓ Roundtrip vector conversion successful")
+        print("Roundtrip vector conversion successful")
 
     @pytest.mark.requires_data
     @pytest.mark.slow
     def test_imwrite_imread_vd3(
         self,
         image_tools: ImageTools,
-        ants_registration_results: dict,
-        test_images: list,
-        test_directories: dict,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
     ) -> None:
         """Test reading and writing double precision vector images."""
         from physiomotion4d.transform_tools import TransformTools
@@ -250,7 +253,7 @@ class TestImageTools:
         img_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTesting imwriteVD3 and imreadVD3...")
 
@@ -294,7 +297,7 @@ class TestImageTools:
         max_diff = np.max(np.abs(read_arr - original_arr))
         mean_diff = np.mean(np.abs(read_arr - original_arr))
 
-        print("✓ Vector field I/O test complete")
+        print("Vector field I/O test complete")
         print(f"  Max difference: {max_diff:.6e}")
         print(f"  Mean difference: {mean_diff:.6e}")
 
@@ -305,9 +308,9 @@ class TestImageTools:
 
 def _make_synthetic_itk_image(
     shape_xyz: tuple[int, int, int],
-    arr: np.ndarray | None = None,
-    direction: np.ndarray | None = None,
-) -> itk.Image[itk.F, 3]:
+    arr: Optional[np.ndarray] = None,
+    direction: Optional[np.ndarray] = None,
+) -> Any:
     """Create a small 3D ITK image. shape_xyz is (nx, ny, nz); array from ITK is (nz, ny, nx)."""
     # ITK uses (x, y, z) for size; array_from_image gives (z, y, x)
     if arr is None:

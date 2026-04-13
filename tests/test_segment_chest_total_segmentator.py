@@ -6,9 +6,14 @@ This test depends on test_convert_nrrd_4d_to_3d and tests segmentation
 functionality on two time points from the converted 3D data.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import numpy as np
 import pytest
+
+from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 
 
 @pytest.mark.requires_data
@@ -16,7 +21,9 @@ import pytest
 class TestSegmentChestTotalSegmentator:
     """Test suite for TotalSegmentator chest CT segmentation."""
 
-    def test_segmenter_initialization(self, segmenter_total_segmentator):
+    def test_segmenter_initialization(
+        self, segmenter_total_segmentator: SegmentChestTotalSegmentator
+    ) -> None:
         """Test that SegmentChestTotalSegmentator initializes correctly."""
         assert segmenter_total_segmentator is not None, "Segmenter not initialized"
         assert segmenter_total_segmentator.target_spacing == 1.5, (
@@ -40,7 +47,7 @@ class TestSegmentChestTotalSegmentator:
             "Soft tissue mask IDs not defined"
         )
 
-        print("\n✓ Segmenter initialized with correct parameters")
+        print("\nSegmenter initialized with correct parameters")
         print(f"  Heart structures: {len(segmenter_total_segmentator.heart_mask_ids)}")
         print(
             f"  Major vessels: {len(segmenter_total_segmentator.major_vessels_mask_ids)}"
@@ -52,8 +59,11 @@ class TestSegmentChestTotalSegmentator:
         )
 
     def test_segment_single_image(
-        self, segmenter_total_segmentator, test_images, test_directories
-    ):
+        self,
+        segmenter_total_segmentator: SegmentChestTotalSegmentator,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test segmentation on a single time point."""
         output_dir = test_directories["output"]
 
@@ -93,7 +103,7 @@ class TestSegmentChestTotalSegmentator:
         unique_labels = np.unique(labelmap_arr)
         assert len(unique_labels) > 1, "Labelmap should contain multiple labels"
 
-        print("✓ Segmentation complete for time point 0")
+        print("Segmentation complete for time point 0")
         print(f"  Labelmap size: {itk.size(labelmap)}")
         print(f"  Unique labels: {len(unique_labels)}")
 
@@ -107,8 +117,11 @@ class TestSegmentChestTotalSegmentator:
         print(f"  Saved labelmap to: {seg_output_dir / 'slice_000_labelmap.mha'}")
 
     def test_segment_multiple_images(
-        self, segmenter_total_segmentator, test_images, test_directories
-    ):
+        self,
+        segmenter_total_segmentator: SegmentChestTotalSegmentator,
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test segmentation on two time points."""
         output_dir = test_directories["output"]
         seg_output_dir = output_dir / "segmentation_total_segmentator"
@@ -128,13 +141,17 @@ class TestSegmentChestTotalSegmentator:
             output_file = seg_output_dir / f"slice_{i:03d}_labelmap.mha"
             itk.imwrite(labelmap, str(output_file), compression=True)
 
-            print(f"✓ Time point {i} complete")
+            print(f"Time point {i} complete")
             print(f"  Saved to: {output_file}")
 
         assert len(results) == 2, "Expected 2 segmentation results"
-        print(f"\n✓ Successfully segmented {len(results)} time points")
+        print(f"\nSuccessfully segmented {len(results)} time points")
 
-    def test_anatomy_group_masks(self, segmenter_total_segmentator, test_images):
+    def test_anatomy_group_masks(
+        self,
+        segmenter_total_segmentator: SegmentChestTotalSegmentator,
+        test_images: list[Any],
+    ) -> None:
         """Test that anatomy group masks are created correctly."""
         input_image = test_images[0]
 
@@ -168,13 +185,17 @@ class TestSegmentChestTotalSegmentator:
                 f"{group} mask size mismatch"
             )
 
-        print("\n✓ All anatomy group masks created correctly")
+        print("\nAll anatomy group masks created correctly")
         for group in anatomy_groups:
             mask_arr = itk.array_from_image(result[group])
             num_voxels = np.sum(mask_arr > 0)
             print(f"  {group}: {num_voxels} voxels")
 
-    def test_contrast_detection(self, segmenter_total_segmentator, test_images):
+    def test_contrast_detection(
+        self,
+        segmenter_total_segmentator: SegmentChestTotalSegmentator,
+        test_images: list[Any],
+    ) -> None:
         """Test contrast detection functionality."""
         input_image = test_images[0]
 
@@ -194,14 +215,18 @@ class TestSegmentChestTotalSegmentator:
         assert contrast_mask_no is not None, "Contrast mask (no flag) is None"
         assert contrast_mask_yes is not None, "Contrast mask (with flag) is None"
 
-        print("\n✓ Contrast detection tested")
+        print("\nContrast detection tested")
 
         contrast_arr_no = itk.array_from_image(contrast_mask_no)
         contrast_arr_yes = itk.array_from_image(contrast_mask_yes)
         print(f"  Without contrast flag: {np.sum(contrast_arr_no > 0)} voxels")
         print(f"  With contrast flag: {np.sum(contrast_arr_yes > 0)} voxels")
 
-    def test_preprocessing(self, segmenter_total_segmentator, test_images):
+    def test_preprocessing(
+        self,
+        segmenter_total_segmentator: SegmentChestTotalSegmentator,
+        test_images: list[Any],
+    ) -> None:
         """Test preprocessing functionality."""
         input_image = test_images[0]
 
@@ -218,10 +243,14 @@ class TestSegmentChestTotalSegmentator:
         assert result is not None, "Segmentation result is None"
         assert "labelmap" in result, "Labelmap not in result"
 
-        print("\n✓ Preprocessing tested (via successful segmentation)")
+        print("\nPreprocessing tested (via successful segmentation)")
         print(f"  Original image spacing: {original_spacing}")
 
-    def test_postprocessing(self, segmenter_total_segmentator, test_images):
+    def test_postprocessing(
+        self,
+        segmenter_total_segmentator: SegmentChestTotalSegmentator,
+        test_images: list[Any],
+    ) -> None:
         """Test postprocessing functionality."""
         input_image = test_images[0]
 
@@ -246,7 +275,7 @@ class TestSegmentChestTotalSegmentator:
                 f"Spacing mismatch at dimension {i}"
             )
 
-        print("\n✓ Postprocessing tested")
+        print("\nPostprocessing tested")
         print(f"  Original spacing: {original_spacing}")
         print(f"  Labelmap spacing: {labelmap_spacing}")
 

@@ -6,13 +6,18 @@ This test validates the RegisterTimeSeriesImages class which registers
 an ordered sequence of images to a fixed reference image.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import numpy as np
 import pytest
 
-from physiomotion4d import RegisterTimeSeriesImages
-from physiomotion4d.test_tools import TestTools
-from physiomotion4d.transform_tools import TransformTools
+from physiomotion4d import (
+    RegisterTimeSeriesImages,
+    TestTools,
+    TransformTools,
+)
 
 
 @pytest.mark.requires_data
@@ -20,7 +25,9 @@ from physiomotion4d.transform_tools import TransformTools
 class TestRegisterTimeSeriesImages:
     """Test suite for time series image registration."""
 
-    def test_registrar_initialization_ants(self):
+    _class_name = "registration_time_series_images"
+
+    def test_registrar_initialization_ants(self) -> None:
         """Test that RegisterTimeSeriesImages initializes correctly with ANTs."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         assert registrar is not None, "Registrar not initialized"
@@ -32,9 +39,9 @@ class TestRegisterTimeSeriesImages:
             "Internal ICON registrar not created"
         )
 
-        print("\n✓ Time series registrar initialized with ANTs")
+        print("\nTime series registrar initialized with ANTs")
 
-    def test_registrar_initialization_icon(self):
+    def test_registrar_initialization_icon(self) -> None:
         """Test that RegisterTimeSeriesImages initializes correctly with ICON."""
         registrar = RegisterTimeSeriesImages(registration_method="icon")
         assert registrar is not None, "Registrar not initialized"
@@ -46,24 +53,24 @@ class TestRegisterTimeSeriesImages:
             "Internal ICON registrar not created"
         )
 
-        print("\n✓ Time series registrar initialized with ICON")
+        print("\nTime series registrar initialized with ICON")
 
-    def test_registrar_initialization_invalid_method(self):
+    def test_registrar_initialization_invalid_method(self) -> None:
         """Test that invalid registration method raises error."""
         with pytest.raises(ValueError, match="registration_method must be"):
             RegisterTimeSeriesImages(registration_method="invalid")
 
-        print("\n✓ Invalid method correctly rejected")
+        print("\nInvalid method correctly rejected")
 
-    def test_set_modality(self):
+    def test_set_modality(self) -> None:
         """Test setting imaging modality."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_modality("ct")
         assert registrar.modality == "ct", "Modality not set correctly"
 
-        print("\n✓ Modality setting works correctly")
+        print("\nModality setting works correctly")
 
-    def test_set_fixed_image(self, test_images):
+    def test_set_fixed_image(self, test_images: list[Any]) -> None:
         """Test setting fixed image."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         fixed_image = test_images[0]
@@ -71,10 +78,10 @@ class TestRegisterTimeSeriesImages:
         registrar.set_fixed_image(fixed_image)
         assert registrar.fixed_image is not None, "Fixed image not set"
 
-        print("\n✓ Fixed image set successfully")
+        print("\nFixed image set successfully")
         print(f"  Image size: {itk.size(registrar.fixed_image)}")
 
-    def test_set_number_of_iterations(self):
+    def test_set_number_of_iterations(self) -> None:
         """Test setting number of iterations."""
         registrar_ants = RegisterTimeSeriesImages(registration_method="ants")
         iterations_ants = [30, 15, 5]
@@ -92,9 +99,11 @@ class TestRegisterTimeSeriesImages:
             "ICON iterations not set correctly"
         )
 
-        print("\n✓ Number of iterations set successfully")
+        print("\nNumber of iterations set successfully")
 
-    def test_register_time_series_basic(self, test_images, test_directories) -> bool:
+    def test_register_time_series_basic(
+        self, test_images: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test basic time series registration without prior transform."""
         # Use first 3 images for quick test
         fixed_image = test_images[0]
@@ -142,7 +151,7 @@ class TestRegisterTimeSeriesImages:
             assert forward_transform is not None, f"forward_transform[{i}] is None"
             assert inverse_transform is not None, f"inverse_transform[{i}] is None"
 
-        print("✓ Time series registration complete")
+        print("Time series registration complete")
         print(f"  Transforms generated: {len(forward_transforms)}")
         print(f"  Average loss: {np.mean(losses):.6f}")
 
@@ -155,7 +164,7 @@ class TestRegisterTimeSeriesImages:
         )
 
         test_tools = TestTools(
-            class_name="TestRegisterTimeSeriesImages",
+            class_name=self._class_name,
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -163,22 +172,20 @@ class TestRegisterTimeSeriesImages:
         test_tools.write_result_transform(
             forward_transforms[0], "basic_forward_transform_0.hdf"
         )
-        success = test_tools.compare_result_to_baseline_transform(
+        assert test_tools.compare_result_to_baseline_transform(
             "basic_forward_transform_0.hdf",
         )
 
         test_tools.write_result_image(
             moving_image, "basic_time_series_registered_0.mha"
         )
-        success = success and test_tools.compare_result_to_baseline_image(
+        assert test_tools.compare_result_to_baseline_image(
             "basic_time_series_registered_0.mha",
         )
 
-        return success
-
     def test_register_time_series_with_prior(
-        self, test_images, test_directories
-    ) -> bool:
+        self, test_images: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test time series registration with prior transform usage."""
         fixed_image = test_images[0]
         moving_images = test_images[1:4]
@@ -214,11 +221,11 @@ class TestRegisterTimeSeriesImages:
         for i, forward_transform in enumerate(forward_transforms):
             assert forward_transform is not None, f"forward_transform[{i}] is None"
 
-        print("✓ Time series registration with prior complete")
+        print("Time series registration with prior complete")
         print(f"  Losses: {[f'{loss:.6f}' for loss in losses]}")
 
         test_tools = TestTools(
-            class_name="TestRegisterTimeSeriesImages",
+            class_name=self._class_name,
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -226,19 +233,18 @@ class TestRegisterTimeSeriesImages:
         test_tools.write_result_transform(
             forward_transforms[0], "prior_forward_transform_0.hdf"
         )
-        success = test_tools.compare_result_to_baseline_transform(
+        assert test_tools.compare_result_to_baseline_transform(
             "prior_forward_transform_0.hdf",
         )
 
         test_tools.write_result_image(
             moving_image, "prior_time_series_registered_0.mha"
         )
-        success = success and test_tools.compare_result_to_baseline_image(
+        assert test_tools.compare_result_to_baseline_image(
             "prior_time_series_registered_0.mha",
         )
-        return success
 
-    def test_register_time_series_identity_start(self, test_images):
+    def test_register_time_series_identity_start(self, test_images: list[Any]) -> None:
         """Test time series registration with identity for starting image."""
         fixed_image = test_images[0]
         moving_images = test_images[1:4]
@@ -262,9 +268,11 @@ class TestRegisterTimeSeriesImages:
         print(f"  Starting image loss: {losses[0]}")
         assert losses[0] == 0.0, "Starting image should have zero loss with identity"
 
-        print("✓ Identity start registration complete")
+        print("Identity start registration complete")
 
-    def test_register_time_series_different_starting_indices(self, test_images):
+    def test_register_time_series_different_starting_indices(
+        self, test_images: list[Any]
+    ) -> None:
         """Test time series registration with different starting indices."""
         fixed_image = test_images[0]
         moving_images = test_images[1:3]  # 2 images
@@ -290,9 +298,9 @@ class TestRegisterTimeSeriesImages:
                 f"Wrong number of transforms for reference_frame={starting_index}"
             )
 
-        print("✓ Different starting indices work correctly")
+        print("Different starting indices work correctly")
 
-    def test_register_time_series_error_no_fixed_image(self):
+    def test_register_time_series_error_no_fixed_image(self) -> None:
         """Test that error is raised if fixed image not set."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
 
@@ -301,9 +309,11 @@ class TestRegisterTimeSeriesImages:
         with pytest.raises(ValueError, match="Fixed image must be set"):
             registrar.register_time_series(moving_images=moving_images)
 
-        print("\n✓ Error correctly raised when fixed image not set")
+        print("\nError correctly raised when fixed image not set")
 
-    def test_register_time_series_error_invalid_starting_index(self, test_images):
+    def test_register_time_series_error_invalid_starting_index(
+        self, test_images: list[Any]
+    ) -> None:
         """Test that error is raised for invalid starting index."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_fixed_image(test_images[0])
@@ -322,9 +332,11 @@ class TestRegisterTimeSeriesImages:
                 moving_images=moving_images, reference_frame=10
             )
 
-        print("\n✓ Invalid starting index correctly rejected")
+        print("\nInvalid starting index correctly rejected")
 
-    def test_register_time_series_error_invalid_prior_portion(self, test_images):
+    def test_register_time_series_error_invalid_prior_portion(
+        self, test_images: list[Any]
+    ) -> None:
         """Test that error is raised for invalid prior portion value."""
         registrar = RegisterTimeSeriesImages(registration_method="ants")
         registrar.set_fixed_image(test_images[0])
@@ -345,11 +357,11 @@ class TestRegisterTimeSeriesImages:
                 prior_weight=1.5,
             )
 
-        print("\n✓ Invalid prior portion correctly rejected")
+        print("\nInvalid prior portion correctly rejected")
 
     def test_transform_application_time_series(
-        self, test_images, test_directories
-    ) -> bool:
+        self, test_images: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test applying transforms from time series registration."""
         fixed_image = test_images[0]
         moving_images = test_images[1:3]
@@ -382,12 +394,12 @@ class TestRegisterTimeSeriesImages:
         assert registered_image is not None, "Registered image is None"
         assert itk.size(registered_image) == itk.size(fixed_image), "Size mismatch"
 
-        print("✓ Transform application successful")
+        print("Transform application successful")
         print(f"  Registered image size: {itk.size(registered_image)}")
 
         # Save registered image
         test_tools = TestTools(
-            class_name="TestRegisterTimeSeriesImages",
+            class_name=self._class_name,
             results_dir=test_directories["output"],
             baselines_dir=test_directories["baselines"],
         )
@@ -395,13 +407,11 @@ class TestRegisterTimeSeriesImages:
         test_tools.write_result_image(
             registered_image, "transform_application_time_series_0.mha"
         )
-        success = test_tools.compare_result_to_baseline_image(
+        assert test_tools.compare_result_to_baseline_image(
             "transform_application_time_series_0.mha",
         )
 
-        return success
-
-    def test_register_time_series_icon(self, test_images):
+    def test_register_time_series_icon(self, test_images: list[Any]) -> None:
         """Test time series registration with ICON method."""
         fixed_image = test_images[0]
         moving_images = test_images[1:3]
@@ -424,9 +434,11 @@ class TestRegisterTimeSeriesImages:
         assert len(result["inverse_transforms"]) == len(moving_images)
         assert len(result["losses"]) == len(moving_images)
 
-        print("✓ ICON time series registration complete")
+        print("ICON time series registration complete")
 
-    def test_register_time_series_with_mask(self, test_images, test_directories):
+    def test_register_time_series_with_mask(
+        self, test_images: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test time series registration with fixed image mask."""
         fixed_image = test_images[0]
         moving_images = test_images[1:3]
@@ -467,9 +479,9 @@ class TestRegisterTimeSeriesImages:
 
         assert len(result["forward_transforms"]) == len(moving_images)
 
-        print("✓ Masked time series registration complete")
+        print("Masked time series registration complete")
 
-    def test_bidirectional_registration(self, test_images):
+    def test_bidirectional_registration(self, test_images: list[Any]) -> None:
         """Test that bidirectional registration works correctly."""
         fixed_image = test_images[0]
         moving_images = test_images[1:6]  # 5 images
@@ -496,7 +508,7 @@ class TestRegisterTimeSeriesImages:
         for i, forward_transform in enumerate(forward_transforms):
             assert forward_transform is not None, f"Transform {i} is None"
 
-        print("✓ Bidirectional registration successful")
+        print("Bidirectional registration successful")
         print(f"  All {len(forward_transforms)} transforms generated")
 
 

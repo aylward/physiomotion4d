@@ -6,6 +6,8 @@ This test replicates the functionality from cells 0-2 of the notebook
 Heart-GatedCT_To_USD/0-download_and_convert_4d_to_3d.ipynb.
 """
 
+from pathlib import Path
+
 import pytest
 
 
@@ -13,7 +15,7 @@ import pytest
 class TestDownloadHeartData:
     """Test suite for downloading and converting Slicer-Heart-CT data."""
 
-    def test_directories_created(self, test_directories):
+    def test_directories_created(self, test_directories: dict[str, Path]) -> None:
         """Test that directories are created successfully."""
         data_dir = test_directories["data"]
         output_dir = test_directories["output"]
@@ -23,9 +25,13 @@ class TestDownloadHeartData:
         assert data_dir.is_dir(), f"Data path is not a directory: {data_dir}"
         assert output_dir.is_dir(), f"Output path is not a directory: {output_dir}"
 
-    def test_data_downloaded(self, download_truncal_valve_data, test_directories):
+    def test_data_downloaded(
+        self,
+        download_test_data: Path,
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test that the TruncalValve 4D CT data file is downloaded."""
-        data_file = download_truncal_valve_data
+        data_file = download_test_data
 
         assert data_file.exists(), f"Data file not found: {data_file}"
         assert data_file.is_file(), f"Data path is not a file: {data_file}"
@@ -36,7 +42,7 @@ class TestDownloadHeartData:
             f"Downloaded file seems too small: {file_size} bytes"
         )
 
-        print(f"\n✓ Data file downloaded successfully: {data_file}")
+        print(f"\nData file downloaded successfully: {data_file}")
         print(f"  File size: {file_size / 1_000_000:.2f} MB")
 
 

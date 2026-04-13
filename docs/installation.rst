@@ -25,7 +25,7 @@ PhysioMotion4D relies on several key packages:
 * **AI/ML**: PyTorch, CuPy (CUDA 13 default; CUDA 12 via ``[cuda12]`` extra), transformers, MONAI
 * **Registration**: icon-registration, unigradicon
 * **Visualization**: USD-core, PyVista
-* **Segmentation**: TotalSegmentator, VISTA-3D models
+* **Segmentation**: TotalSegmentator
 
 Installation Methods
 ====================

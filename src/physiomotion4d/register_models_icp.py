@@ -111,7 +111,7 @@ class RegisterModelsICP(PhysioMotion4DBase):
 
         Note:
             The moving_model is typically extracted from a VTU model using
-            model.extract_surface() before passing to this class.
+            model.extract_surface(algorithm="dataset_surface") before passing to this class.
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 

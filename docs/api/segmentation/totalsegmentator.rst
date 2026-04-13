@@ -368,7 +368,7 @@ If certain structures are not segmented:
 * Check input image quality (resolution, contrast, noise)
 * Verify proper windowing/leveling for CT
 * Try different preprocessing (denoising, normalization)
-* Consider ensemble with VISTA-3D for better coverage
+* Try alternative preprocessing (denoising, normalization)
 
 Incorrect Boundaries
 --------------------
@@ -376,7 +376,7 @@ Incorrect Boundaries
 If boundaries are imprecise:
 * Disable fast mode for better quality
 * Apply custom post-processing (smoothing, morphological operations)
-* Use ensemble approach combining multiple methods
+* Try Simpleware segmentation for higher-quality cardiac boundaries
 
 Performance Issues
 ------------------
@@ -391,10 +391,8 @@ See Also
 ========
 
 * :doc:`index` - Segmentation overview
-* :doc:`vista3d` - VISTA-3D for cardiac structures
-* :doc:`ensemble` - Combine with other methods
 * :doc:`../workflows` - Use in complete workflows
 
 .. rubric:: Navigation
 
-:doc:`base` | :doc:`index` | :doc:`vista3d`
+:doc:`base` | :doc:`index`

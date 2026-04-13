@@ -347,9 +347,8 @@ See Also
 
 * :doc:`index` - Segmentation module overview
 * :doc:`totalsegmentator` - TotalSegmentator implementation
-* :doc:`vista3d` - VISTA-3D implementation
 * :doc:`../../developer/extending` - Extending PhysioMotion4D
 
 .. rubric:: Navigation
 
-:doc:`index` | :doc:`totalsegmentator` | :doc:`vista3d`
+:doc:`index` | :doc:`totalsegmentator`

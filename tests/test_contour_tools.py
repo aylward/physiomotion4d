@@ -6,10 +6,15 @@ This test depends on test_segment_chest_total_segmentator and uses the
 segmentation results to test contour extraction and manipulation.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import numpy as np
 import pytest
 import pyvista as pv
+
+from physiomotion4d.contour_tools import ContourTools
 
 
 @pytest.mark.requires_data
@@ -17,21 +22,24 @@ import pyvista as pv
 class TestContourTools:
     """Test suite for ContourTools functionality."""
 
-    def test_contour_tools_initialization(self, contour_tools):
+    def test_contour_tools_initialization(self, contour_tools: ContourTools) -> None:
         """Test that ContourTools initializes correctly."""
         assert contour_tools is not None, "ContourTools not initialized"
-        print("\n✓ ContourTools initialized successfully")
+        print("\nContourTools initialized successfully")
 
     def test_extract_contours_from_heart_mask(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test extracting contours from heart mask."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
         contour_output_dir.mkdir(exist_ok=True)
 
         # Extract contours from heart mask of first time point
-        heart_mask = segmentation_results[0]["heart"]
+        heart_mask = test_labelmaps[0]["heart"]
 
         print("\nExtracting contours from heart mask...")
         print(f"  Heart mask size: {itk.size(heart_mask)}")
@@ -43,7 +51,7 @@ class TestContourTools:
         assert isinstance(contours, pv.PolyData), "Contours should be PyVista PolyData"
         assert contours.n_points > 0, "Contours should have points"
 
-        print("✓ Heart contours extracted successfully")
+        print("Heart contours extracted successfully")
         print(f"  Number of points: {contours.n_points}")
         print(f"  Number of cells: {contours.n_cells}")
 
@@ -53,15 +61,18 @@ class TestContourTools:
         print(f"  Saved to: {output_file}")
 
     def test_extract_contours_from_lung_mask(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test extracting contours from lung mask."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
         contour_output_dir.mkdir(exist_ok=True)
 
         # Extract contours from lung mask
-        lung_mask = segmentation_results[0]["lung"]
+        lung_mask = test_labelmaps[0]["lung"]
 
         print("\nExtracting contours from lung mask...")
         contours = contour_tools.extract_contours(lung_mask)
@@ -69,7 +80,7 @@ class TestContourTools:
         assert contours is not None, "Lung contours not extracted"
         assert contours.n_points > 0, "Lung contours should have points"
 
-        print("✓ Lung contours extracted successfully")
+        print("Lung contours extracted successfully")
         print(f"  Number of points: {contours.n_points}")
         print(f"  Number of cells: {contours.n_cells}")
 
@@ -79,8 +90,11 @@ class TestContourTools:
         print(f"  Saved to: {output_file}")
 
     def test_extract_contours_multiple_anatomy(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test extracting contours from multiple anatomical structures."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
@@ -88,10 +102,10 @@ class TestContourTools:
 
         # Test on multiple anatomy groups
         anatomy_groups = ["lung", "heart", "bone"]
-        contours_dict = {}
+        contours_dict: dict[str, pv.PolyData] = {}
 
         for group in anatomy_groups:
-            mask = segmentation_results[0][group]
+            mask = test_labelmaps[0][group]
 
             # Check if mask has any foreground voxels
             mask_arr = itk.array_from_image(mask)
@@ -111,18 +125,22 @@ class TestContourTools:
         assert len(contours_dict) > 0, (
             "Should extract contours from at least one anatomy group"
         )
-        print(f"\n✓ Extracted contours from {len(contours_dict)} anatomy groups")
+        print(f"\nExtracted contours from {len(contours_dict)} anatomy groups")
 
     def test_create_mask_from_mesh(
-        self, contour_tools, segmentation_results, test_images, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test creating a mask from extracted mesh."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
         contour_output_dir.mkdir(exist_ok=True)
 
         # Extract contours from heart mask
-        heart_mask = segmentation_results[0]["heart"]
+        heart_mask = test_labelmaps[0]["heart"]
         contours = contour_tools.extract_contours(heart_mask)
 
         # Create mask from the extracted mesh
@@ -141,7 +159,7 @@ class TestContourTools:
         num_foreground = np.sum(mask_arr > 0)
         assert num_foreground > 0, "Recreated mask should have foreground voxels"
 
-        print("✓ Mask created from mesh successfully")
+        print("Mask created from mesh successfully")
         print(f"  Mask size: {itk.size(recreated_mask)}")
         print(f"  Foreground voxels: {num_foreground}")
 
@@ -150,7 +168,12 @@ class TestContourTools:
         itk.imwrite(recreated_mask, str(output_file), compression=True)
         print(f"  Saved to: {output_file}")
 
-    def test_merge_meshes(self, contour_tools, segmentation_results, test_directories):
+    def test_merge_meshes(
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test merging multiple meshes."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
@@ -161,7 +184,7 @@ class TestContourTools:
         anatomy_groups = ["lung", "heart"]
 
         for group in anatomy_groups:
-            mask = segmentation_results[0][group]
+            mask = test_labelmaps[0][group]
             mask_arr = itk.array_from_image(mask)
 
             if np.sum(mask_arr > 0) > 100:
@@ -184,7 +207,7 @@ class TestContourTools:
                 "Should return same number of individual meshes"
             )
 
-            print("✓ Meshes merged successfully")
+            print("Meshes merged successfully")
             print(f"  Merged mesh points: {merged_mesh.n_points}")
             print(f"  Merged mesh cells: {merged_mesh.n_cells}")
 
@@ -196,15 +219,18 @@ class TestContourTools:
             pytest.skip("Not enough meshes with sufficient voxels to test merging")
 
     def test_transform_contours_identity(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test transforming contours with identity transform."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
         contour_output_dir.mkdir(exist_ok=True)
 
         # Extract contours
-        heart_mask = segmentation_results[0]["heart"]
+        heart_mask = test_labelmaps[0]["heart"]
         contours = contour_tools.extract_contours(heart_mask)
 
         # Create identity transform
@@ -230,7 +256,7 @@ class TestContourTools:
         transformed_points = transformed_contours.points
         max_diff = np.max(np.abs(original_points - transformed_points))
 
-        print("✓ Contours transformed successfully")
+        print("Contours transformed successfully")
         print(f"  Number of points: {transformed_contours.n_points}")
         print(f"  Max point difference (identity): {max_diff:.6f} mm")
 
@@ -239,15 +265,18 @@ class TestContourTools:
         )
 
     def test_transform_contours_with_deformation(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test transforming contours with deformation magnitude calculation."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
         contour_output_dir.mkdir(exist_ok=True)
 
         # Extract contours
-        heart_mask = segmentation_results[0]["heart"]
+        heart_mask = test_labelmaps[0]["heart"]
         contours = contour_tools.extract_contours(heart_mask)
 
         # Create a translation transform (10mm in each direction)
@@ -268,7 +297,7 @@ class TestContourTools:
             mean_deformation = np.mean(deformation)
             expected_deformation = np.sqrt(10**2 + 10**2 + 10**2)  # ~17.32 mm
 
-            print("✓ Deformation magnitude calculated")
+            print("Deformation magnitude calculated")
             print(f"  Mean deformation: {mean_deformation:.2f} mm")
             print(f"  Expected: {expected_deformation:.2f} mm")
 
@@ -285,8 +314,11 @@ class TestContourTools:
             print("  Note: DeformationMagnitude not in point data")
 
     def test_contours_from_both_time_points(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test extracting contours from both time points."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
@@ -294,7 +326,7 @@ class TestContourTools:
 
         print("\nExtracting heart contours from both time points...")
 
-        for i, result in enumerate(segmentation_results):
+        for i, result in enumerate(test_labelmaps):
             heart_mask = result["heart"]
             contours = contour_tools.extract_contours(heart_mask)
 
@@ -304,7 +336,7 @@ class TestContourTools:
             output_file = contour_output_dir / f"heart_contours_slice{i:03d}.vtp"
             contours.save(str(output_file))
 
-        print(f"✓ Extracted contours from {len(segmentation_results)} time points")
+        print(f"Extracted contours from {len(test_labelmaps)} time points")
 
 
 if __name__ == "__main__":

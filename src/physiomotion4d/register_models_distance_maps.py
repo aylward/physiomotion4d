@@ -26,7 +26,7 @@ Example:
     >>> from physiomotion4d import RegisterModelsDistanceMaps
     >>>
     >>> # Load models and reference image
-    >>> moving_model = pv.read('generic_model.vtu').extract_surface()
+    >>> moving_model = pv.read('generic_model.vtu').extract_surface(algorithm="dataset_surface")
     >>> fixed_model = pv.read('patient_surface.stl')
     >>> reference_image = itk.imread('patient_ct.nii.gz')
     >>>
@@ -136,7 +136,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
         Note:
             The moving_model and fixed_model are typically extracted from VTU models
-            using model.extract_surface() before passing to this class.
+            using model.extract_surface(algorithm="dataset_surface") before passing to this class.
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 

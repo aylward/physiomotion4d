@@ -20,9 +20,9 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
    :target: https://github.com/Project-MONAI/physiomotion4d/blob/main/LICENSE
    :alt: License
 
-.. image:: https://img.shields.io/github/actions/workflow/status/Project-MONAI/physiomotion4d/ci.yml?branch=main&label=CI%20Tests
-   :target: https://github.com/Project-MONAI/physiomotion4d/actions/workflows/ci.yml
-   :alt: CI Tests
+.. image:: https://img.shields.io/github/actions/workflow/status/Project-MONAI/physiomotion4d/nightly-health.yml?branch=main&label=Nightly%20CI%20Tests
+   :target: https://github.com/Project-MONAI/physiomotion4d/actions/workflows/nightly-health.yml
+   :alt: Nightly CI Tests
 
 .. image:: https://img.shields.io/badge/tests-Windows%20%7C%20Linux%20%7C%20Python%203.10--3.12-blue
    :target: https://github.com/Project-MONAI/physiomotion4d/actions/workflows/ci.yml
@@ -36,7 +36,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 ===============
 
 * **Complete 4D Medical Imaging Pipeline**: End-to-end processing from 4D CT/MR data to animated USD models
-* **Multiple AI Segmentation Methods**: TotalSegmentator, VISTA-3D, and ensemble approaches
+* **Multiple AI Segmentation Methods**: TotalSegmentator and Simpleware cardiac segmentation
 * **Deep Learning Registration**: GPU-accelerated image registration using Icon algorithm
 * **NVIDIA Omniverse Integration**: Direct USD file export for medical visualization
 * **Physiological Motion Analysis**: Capture and visualize cardiac and respiratory motion

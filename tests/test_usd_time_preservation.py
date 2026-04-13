@@ -6,6 +6,7 @@ TimeCodesPerSecond metadata, and actual point position data at all time steps.
 """
 
 from pathlib import Path
+from typing import Any, Optional
 
 import pytest
 from pxr import Usd, UsdGeom
@@ -13,7 +14,7 @@ from pxr import Usd, UsdGeom
 from physiomotion4d import USDTools
 
 
-def get_time_metadata(filepath: str) -> dict:
+def get_time_metadata(filepath: str) -> dict[str, Any]:
     """
     Extract time metadata from a USD file.
 
@@ -37,7 +38,9 @@ def get_time_metadata(filepath: str) -> dict:
     }
 
 
-def get_mesh_time_samples(filepath: str, mesh_name: str = "inferior_vena_cava") -> dict:
+def get_mesh_time_samples(
+    filepath: str, mesh_name: str = "inferior_vena_cava"
+) -> Optional[dict[str, Any]]:
     """
     Get time sample data for a specific mesh in a USD file.
 
@@ -50,8 +53,9 @@ def get_mesh_time_samples(filepath: str, mesh_name: str = "inferior_vena_cava") 
 
     Returns
     -------
-    dict
-        Time sample information including codes and point positions
+    dict or None
+        Time sample information including codes and point positions,
+        or None if the mesh is not found
     """
     stage = Usd.Stage.Open(filepath)
 
@@ -85,7 +89,7 @@ class TestUSDTimePreservation:
     """Test suite for USD time-varying data preservation."""
 
     @pytest.fixture(scope="class")
-    def test_data_files(self):
+    def test_data_files(self) -> dict[str, str]:
         """Locate test USD files with time-varying data."""
         dynamic_file = Path(
             "experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.dynamic_anatomy_painted.usd"
@@ -100,24 +104,29 @@ class TestUSDTimePreservation:
         return {"dynamic": str(dynamic_file), "static": str(static_file)}
 
     @pytest.fixture(scope="class")
-    def output_dir(self, tmp_path_factory):
+    def output_dir(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
         """Create temporary output directory for test results."""
         output_dir = tmp_path_factory.mktemp("usd_time_tests")
         return output_dir
 
     @pytest.fixture(scope="class")
-    def source_metadata(self, test_data_files):
+    def source_metadata(self, test_data_files: dict[str, str]) -> dict[str, Any]:
         """Get time metadata from source file."""
         return get_time_metadata(test_data_files["dynamic"])
 
     @pytest.fixture(scope="class")
-    def source_time_samples(self, test_data_files):
+    def source_time_samples(
+        self, test_data_files: dict[str, str]
+    ) -> Optional[dict[str, Any]]:
         """Get time sample data from source file."""
         return get_mesh_time_samples(test_data_files["dynamic"])
 
     def test_merge_copy_preserves_time_metadata(
-        self, test_data_files, source_metadata, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        source_metadata: dict[str, Any],
+        output_dir: Path,
+    ) -> None:
         """Test that merge_usd_files() preserves time metadata."""
         usd_tools = USDTools()
         merged_file = output_dir / "test_time_copy.usd"
@@ -145,8 +154,11 @@ class TestUSDTimePreservation:
         )
 
     def test_merge_flattened_preserves_time_metadata(
-        self, test_data_files, source_metadata, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        source_metadata: dict[str, Any],
+        output_dir: Path,
+    ) -> None:
         """Test that merge_usd_files_flattened() preserves time metadata."""
         usd_tools = USDTools()
         merged_file = output_dir / "test_time_flattened.usd"
@@ -174,8 +186,11 @@ class TestUSDTimePreservation:
         )
 
     def test_merge_copy_preserves_time_samples(
-        self, test_data_files, source_time_samples, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        source_time_samples: Optional[dict[str, Any]],
+        output_dir: Path,
+    ) -> None:
         """Test that merge_usd_files() preserves actual time sample data."""
         if source_time_samples is None:
             pytest.skip("Test mesh not found in source data")
@@ -212,8 +227,11 @@ class TestUSDTimePreservation:
                 )
 
     def test_merge_flattened_preserves_time_samples(
-        self, test_data_files, source_time_samples, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        source_time_samples: Optional[dict[str, Any]],
+        output_dir: Path,
+    ) -> None:
         """Test that merge_usd_files_flattened() preserves actual time sample data."""
         if source_time_samples is None:
             pytest.skip("Test mesh not found in source data")
@@ -250,8 +268,11 @@ class TestUSDTimePreservation:
                 )
 
     def test_animation_range_matches_actual_motion(
-        self, test_data_files, source_time_samples, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        source_time_samples: Optional[dict[str, Any]],
+        output_dir: Path,
+    ) -> None:
         """
         Test that the full animation range is accessible.
 
@@ -274,6 +295,7 @@ class TestUSDTimePreservation:
 
         # Calculate the time duration that the animation represents
         # This should equal the number of time codes (e.g., 21 codes = 21 seconds at TCPS=1.0)
+        assert samples is not None, "Test mesh not found in merged file"
         num_time_codes = len(samples["time_codes"])
         expected_duration = metadata["end_time"] - metadata["start_time"]
 

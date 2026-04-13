@@ -32,28 +32,28 @@ from physiomotion4d.vtk_to_usd import (
 
 
 # Helper to get data paths
-def get_data_dir():
+def get_data_dir() -> Path:
     """Get the data directory path."""
     tests_dir = Path(__file__).parent
     project_root = tests_dir.parent
     return project_root / "data"
 
 
-def check_kcl_heart_data():
+def check_kcl_heart_data() -> bool:
     """Check if KCL Heart Model data is available."""
     data_dir = get_data_dir() / "KCL-Heart-Model"
     vtk_file = data_dir / "average_mesh.vtk"
     return vtk_file.exists()
 
 
-def check_valve4d_data():
+def check_valve4d_data() -> bool:
     """Check if CHOP Valve4D data is available."""
     data_dir = get_data_dir() / "CHOP-Valve4D"
     alterra_dir = data_dir / "Alterra"
     return alterra_dir.exists() and any(alterra_dir.glob("*.vtk"))
 
 
-def get_or_create_average_surface(test_directories):
+def get_or_create_average_surface(test_directories: dict[str, Path]) -> Path:
     """
     Get or create average_surface.vtp from average_mesh.vtk.
 
@@ -66,38 +66,40 @@ def get_or_create_average_surface(test_directories):
     Returns:
         Path to the average_surface.vtp file
     """
-    output_dir = test_directories["output"]
+    output_dir = test_directories["output"] / "vtk_to_usd_library"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     surface_file = output_dir / "average_surface.vtp"
 
     # If surface file already exists, return it
     if surface_file.exists():
-        print(f"\n✓ Using cached surface file: {surface_file}")
+        print(f"\nUsing cached surface file: {surface_file}")
         return surface_file
 
     # Create surface from volumetric mesh
     data_dir = get_data_dir() / "KCL-Heart-Model"
     vtk_file = data_dir / "average_mesh.vtk"
 
-    print(f"\n⚙ Creating surface from: {vtk_file}")
+    print(f"\nCreating surface from: {vtk_file}")
 
     # Load volumetric mesh
     vtk_mesh = pv.read(str(vtk_file))
 
     # Extract surface
-    surface = vtk_mesh.extract_surface()
+    surface = vtk_mesh.extract_surface(algorithm="dataset_surface")
 
     # Save to output directory
     surface.save(str(surface_file))
 
-    print(f"✓ Created and saved surface: {surface_file}")
+    print(f"Created and saved surface: {surface_file}")
     print(f"  Points: {surface.n_points:,}")
-    print(f"  Faces: {surface.n_faces:,}")
+    print(f"  Faces: {surface.n_faces_strict:,}")
 
     return surface_file
 
 
 @pytest.fixture(scope="session")
-def kcl_average_surface(test_directories):
+def kcl_average_surface(test_directories: dict[str, Path]) -> Path:
     """
     Fixture providing the KCL average heart surface.
 
@@ -116,7 +118,7 @@ def kcl_average_surface(test_directories):
 class TestGenericArray:
     """Test GenericArray data structure validation and reshaping."""
 
-    def test_scalar_1d_array(self):
+    def test_scalar_1d_array(self) -> None:
         """Test that 1D scalar arrays (num_components=1) are kept as-is."""
         data = np.array([1.0, 2.0, 3.0, 4.0])
         array = GenericArray(
@@ -129,7 +131,7 @@ class TestGenericArray:
         assert len(array.data) == 4
         np.testing.assert_array_equal(array.data, data)
 
-    def test_flat_multicomponent_array_reshape(self):
+    def test_flat_multicomponent_array_reshape(self) -> None:
         """Test that flat 1D arrays with num_components>1 are reshaped to 2D."""
         # 12 values that should reshape to (4, 3)
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], dtype=float)
@@ -145,7 +147,7 @@ class TestGenericArray:
         expected = data.reshape(-1, 3)
         np.testing.assert_array_equal(array.data, expected)
 
-    def test_2d_array_valid(self):
+    def test_2d_array_valid(self) -> None:
         """Test that 2D arrays with correct shape are accepted."""
         data = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]], dtype=float)
         array = GenericArray(
@@ -158,7 +160,7 @@ class TestGenericArray:
         assert array.data.shape == (4, 3)
         np.testing.assert_array_equal(array.data, data)
 
-    def test_flat_array_not_divisible_raises_error(self):
+    def test_flat_array_not_divisible_raises_error(self) -> None:
         """Test that flat arrays with length not divisible by num_components raise error."""
         data = np.array([1, 2, 3, 4, 5], dtype=float)  # 5 values, not divisible by 3
         with pytest.raises(ValueError, match="not divisible by num_components"):
@@ -169,7 +171,7 @@ class TestGenericArray:
                 data_type=DataType.FLOAT,
             )
 
-    def test_2d_array_wrong_shape_raises_error(self):
+    def test_2d_array_wrong_shape_raises_error(self) -> None:
         """Test that 2D arrays with wrong shape raise error."""
         data = np.array([[1, 2], [3, 4], [5, 6]], dtype=float)  # Shape (3, 2)
         with pytest.raises(ValueError, match="incompatible with num_components"):
@@ -180,7 +182,7 @@ class TestGenericArray:
                 data_type=DataType.FLOAT,
             )
 
-    def test_3d_array_raises_error(self):
+    def test_3d_array_raises_error(self) -> None:
         """Test that 3D arrays are rejected."""
         data = np.ones((2, 3, 4), dtype=float)
         with pytest.raises(ValueError, match="must be 1D or 2D"):
@@ -191,7 +193,7 @@ class TestGenericArray:
                 data_type=DataType.FLOAT,
             )
 
-    def test_flat_array_large_components(self):
+    def test_flat_array_large_components(self) -> None:
         """Test reshaping with large num_components (e.g., 9 for 3x3 tensors)."""
         # 18 values that should reshape to (2, 9)
         data = np.arange(18, dtype=float)
@@ -210,7 +212,7 @@ class TestGenericArray:
 class TestVTKReader:
     """Test VTK file reading capabilities."""
 
-    def test_read_vtp_file(self, kcl_average_surface):
+    def test_read_vtp_file(self, kcl_average_surface: Path) -> None:
         """Test reading VTP (PolyData) files."""
         vtp_file = kcl_average_surface
 
@@ -226,12 +228,12 @@ class TestVTKReader:
         assert mesh_data.face_vertex_counts is not None
         assert mesh_data.face_vertex_indices is not None
 
-        print(f"\n✓ Read VTP file: {vtp_file.name}")
+        print(f"\nRead VTP file: {vtp_file.name}")
         print(f"  Points: {len(mesh_data.points):,}")
         print(f"  Faces: {len(mesh_data.face_vertex_counts):,}")
         print(f"  Data arrays: {len(mesh_data.generic_arrays)}")
 
-    def test_read_legacy_vtk_file(self):
+    def test_read_legacy_vtk_file(self) -> None:
         """Test reading legacy VTK files."""
         if not check_kcl_heart_data():
             pytest.skip(
@@ -253,12 +255,12 @@ class TestVTKReader:
         assert mesh_data.face_vertex_counts is not None
         assert mesh_data.face_vertex_indices is not None
 
-        print(f"\n✓ Read legacy VTK file: {vtk_file.name}")
+        print(f"\nRead legacy VTK file: {vtk_file.name}")
         print(f"  Points: {len(mesh_data.points):,}")
         print(f"  Faces: {len(mesh_data.face_vertex_counts):,}")
         print(f"  Data arrays: {len(mesh_data.generic_arrays)}")
 
-    def test_generic_arrays_preserved(self, kcl_average_surface):
+    def test_generic_arrays_preserved(self, kcl_average_surface: Path) -> None:
         """Test that generic data arrays are preserved during reading."""
         vtp_file = kcl_average_surface
 
@@ -274,7 +276,7 @@ class TestVTKReader:
             assert array.num_components > 0
             assert array.interpolation in ["vertex", "uniform", "constant"]
 
-        print("\n✓ Generic arrays preserved:")
+        print("\nGeneric arrays preserved:")
         for array in mesh_data.generic_arrays:
             print(
                 f"  - {array.name}: {array.num_components} components, {len(array.data):,} values"
@@ -285,7 +287,9 @@ class TestVTKReader:
 class TestVTKToUSDConversion:
     """Test VTK to USD conversion capabilities."""
 
-    def test_single_file_conversion(self, test_directories, kcl_average_surface):
+    def test_single_file_conversion(
+        self, test_directories: dict[str, Path], kcl_average_surface: Path
+    ) -> None:
         """Test converting a single VTK file to USD."""
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -320,12 +324,14 @@ class TestVTKToUSDConversion:
         points = mesh.GetPointsAttr().Get()
         assert len(points) > 0
 
-        print("\n✓ Converted single file to USD")
+        print("\nConverted single file to USD")
         print(f"  Input: {vtp_file.name}")
         print(f"  Output: {output_usd}")
         print(f"  Points: {len(points):,}")
 
-    def test_conversion_with_material(self, test_directories, kcl_average_surface):
+    def test_conversion_with_material(
+        self, test_directories: dict[str, Path], kcl_average_surface: Path
+    ) -> None:
         """Test conversion with custom material."""
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -366,11 +372,13 @@ class TestVTKToUSDConversion:
         bound_material = binding_api.ComputeBoundMaterial()[0]
         assert bound_material.GetPrim().IsValid()
 
-        print("\n✓ Converted with custom material")
+        print("\nConverted with custom material")
         print(f"  Material: {material.name}")
         print(f"  Color: {material.diffuse_color}")
 
-    def test_conversion_settings(self, test_directories, kcl_average_surface):
+    def test_conversion_settings(
+        self, test_directories: dict[str, Path], kcl_average_surface: Path
+    ) -> None:
         """Test conversion with custom settings."""
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -398,12 +406,14 @@ class TestVTKToUSDConversion:
         assert UsdGeom.GetStageMetersPerUnit(stage) == 0.001
         assert UsdGeom.GetStageUpAxis(stage) == UsdGeom.Tokens.y
 
-        print("\n✓ Converted with custom settings")
+        print("\nConverted with custom settings")
         print(f"  Meters per unit: {settings.meters_per_unit}")
         print(f"  Up axis: {settings.up_axis}")
         print(f"  Compute normals: {settings.compute_normals}")
 
-    def test_primvar_preservation(self, test_directories, kcl_average_surface):
+    def test_primvar_preservation(
+        self, test_directories: dict[str, Path], kcl_average_surface: Path
+    ) -> None:
         """Test that VTK data arrays are preserved as USD primvars."""
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -433,7 +443,7 @@ class TestVTKToUSDConversion:
         # Verify at least some arrays were converted to primvars
         assert len(primvar_names) > 0
 
-        print("\n✓ Primvars preserved:")
+        print("\nPrimvars preserved:")
         print(f"  Source arrays: {len(array_names)}")
         print(f"  USD primvars: {len(primvar_names)}")
         for name in primvar_names[:5]:  # Show first 5
@@ -444,7 +454,9 @@ class TestVTKToUSDConversion:
 class TestTimeSeriesConversion:
     """Test time-series conversion capabilities."""
 
-    def test_time_series_conversion(self, test_directories, kcl_average_surface):
+    def test_time_series_conversion(
+        self, test_directories: dict[str, Path], kcl_average_surface: Path
+    ) -> None:
         """Test converting multiple VTK files as time series."""
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -483,7 +495,7 @@ class TestTimeSeriesConversion:
         assert len(time_samples) == 3
         assert time_samples == time_codes
 
-        print("\n✓ Converted time series")
+        print("\nConverted time series")
         print(f"  Frames: {len(vtk_files)}")
         print(f"  Time codes: {time_codes}")
         print(
@@ -495,7 +507,9 @@ class TestTimeSeriesConversion:
 class TestIntegration:
     """Integration tests combining multiple features."""
 
-    def test_end_to_end_conversion(self, test_directories, kcl_average_surface):
+    def test_end_to_end_conversion(
+        self, test_directories: dict[str, Path], kcl_average_surface: Path
+    ) -> None:
         """Test complete conversion workflow with all features."""
         output_dir = test_directories["output"] / "vtk_to_usd_library"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -552,7 +566,7 @@ class TestIntegration:
         primvars = primvars_api.GetPrimvars()
         assert len(primvars) > 0
 
-        print("\n✓ End-to-end conversion complete")
+        print("\nEnd-to-end conversion complete")
         print(f"  Output: {output_usd}")
         print(f"  Size: {output_usd.stat().st_size / 1024:.1f} KB")
         print(f"  Points: {len(points):,}")

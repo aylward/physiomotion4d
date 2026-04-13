@@ -133,7 +133,7 @@ Customize workflow parameters:
        output_directory="./results",
        
        # Segmentation options
-       segmentation_method="vista3d",  # or "totalsegmentator"
+       segmentation_method="total_segmentator",
        contrast_enhanced=True,
        
        # Registration options

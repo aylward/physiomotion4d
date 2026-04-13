@@ -116,4 +116,4 @@ See Also
 
 .. rubric:: Navigation
 
-:doc:`../segmentation/ensemble` | :doc:`../index` | :doc:`base`
+:doc:`../segmentation/index` | :doc:`../index` | :doc:`base`

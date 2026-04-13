@@ -6,6 +6,7 @@ properly preserve materials, material bindings, and time-varying animation data.
 """
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pxr import Usd, UsdGeom, UsdShade
@@ -13,7 +14,7 @@ from pxr import Usd, UsdGeom, UsdShade
 from physiomotion4d import USDTools
 
 
-def analyze_usd_file(filepath: str) -> dict:
+def analyze_usd_file(filepath: str) -> dict[str, Any]:
     """
     Analyze a USD file for materials and time samples.
 
@@ -73,7 +74,7 @@ class TestUSDMerge:
     """Test suite for USD file merging."""
 
     @pytest.fixture(scope="class")
-    def test_data_files(self):
+    def test_data_files(self) -> dict[str, str]:
         """Locate test USD files with materials and time-varying data."""
         dynamic_file = Path(
             "experiments/Heart-GatedCT_To_USD/results/Slicer_CardiacGatedCT.dynamic_anatomy_painted.usd"
@@ -88,21 +89,24 @@ class TestUSDMerge:
         return {"dynamic": str(dynamic_file), "static": str(static_file)}
 
     @pytest.fixture(scope="class")
-    def output_dir(self, tmp_path_factory):
+    def output_dir(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
         """Create temporary output directory for test results."""
         output_dir = tmp_path_factory.mktemp("usd_merge_tests")
         return output_dir
 
     @pytest.fixture(scope="class")
-    def input_stats(self, test_data_files):
+    def input_stats(self, test_data_files: dict[str, str]) -> dict[str, dict[str, Any]]:
         """Analyze input USD files."""
         dynamic_stats = analyze_usd_file(test_data_files["dynamic"])
         static_stats = analyze_usd_file(test_data_files["static"])
         return {"dynamic": dynamic_stats, "static": static_stats}
 
     def test_merge_usd_files_copy_method(
-        self, test_data_files, input_stats, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        input_stats: dict[str, dict[str, Any]],
+        output_dir: Path,
+    ) -> None:
         """Test merge_usd_files() manual copy method."""
         # Merge files using manual copy method
         usd_tools = USDTools()
@@ -159,8 +163,11 @@ class TestUSDMerge:
         )
 
     def test_merge_usd_files_flattened_method(
-        self, test_data_files, input_stats, output_dir
-    ):
+        self,
+        test_data_files: dict[str, str],
+        input_stats: dict[str, dict[str, Any]],
+        output_dir: Path,
+    ) -> None:
         """Test merge_usd_files_flattened() composition method."""
         # Merge files using flattened method
         usd_tools = USDTools()
@@ -216,7 +223,9 @@ class TestUSDMerge:
             f"Time samples not preserved: expected {expected_max_samples}, got {merged_stats['max_time_samples']}"
         )
 
-    def test_both_methods_produce_equivalent_results(self, test_data_files, output_dir):
+    def test_both_methods_produce_equivalent_results(
+        self, test_data_files: dict[str, str], output_dir: Path
+    ) -> None:
         """Verify both merge methods produce equivalent results."""
         usd_tools = USDTools()
 

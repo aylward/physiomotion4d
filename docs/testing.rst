@@ -48,7 +48,6 @@ PhysioMotion4D uses pytest markers to categorize tests:
 
    # Skip GPU-dependent tests
    pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py \
-                 --ignore=tests/test_segment_chest_vista_3d.py \
                  --ignore=tests/test_register_images_icon.py
 
 Specific Test Modules
@@ -77,7 +76,6 @@ Specific Test Modules
 
    # Segmentation (GPU required, ~2-5 minutes each)
    pytest tests/test_segment_chest_total_segmentator.py -v
-   pytest tests/test_segment_chest_vista_3d.py -v
 
 Coverage Reports
 ----------------
@@ -103,8 +101,7 @@ Tests are organized by functionality:
    │   └── test_convert_nrrd_4d_to_3d.py         # 4D to 3D conversion
    │
    ├── Segmentation Tests (GPU Required)
-   │   ├── test_segment_chest_total_segmentator.py  # TotalSegmentator
-   │   └── test_segment_chest_vista_3d.py           # VISTA-3D segmentation
+   │   └── test_segment_chest_total_segmentator.py  # TotalSegmentator
    │
    ├── Registration Tests (Slow ~5-10 min)
    │   ├── test_register_images_ants.py          # ANTs registration

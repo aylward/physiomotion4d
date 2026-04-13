@@ -47,7 +47,6 @@ keywords = [
     "ai",
     "deep-learning",
     "totalsegmentator",
-    "vista-3d",
     "icon",
     "ants",
     "physiological-motion",
@@ -75,7 +74,7 @@ dependencies = [
     "unigradicon>=1.0.0",
 
     # Visualization and USD
-    "pyvista[all]>=0.42.0",
+    "pyvista[all]>=0.43.0",
     "usd-core>=23.11",
     "trimesh>=4.0.0",
 
@@ -230,7 +229,6 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 show_error_codes = true
-exclude = '(?x)(^src[/\\\\]physiomotion4d[/\\\\]network_weights[/\\\\]vista3d[/\\\\])'
 # Third-party libs (itk, pyvista, pxr, vtk, simpleware, etc.) have no stubs
 disable_error_code = ["import-not-found", "import-untyped"]
 
@@ -238,6 +236,10 @@ disable_error_code = ["import-not-found", "import-untyped"]
 # Override applies to the module being checked (physiomotion4d.*).
 [[tool.mypy.overrides]]
 module = ["physiomotion4d", "physiomotion4d.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests", "tests.*", "conftest"]
 ignore_missing_imports = true
 
 [tool.pyright]

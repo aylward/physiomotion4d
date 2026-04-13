@@ -50,10 +50,7 @@ The package is organized into functional modules:
    │
    ├── Segmentation
    │   ├── segment_anatomy_base.py                Base segmentation
-   │   ├── segment_chest_total_segmentator.py     TotalSegmentator
-   │   ├── segment_chest_vista_3d.py              VISTA-3D
-   │   ├── segment_chest_vista_3d_nim.py          VISTA-3D NIM
-   │   └── segment_chest_ensemble.py              Ensemble methods
+   │   └── segment_chest_total_segmentator.py     TotalSegmentator
    │
    ├── Registration
    │   ├── Image Registration
@@ -99,9 +96,7 @@ Most PhysioMotion4D classes inherit from :class:`PhysioMotion4DBase`:
    │   └── WorkflowFitStatisticalModelToPatient
    ├── Segmentation Classes
    │   ├── SegmentAnatomyBase
-   │   │   ├── SegmentChestTotalSegmentator
-   │   │   ├── SegmentChestVista3D
-   │   │   └── SegmentChestEnsemble
+   │   │   └── SegmentChestTotalSegmentator
    ├── Registration Classes
    │   ├── RegisterImagesBase
    │   │   ├── RegisterImagesANTs
@@ -275,7 +270,7 @@ Optional Dependencies
 
 * **ANTsPy**: ANTs registration (alternative to Icon)
 * **TotalSegmentator**: AI segmentation backend
-* **MONAI**: Medical imaging AI framework (VISTA-3D)
+* **MONAI**: Medical imaging AI framework
 * **CuPy**: GPU-accelerated array operations
 
 See ``pyproject.toml`` for complete dependency list.
@@ -287,7 +282,7 @@ GPU Acceleration
 ----------------
 
 * Registration (Icon): 5-10x speedup with GPU
-* Segmentation (VISTA-3D): Requires GPU
+* Segmentation: Requires GPU for best performance
 * Automatic GPU detection and fallback to CPU
 
 Memory Management

@@ -705,8 +705,15 @@ class TransformTools(PhysioMotion4DBase):
         thresholder.SetUpperThreshold(threshold)
         thresholder.SetInsideValue(reduction_factor)
         thresholder.SetOutsideValue(1.0)
+        thresholder.Update()
 
-        corrected_field = itk.MultiplyImageFilter(field, thresholder.GetOutput())
+        thresh_arr = itk.array_from_image(thresholder.GetOutput())
+        field_arr = itk.array_from_image(field)
+        for i in range(field_arr.shape[3]):
+            field_arr[:, :, :, i] *= thresh_arr
+        corrected_field = ImageTools().convert_array_to_image_of_vectors(
+            field_arr, field, itk.F
+        )
         return corrected_field
 
     def generate_grid_image(

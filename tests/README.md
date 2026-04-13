@@ -19,7 +19,6 @@ This directory contains comprehensive test suites for the PhysioMotion4D package
 
 ### Segmentation Tests (GPU Required)
 - **`test_segment_chest_total_segmentator.py`** - TotalSegmentator chest CT segmentation
-- **`test_segment_chest_vista_3d.py`** - NVIDIA VISTA-3D segmentation (requires 20GB+ RAM)
 
 ### Registration Tests (Slow ~5-10 min)
 - **`test_register_images_ants.py`** - ANTs deformable registration
@@ -103,8 +102,7 @@ pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --
 ### Common Test Commands
 ```bash
 # Skip GPU-dependent tests
-pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py \
-              --ignore=tests/test_segment_chest_vista_3d.py
+pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py
 
 # Run with coverage
 pytest tests/ --cov=src/physiomotion4d --cov-report=html
@@ -146,8 +144,8 @@ test_convert_nrrd_4d_to_3d
     ↓                    ├─→ test_register_images_icon
     ↓                    ↓
 test_segment_chest_total_segmentator ────→ test_contour_tools
-    ↓                                           ↓
-test_segment_chest_vista_3d                test_convert_vtk_to_usd_polymesh
+                                                ↓
+                                           test_convert_vtk_to_usd_polymesh
 ```
 
 Fixtures in `conftest.py` automatically manage these dependencies.
@@ -179,8 +177,8 @@ Tests automatically run on pull requests via GitHub Actions. The CI workflow:
 - Place `TruncalValve_4DCT.seq.nrrd` there to avoid download
 
 **Problem: Out of memory errors**
-- VISTA-3D requires 20GB+ RAM
-- Skip with: `pytest tests/ --ignore=tests/test_segment_chest_vista_3d.py`
+- Some segmentation models require significant RAM
+- Skip segmentation tests with: `pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py`
 
 **Problem: Test timeout**
 - Global timeout: 900 seconds (15 minutes)

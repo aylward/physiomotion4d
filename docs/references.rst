@@ -38,10 +38,6 @@ Segmentation Methods
 * Wasserthal, J., et al. "TotalSegmentator: Robust Segmentation of 104 Anatomical Structures in CT Images"
 * `Paper <https://arxiv.org/abs/2208.05868>`_
 
-**VISTA-3D**
-
-* NVIDIA MONAI Team. "VISTA-3D: A Foundation Model for Medical Image Segmentation"
-
 Datasets
 ========
 

@@ -6,6 +6,9 @@ This test depends on test_register_images_ants and uses registration
 transforms to test transform manipulation and application.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import numpy as np
 import pytest
@@ -13,6 +16,7 @@ import pyvista as pv
 import vtk
 
 from physiomotion4d.image_tools import ImageTools
+from physiomotion4d.transform_tools import TransformTools
 
 
 @pytest.mark.requires_data
@@ -21,20 +25,26 @@ class TestTransformTools:
     """Test suite for TransformTools functionality."""
 
     @pytest.fixture(scope="class")
-    def test_contour(self, test_images):
+    def test_contour(self, test_images: list[Any]) -> Any:
         """Create a simple test contour mesh."""
         # Create a sphere mesh for testing
         sphere = pv.Sphere(radius=50.0, center=(100, 100, 100))
         return sphere
 
-    def test_transform_tools_initialization(self, transform_tools):
+    def test_transform_tools_initialization(
+        self, transform_tools: TransformTools
+    ) -> None:
         """Test that TransformTools initializes correctly."""
         assert transform_tools is not None, "TransformTools not initialized"
-        print("\n✓ TransformTools initialized successfully")
+        print("\nTransformTools initialized successfully")
 
     def test_transform_image_linear(
-        self, transform_tools, ants_registration_results, test_images, test_directories
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test transforming image with linear interpolation."""
         output_dir = test_directories["output"]
         tfm_output_dir = output_dir / "transform_tools"
@@ -42,7 +52,7 @@ class TestTransformTools:
 
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTransforming image with linear interpolation...")
 
@@ -57,7 +67,7 @@ class TestTransformTools:
             "Spacing mismatch"
         )
 
-        print("✓ Image transformed with linear interpolation")
+        print("Image transformed with linear interpolation")
         print(f"  Output size: {itk.size(transformed_image)}")
         print(f"  Output spacing: {itk.spacing(transformed_image)}")
 
@@ -69,8 +79,12 @@ class TestTransformTools:
         )
 
     def test_transform_image_nearest(
-        self, transform_tools, ants_registration_results, test_images, test_directories
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test transforming image with nearest neighbor interpolation."""
         output_dir = test_directories["output"]
         tfm_output_dir = output_dir / "transform_tools"
@@ -78,7 +92,7 @@ class TestTransformTools:
 
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTransforming image with nearest neighbor interpolation...")
 
@@ -89,7 +103,7 @@ class TestTransformTools:
         assert transformed_image is not None, "Transformed image is None"
         assert itk.size(transformed_image) == itk.size(fixed_image), "Size mismatch"
 
-        print("✓ Image transformed with nearest neighbor interpolation")
+        print("Image transformed with nearest neighbor interpolation")
 
         # Save transformed image
         itk.imwrite(
@@ -99,8 +113,12 @@ class TestTransformTools:
         )
 
     def test_transform_image_sinc(
-        self, transform_tools, ants_registration_results, test_images, test_directories
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test transforming image with sinc interpolation."""
         output_dir = test_directories["output"]
         tfm_output_dir = output_dir / "transform_tools"
@@ -108,7 +126,7 @@ class TestTransformTools:
 
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTransforming image with sinc interpolation...")
 
@@ -119,7 +137,7 @@ class TestTransformTools:
         assert transformed_image is not None, "Transformed image is None"
         assert itk.size(transformed_image) == itk.size(fixed_image), "Size mismatch"
 
-        print("✓ Image transformed with sinc interpolation")
+        print("Image transformed with sinc interpolation")
 
         # Save transformed image
         itk.imwrite(
@@ -129,12 +147,15 @@ class TestTransformTools:
         )
 
     def test_transform_image_invalid_method(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test that invalid interpolation method raises error."""
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTesting invalid interpolation method...")
 
@@ -146,13 +167,16 @@ class TestTransformTools:
                 interpolation_method="invalid",
             )
 
-        print("✓ Invalid method correctly raises ValueError")
+        print("Invalid method correctly raises ValueError")
 
     def test_transform_pvcontour_without_deformation(
-        self, transform_tools, test_contour, ants_registration_results
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_contour: Any,
+        test_transforms: dict[str, Any],
+    ) -> None:
         """Test transforming PyVista contour without deformation magnitude."""
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTransforming contour without deformation magnitude...")
         print(f"  Original contour points: {test_contour.n_points}")
@@ -176,19 +200,23 @@ class TestTransformTools:
 
         max_diff = np.max(np.abs(transformed_points - original_points))
 
-        print("✓ Contour transformed without deformation magnitude")
+        print("Contour transformed without deformation magnitude")
         print(f"  Transformed contour points: {transformed_contour.n_points}")
         print(f"  Max point displacement: {max_diff:.2f} mm")
 
     def test_transform_pvcontour_with_deformation(
-        self, transform_tools, test_contour, ants_registration_results, test_directories
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_contour: Any,
+        test_transforms: dict[str, Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test transforming PyVista contour with deformation magnitude."""
         output_dir = test_directories["output"]
         tfm_output_dir = output_dir / "transform_tools"
         tfm_output_dir.mkdir(exist_ok=True)
 
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nTransforming contour with deformation magnitude...")
 
@@ -212,7 +240,7 @@ class TestTransformTools:
         mean_def = np.mean(deformation)
         max_def = np.max(deformation)
 
-        print("✓ Contour transformed with deformation magnitude")
+        print("Contour transformed with deformation magnitude")
         print(f"  Mean deformation: {mean_def:.2f} mm")
         print(f"  Max deformation: {max_def:.2f} mm")
 
@@ -220,15 +248,19 @@ class TestTransformTools:
         transformed_contour.save(str(tfm_output_dir / "transformed_contour.vtp"))
 
     def test_convert_transform_to_displacement_field(
-        self, transform_tools, ants_registration_results, test_images, test_directories
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test converting transform to deformation field image."""
         output_dir = test_directories["output"]
         tfm_output_dir = output_dir / "transform_tools"
         tfm_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nConverting transform to deformation field...")
 
@@ -244,7 +276,7 @@ class TestTransformTools:
         field_arr = itk.array_from_image(deformation_field)
         assert field_arr.shape[-1] == 3, "Should have 3 components (x, y, z)"
 
-        print("✓ Transform converted to deformation field")
+        print("Transform converted to deformation field")
         print(f"  Field size: {itk.size(deformation_field)}")
         print(f"  Field shape: {field_arr.shape}")
 
@@ -256,7 +288,9 @@ class TestTransformTools:
             compression=True,
         )
 
-    def test_convert_vtk_matrix_to_itk_transform(self, transform_tools):
+    def test_convert_vtk_matrix_to_itk_transform(
+        self, transform_tools: TransformTools
+    ) -> None:
         """Test converting VTK matrix to ITK transform."""
         # Create a VTK matrix
         vtk_matrix = vtk.vtkMatrix4x4()
@@ -283,19 +317,23 @@ class TestTransformTools:
         assert abs(offset[1] - 20.0) < 0.01, "Y translation incorrect"
         assert abs(offset[2] - 30.0) < 0.01, "Z translation incorrect"
 
-        print("✓ VTK matrix converted to ITK transform")
+        print("VTK matrix converted to ITK transform")
         print(f"  Translation: [{offset[0]:.1f}, {offset[1]:.1f}, {offset[2]:.1f}]")
 
     def test_compute_jacobian_determinant_from_field(
-        self, transform_tools, ants_registration_results, test_images, test_directories
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test computing Jacobian determinant from deformation field."""
         output_dir = test_directories["output"]
         tfm_output_dir = output_dir / "transform_tools"
         tfm_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         # First convert transform to field
         print("\nComputing Jacobian determinant from deformation field...")
@@ -318,7 +356,7 @@ class TestTransformTools:
         min_jac = np.min(jac_arr)
         max_jac = np.max(jac_arr)
 
-        print("✓ Jacobian determinant computed")
+        print("Jacobian determinant computed")
         print(f"  Mean: {mean_jac:.3f}")
         print(f"  Min: {min_jac:.3f}")
         print(f"  Max: {max_jac:.3f}")
@@ -334,11 +372,14 @@ class TestTransformTools:
         )
 
     def test_detect_folding_in_field(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test detecting spatial folding in deformation field."""
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         # Convert transform to field
         print("\nDetecting folding in deformation field...")
@@ -357,14 +398,17 @@ class TestTransformTools:
         # Verify result
         assert isinstance(has_folding, bool), "Result should be boolean"
 
-        print("✓ Folding detection complete")
+        print("Folding detection complete")
         print(f"  Has folding: {has_folding}")
 
     def test_interpolate_transforms(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test temporal interpolation between transforms."""
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         # Create an identity transform as second transform
         identity_tfm = itk.AffineTransform[itk.D, 3].New()
@@ -390,15 +434,18 @@ class TestTransformTools:
             "Should be a DisplacementFieldTransform"
         )
 
-        print("✓ Transform interpolation complete")
+        print("Transform interpolation complete")
         print("  Interpolation alpha: 0.5")
         print(f"  Result type: {type(interpolated_tfm).__name__}")
 
     def test_combine_displacement_field_transforms(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test composing two transforms with various weights."""
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
         fixed_image = test_images[0]
 
         # Create an identity transform as second transform
@@ -496,7 +543,7 @@ class TestTransformTools:
         mag2 = np.mean(np.linalg.norm(arr2, axis=-1))
         mag3 = np.mean(np.linalg.norm(arr3, axis=-1))
 
-        print("✓ Transform composition complete")
+        print("Transform composition complete")
         print(f"  Field magnitude (0.5, 0.5): {mag1:.3f} mm")
         print(f"  Field magnitude (1.0, 0.0): {mag2:.3f} mm")
         print(f"  Field magnitude (0.0, 1.0): {mag3:.3f} mm")
@@ -506,10 +553,13 @@ class TestTransformTools:
         assert diff_2_3 > 0, "Different weights should produce different results"
 
     def test_smooth_transform(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test smoothing a transform."""
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
         fixed_image = test_images[0]
 
         print("\nSmoothing transform...")
@@ -525,14 +575,17 @@ class TestTransformTools:
             "Should be a DisplacementFieldTransform"
         )
 
-        print("✓ Transform smoothing complete")
+        print("Transform smoothing complete")
         print("  Smoothing sigma: 2.0")
 
     def test_combine_transforms_with_masks(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test combining transforms with spatial masks."""
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
         fixed_image = test_images[0]
 
         # Create identity transform
@@ -570,15 +623,18 @@ class TestTransformTools:
             "Should be a DisplacementFieldTransform"
         )
 
-        print("✓ Transforms combined with masks")
+        print("Transforms combined with masks")
 
     def test_multiple_transform_applications(
-        self, transform_tools, ants_registration_results, test_images
-    ):
+        self,
+        transform_tools: TransformTools,
+        test_transforms: dict[str, Any],
+        test_images: list[Any],
+    ) -> None:
         """Test applying multiple transforms in sequence."""
         moving_image = test_images[1]
         fixed_image = test_images[0]
-        forward_transform = ants_registration_results["forward_transform"]
+        forward_transform = test_transforms["forward_transform"]
 
         print("\nApplying transforms multiple times...")
 
@@ -595,9 +651,11 @@ class TestTransformTools:
         assert result1 is not None, "First transform result is None"
         assert result2 is not None, "Second transform result is None"
 
-        print("✓ Multiple sequential transforms applied")
+        print("Multiple sequential transforms applied")
 
-    def test_identity_transform(self, transform_tools, test_images):
+    def test_identity_transform(
+        self, transform_tools: TransformTools, test_images: list[Any]
+    ) -> None:
         """Test that identity transform doesn't change the image."""
         moving_image = test_images[1]
         fixed_image = test_images[0]
@@ -626,7 +684,7 @@ class TestTransformTools:
         diff = np.abs(resampled_arr - transformed_arr)
         mean_diff = np.mean(diff)
 
-        print("✓ Identity transform tested")
+        print("Identity transform tested")
         print(f"  Mean difference: {mean_diff:.4f}")
 
         # Should be very small (just interpolation error)

@@ -146,7 +146,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         )
 
         self.template_model = template_model
-        self.template_model_surface = template_model.extract_surface()
+        self.template_model_surface = template_model.extract_surface(
+            algorithm="dataset_surface"
+        )
         self.template_labelmap: Optional[itk.Image] = None
         self.template_labelmap_organ_mesh_ids: Optional[list[int]] = None
         self.template_labelmap_organ_extra_ids: Optional[list[int]] = None
@@ -166,9 +168,14 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         elif patient_models is None:
             raise ValueError("Either patient_models or patient_image must be provided.")
         self.patient_models = patient_models
-        patient_models_surfaces = [model.extract_surface() for model in patient_models]
+        patient_models_surfaces = [
+            model.extract_surface(algorithm="dataset_surface")
+            for model in patient_models
+        ]
         self.combined_patient_model = pv.merge(patient_models_surfaces)
-        self.patient_model_surface = self.combined_patient_model.extract_surface()
+        self.patient_model_surface = self.combined_patient_model.extract_surface(
+            algorithm="dataset_surface"
+        )
 
         # Utilities (needed for create_reference_image when patient_image is None)
         self.transform_tools = TransformTools()
@@ -566,7 +573,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         else:
             self.pca_template_model_surface = result[
                 "registered_model"
-            ].extract_surface()
+            ].extract_surface(algorithm="dataset_surface")
 
         pca_transforms = self.pca_registrar.compute_pca_transforms(
             reference_image=self.patient_image,

@@ -14,7 +14,7 @@ uv pip install -e .
 ruff check . --fix && ruff format .
 
 # Type checking
-mypy src/
+mypy src/ tests/
 
 # All pre-commit hooks
 pre-commit run --all-files
@@ -28,7 +28,6 @@ py -m pytest tests/test_contour_tools.py::test_extract_surface -v
 
 # Skip GPU-dependent tests
 py -m pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py \
-              --ignore=tests/test_segment_chest_vista_3d.py \
               --ignore=tests/test_register_images_icon.py
 
 # With coverage

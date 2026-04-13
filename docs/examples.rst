@@ -93,46 +93,6 @@ Quick segmentation with TotalSegmentator:
    itk.imwrite(heart, "heart_mask.nrrd")
    itk.imwrite(lungs, "lungs_mask.nrrd")
 
-VISTA-3D with Point Prompts
-----------------------------
-
-Advanced segmentation with user-provided points:
-
-.. code-block:: python
-
-   from physiomotion4d import SegmentChestVista3D
-   import itk
-
-   segmenter = SegmentChestVista3D()
-   image = itk.imread("chest_ct.nrrd")
-
-   # Define point prompts (x, y, z in voxel coordinates)
-   heart_points = [(120, 150, 80), (130, 160, 85)]
-
-   masks = segmenter.segment(
-       image,
-       contrast_enhanced_study=True,
-       point_prompts=heart_points
-   )
-
-Ensemble Segmentation
----------------------
-
-Combine multiple methods for best results:
-
-.. code-block:: python
-
-   from physiomotion4d import SegmentChestEnsemble
-   import itk
-
-   segmenter = SegmentChestEnsemble(
-       methods=['totalsegmentator', 'vista3d'],
-       fusion_strategy='voting'
-   )
-
-   image = itk.imread("chest_ct.nrrd")
-   masks = segmenter.segment(image, contrast_enhanced_study=True)
-
 Registration Examples
 =====================
 
@@ -466,19 +426,19 @@ Segment multiple images in parallel:
 
 .. code-block:: python
 
-   from physiomotion4d import SegmentChestVista3D
+   from physiomotion4d import SegmentChestTotalSegmentator
    import itk
    import glob
    from concurrent.futures import ProcessPoolExecutor
 
    def segment_image(filename):
-       segmenter = SegmentChestVista3D()
+       segmenter = SegmentChestTotalSegmentator()
        image = itk.imread(filename)
-       masks = segmenter.segment(image, contrast_enhanced_study=True)
+       result = segmenter.segment(image, contrast_enhanced_study=True)
 
        # Save heart mask
        output_name = filename.replace('.nrrd', '_heart.nrrd')
-       itk.imwrite(masks[0], output_name)
+       itk.imwrite(result['heart'], output_name)
        return output_name
 
    # Process in parallel
@@ -559,7 +519,7 @@ Mix and match different components:
 .. code-block:: python
 
    from physiomotion4d import (
-       SegmentChestVista3D,
+       SegmentChestTotalSegmentator,
        RegisterImagesICON,
        TransformTools,
        ConvertVTKToUSDPolyMesh,
@@ -572,9 +532,9 @@ Mix and match different components:
    frames = [itk.imread(f"frame_{i:03d}.mha") for i in range(10)]
 
    # Segment reference
-   segmenter = SegmentChestVista3D()
-   masks = segmenter.segment(reference, contrast_enhanced_study=True)
-   heart_mask = masks[0]
+   segmenter = SegmentChestTotalSegmentator()
+   result = segmenter.segment(reference, contrast_enhanced_study=True)
+   heart_mask = result['heart']
 
    # Extract reference contour
    contour_tools = ContourTools()

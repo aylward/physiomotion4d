@@ -6,12 +6,16 @@ This test depends on test_contour_tools and uses the extracted contours
 to test USD conversion functionality.
 """
 
+from pathlib import Path
+from typing import Any
+
 import itk
 import pytest
 import pyvista as pv
 from pxr import UsdGeom
 
 from physiomotion4d import ConvertVTKToUSD
+from physiomotion4d.contour_tools import ContourTools
 
 
 @pytest.mark.requires_data
@@ -20,7 +24,12 @@ class TestConvertVTKToUSD:
     """Test suite for VTK to USD PolyMesh conversion."""
 
     @pytest.fixture(scope="class")
-    def contour_meshes(self, contour_tools, segmentation_results, test_directories):
+    def contour_meshes(
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> list[Any]:
         """Extract or load contour meshes for USD conversion testing."""
         output_dir = test_directories["output"]
         contour_output_dir = output_dir / "contour_tools"
@@ -35,7 +44,7 @@ class TestConvertVTKToUSD:
             contour_output_dir.mkdir(parents=True, exist_ok=True)
 
             meshes = []
-            for i, result in enumerate(segmentation_results):
+            for i, result in enumerate(test_labelmaps):
                 heart_mask = result["heart"]
                 contours = contour_tools.extract_contours(heart_mask)
                 meshes.append(contours)
@@ -53,7 +62,7 @@ class TestConvertVTKToUSD:
         ]
         return meshes
 
-    def test_converter_initialization(self):
+    def test_converter_initialization(self) -> None:
         """Test that ConvertVTKToUSD initializes correctly."""
         converter = ConvertVTKToUSD(
             data_basename="TestModel", input_polydata=[], mask_ids=None
@@ -64,7 +73,7 @@ class TestConvertVTKToUSD:
 
         print("\nConverter initialized successfully")
 
-    def test_supports_mesh_type(self, contour_meshes):
+    def test_supports_mesh_type(self, contour_meshes: list[Any]) -> None:
         """Test that converter correctly identifies supported mesh types."""
         mesh = contour_meshes[0]
 
@@ -77,7 +86,9 @@ class TestConvertVTKToUSD:
 
         print("\nMesh type support check passed")
 
-    def test_convert_single_time_point(self, contour_meshes, test_directories):
+    def test_convert_single_time_point(
+        self, contour_meshes: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test converting a single time point to USD."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -108,7 +119,9 @@ class TestConvertVTKToUSD:
         print(f"  Output: {output_file}")
         print(f"  File size: {output_file.stat().st_size / 1024:.2f} KB")
 
-    def test_convert_multiple_time_points(self, contour_meshes, test_directories):
+    def test_convert_multiple_time_points(
+        self, contour_meshes: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test converting multiple time points to USD."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -142,15 +155,18 @@ class TestConvertVTKToUSD:
         print(f"  File size: {output_file.stat().st_size / 1024:.2f} KB")
 
     def test_convert_with_deformation(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test converting meshes with deformation magnitude."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
         usd_output_dir.mkdir(exist_ok=True)
 
         # Extract contours
-        heart_mask = segmentation_results[0]["heart"]
+        heart_mask = test_labelmaps[0]["heart"]
         contours = contour_tools.extract_contours(heart_mask)
 
         # Add deformation magnitude (simulate with random values)
@@ -179,7 +195,9 @@ class TestConvertVTKToUSD:
         print("Mesh with deformation converted to USD")
         print(f"  Output: {output_file}")
 
-    def test_convert_with_colormap(self, contour_meshes, test_directories):
+    def test_convert_with_colormap(
+        self, contour_meshes: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test converting meshes with colormap visualization."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -216,7 +234,9 @@ class TestConvertVTKToUSD:
         print("  Colormap: plasma")
         print(f"  Output: {output_file}")
 
-    def test_convert_unstructured_grid_to_surface(self, test_directories):
+    def test_convert_unstructured_grid_to_surface(
+        self, test_directories: dict[str, Path]
+    ) -> None:
         """Test converting UnstructuredGrid to surface mesh."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -262,7 +282,9 @@ class TestConvertVTKToUSD:
         print("UnstructuredGrid converted to surface USD")
         print(f"  Output: {output_file}")
 
-    def test_usd_file_structure(self, contour_meshes, test_directories):
+    def test_usd_file_structure(
+        self, contour_meshes: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test the structure of generated USD file."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -292,7 +314,9 @@ class TestConvertVTKToUSD:
         print(f"  Root: {root_prim.GetPath()}")
         print(f"  Mesh: {mesh_prim.GetPath()}")
 
-    def test_time_varying_topology(self, contour_meshes, test_directories):
+    def test_time_varying_topology(
+        self, contour_meshes: list[Any], test_directories: dict[str, Path]
+    ) -> None:
         """Test handling of time-varying topology."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -332,8 +356,11 @@ class TestConvertVTKToUSD:
         print(f"  Output: {output_file}")
 
     def test_batch_conversion(
-        self, contour_tools, segmentation_results, test_directories
-    ):
+        self,
+        contour_tools: ContourTools,
+        test_labelmaps: list[dict[str, Any]],
+        test_directories: dict[str, Path],
+    ) -> None:
         """Test converting multiple anatomy structures in batch."""
         output_dir = test_directories["output"]
         usd_output_dir = output_dir / "usd_polymesh"
@@ -344,7 +371,7 @@ class TestConvertVTKToUSD:
         meshes_dict = {}
 
         for group in anatomy_groups:
-            mask = segmentation_results[0][group]
+            mask = test_labelmaps[0][group]
             mask_arr = itk.array_from_image(mask)
 
             import numpy as np

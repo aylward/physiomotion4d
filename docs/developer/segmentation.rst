@@ -17,9 +17,7 @@ Overview
 PhysioMotion4D supports multiple segmentation approaches:
 
 * **TotalSegmentator**: Whole-body CT segmentation (100+ structures)
-* **VISTA-3D**: MONAI-based foundation model for medical imaging
-* **VISTA-3D NIM**: NVIDIA Inference Microservice version
-* **Ensemble**: Combine multiple methods for improved accuracy
+* **Simpleware**: High-quality cardiac segmentation via Synopsys Simpleware Medical
 
 All segmentation classes inherit from :class:`SegmentAnatomyBase` and provide consistent interfaces.
 
@@ -92,118 +90,6 @@ Uses the TotalSegmentator model for comprehensive anatomical segmentation.
    * Bones (ribs, spine, sternum)
    * Liver, kidneys, spleen
    * And many more...
-
-VISTA-3D
---------
-
-MONAI-based foundation model for medical image segmentation.
-
-.. autoclass:: physiomotion4d.SegmentChestVista3D
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-**Features**:
-   * Foundation model architecture
-   * Supports point prompts and bounding boxes
-   * High accuracy on cardiac structures
-   * Requires GPU
-
-**Example Usage**:
-
-.. code-block:: python
-
-   from physiomotion4d import SegmentChestVista3D
-   
-   # Initialize with GPU
-   segmentator = SegmentChestVista3D(
-       device="cuda:0",
-       use_auto_prompts=True,
-       verbose=True
-   )
-   
-   # Segment with automatic prompts
-   labelmap = segmentator.segment(
-       image_path="cardiac_ct.nrrd",
-       structures=["heart_left_ventricle", "heart_myocardium"]
-   )
-   
-   # Or provide manual prompts
-   labelmap = segmentator.segment(
-       image_path="cardiac_ct.nrrd",
-       point_prompts=[(128, 128, 150)],  # (x, y, z)
-       structure_name="heart_left_ventricle"
-   )
-
-VISTA-3D NIM
-------------
-
-NVIDIA Inference Microservice version for cloud deployment.
-
-.. autoclass:: physiomotion4d.SegmentChestVista3DNIM
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-**Features**:
-   * Optimized inference
-   * Cloud/server deployment
-   * REST API interface
-   * Scalable for multiple requests
-
-**Example Usage**:
-
-.. code-block:: python
-
-   from physiomotion4d import SegmentChestVista3DNIM
-   
-   # Initialize with API endpoint
-   segmentator = SegmentChestVista3DNIM(
-       api_endpoint="https://api.nvidia.com/nim/vista3d",
-       api_key="your_api_key",
-       verbose=True
-   )
-   
-   # Segment via API
-   labelmap = segmentator.segment(
-       image_path="ct_scan.nrrd",
-       structures=["heart", "lungs"]
-   )
-
-Ensemble Segmentation
----------------------
-
-Combines multiple segmentation methods for improved accuracy.
-
-.. autoclass:: physiomotion4d.SegmentChestEnsemble
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-**Features**:
-   * Combines TotalSegmentator + VISTA-3D
-   * Voting or averaging strategies
-   * Improved robustness
-   * Better boundary delineation
-
-**Example Usage**:
-
-.. code-block:: python
-
-   from physiomotion4d import SegmentChestEnsemble
-   
-   # Initialize ensemble
-   segmentator = SegmentChestEnsemble(
-       methods=['totalsegmentator', 'vista3d'],
-       fusion_strategy='voting',  # or 'averaging'
-       verbose=True
-   )
-   
-   # Segment with ensemble
-   labelmap = segmentator.segment(image_path="ct_scan.nrrd")
-   
-   # Get confidence maps
-   confidence = segmentator.get_confidence_map()
 
 Common Usage Patterns
 =====================
@@ -359,7 +245,7 @@ Leverage GPU for faster inference:
        print("Using CPU")
    
    # Initialize with GPU
-   segmentator = SegmentChestVista3D(device=device)
+   segmentator = SegmentChestTotalSegmentator()
 
 Batch Processing
 ----------------
@@ -414,22 +300,6 @@ Assess segmentation quality:
            'volume_difference': vol_diff
        }
 
-Confidence Assessment
----------------------
-
-Assess segmentation confidence:
-
-.. code-block:: python
-
-   # For VISTA-3D (supports confidence)
-   segmentator = SegmentChestVista3D()
-   
-   labelmap, confidence_map = segmentator.segment_with_confidence("ct.nrrd")
-   
-   # Check low-confidence regions
-   low_confidence_mask = confidence_map < 0.5
-   print(f"Low confidence regions: {low_confidence_mask.sum()} voxels")
-
 Best Practices
 ==============
 
@@ -437,7 +307,6 @@ Method Selection
 ----------------
 
 * **TotalSegmentator**: General purpose, fast, comprehensive
-* **VISTA-3D**: High accuracy, especially for cardiac structures
 * **Ensemble**: When accuracy is critical, can tolerate longer processing
 
 Parameter Tuning
