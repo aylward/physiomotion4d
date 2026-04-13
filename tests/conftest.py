@@ -258,8 +258,8 @@ def _format_duration(seconds: float) -> str:
 def test_directories() -> dict[str, Path]:
     """Set up test directories for data and results."""
     data_dir = Path(__file__).parent.parent / "data" / "test"
-    output_dir = Path("tests/results")
-    baselines_dir = Path("tests/baselines")
+    output_dir = Path(__file__).parent / "results"
+    baselines_dir = Path(__file__).parent / "baselines"
 
     # Create directories if they don't exist
     data_dir.mkdir(parents=True, exist_ok=True)

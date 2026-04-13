@@ -2,8 +2,8 @@
 Test utilities for comparing images in pytest.
 
 Provides TestTools for baseline vs results comparison with configurable
-tolerances. All image I/O uses ITK with .mha (compressed); 2D and 3D
-images are passed as itk.Image at the API level.
+tolerances. All image I/O uses ITK with .mha (compressed); 3D images are
+passed as itk.Image at the API level.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class TestTools(PhysioMotion4DBase):
         self._baselines_dir = baselines_dir / class_name
         self._baselines_dir.mkdir(parents=True, exist_ok=True)
 
-        self._last_image_per_pixdel_absolute_error_tol: float | None = None
+        self._last_image_per_pixel_absolute_error_tol: float | None = None
         self._last_image_number_of_pixels_above_tol: int | None = None
         self._last_image_max_number_of_pixels_above_tol: int | None = None
         self._last_image_total_absolute_error: float | None = None
@@ -75,112 +75,41 @@ class TestTools(PhysioMotion4DBase):
             None  # itk.Transform (type depends on template)
         )
 
-    def compare_2d_to_3d_slice(
-        self,
-        image_2d: Any,
-        image_3d: Any,
-        slice_index: int,
-        axis: int = 0,
-        *,
-        per_pixel_absolute_error_tol: float = 0.0,
-        max_number_of_pixels_above_tol: int = 0,
-        total_absolute_error_tol: float = 0.0,
-    ) -> bool:
-        """
-        Compare a 2D itk.Image to a slice of a 3D itk.Image. Converts to numpy only for computing differences.
-        Stores the difference image and counts for later access via image_difference(),
-        image_pass_fail_and_pixels_above_tolerance(), and image_pass_fail_and_total_absolute_error().
-
-        Returns:
-            True if number_of_pixels_above_tol <= max_number_of_pixels_above_tol and
-            total_absolute_error <= total_absolute_error_tol; False otherwise.
-        """
-        arr_2d = np.asarray(itk.array_from_image(image_2d), dtype=np.float64)
-        arr_3d = np.asarray(itk.array_from_image(image_3d), dtype=np.float64)
-        if arr_2d.ndim != 2:
-            raise ValueError("image_2d must be 2D")
-        if arr_3d.ndim != 3:
-            raise ValueError("image_3d must be 3D")
-
-        slice_3d = np.take(arr_3d, slice_index, axis=axis)
-        slice_2d = np.squeeze(slice_3d) if slice_3d.ndim == 3 else slice_3d
-        if slice_2d.shape != arr_2d.shape:
-            raise ValueError(
-                f"Shape mismatch: image_2d {arr_2d.shape} vs 3D slice {slice_2d.shape} (axis={axis}, index={slice_index})"
-            )
-
-        diff = arr_2d - slice_2d
-        diff_magnitude = np.abs(diff)
-        total_absolute_error = float(np.sum(diff_magnitude))
-        number_of_pixels_above_tol = int(
-            np.sum(diff_magnitude > per_pixel_absolute_error_tol)
-        )
-
-        self._last_image_number_of_pixels_above_tol = number_of_pixels_above_tol
-        self._last_image_total_absolute_error = total_absolute_error
-
-        self._last_image_per_pixel_absolute_error_tol = per_pixel_absolute_error_tol
-        self._last_image_max_number_of_pixels_above_tol = max_number_of_pixels_above_tol
-        self._last_image_total_absolute_error_tol = total_absolute_error_tol
-
-        self._last_image_difference_image = itk.image_from_array(
-            diff_magnitude.astype(np.float64)
-        )
-
-        passed = (
-            number_of_pixels_above_tol <= max_number_of_pixels_above_tol
-            and total_absolute_error <= total_absolute_error_tol
-        )
-        if passed:
-            self.log_info(
-                "PASS: number_of_pixels_above_tol=%d (max=%d), total_absolute_error=%.6g (tol=%.6g)",
-                number_of_pixels_above_tol,
-                max_number_of_pixels_above_tol,
-                total_absolute_error,
-                total_absolute_error_tol,
-            )
-        else:
-            self.log_error(
-                "FAIL: number_of_pixels_above_tol=%d (max=%d), total_absolute_error=%.6g (tol=%.6g)",
-                number_of_pixels_above_tol,
-                max_number_of_pixels_above_tol,
-                total_absolute_error,
-                total_absolute_error_tol,
-            )
-        return passed
-
     def image_pass_fail_and_pixels_above_tolerance(self) -> tuple[bool, int]:
         """
-        Return (pass, value) for number of pixels above tolerance from the most recent compare_2d_to_3d_slice call.
+        Return (pass, value) for number of pixels above tolerance from the most
+        recent compare_result_to_baseline_image call.
         pass is True if value <= max_pixels_above_tol that was used in that call.
         """
         if (
             self._last_image_number_of_pixels_above_tol is None
             or self._last_image_max_number_of_pixels_above_tol is None
         ):
-            raise RuntimeError("No previous compare_2d_to_3d_slice call")
+            raise RuntimeError("No previous compare_result_to_baseline_image call")
         val = self._last_image_number_of_pixels_above_tol
         passed = val <= self._last_image_max_number_of_pixels_above_tol
         return (passed, val)
 
     def image_pass_fail_and_total_absolute_error(self) -> tuple[bool, float]:
         """
-        Return (pass, value) for total absolute error from the most recent compare_2d_to_3d_slice call.
+        Return (pass, value) for total absolute error from the most recent
+        compare_result_to_baseline_image call.
         pass is True if value <= total_absolute_error_tol that was used in that call.
         """
         if (
             self._last_image_total_absolute_error is None
             or self._last_image_total_absolute_error_tol is None
         ):
-            raise RuntimeError("No previous compare_2d_to_3d_slice call")
+            raise RuntimeError("No previous compare_result_to_baseline_image call")
         val = self._last_image_total_absolute_error
         passed = val <= self._last_image_total_absolute_error_tol
         return (passed, val)
 
     def image_difference(self) -> Any:
-        """Return the difference image (itk.Image) from the most recent compare_2d_to_3d_slice call."""
+        """Return the difference image (itk.Image) from the most recent
+        compare_result_to_baseline_image call."""
         if self._last_image_difference_image is None:
-            raise RuntimeError("No previous compare_2d_to_3d_slice call")
+            raise RuntimeError("No previous compare_result_to_baseline_image call")
         return self._last_image_difference_image
 
     def transform_pass_fail_and_number_of_values_above_tolerance(
@@ -310,29 +239,34 @@ class TestTools(PhysioMotion4DBase):
     def compare_result_to_baseline_image(
         self,
         filename: str,
-        slice_index: int | None = None,
-        axis: int = 0,
         *,
         per_pixel_absolute_error_tol: float = 0.0,
         max_number_of_pixels_above_tol: int = 0,
         total_absolute_error_tol: float = 0.0,
     ) -> bool:
         """
-        Load 3D image from results_filename and 2D baseline from baseline_filename (.mha), compare the given slice to baseline,
-        save the difference image with \"_diff\" in the name (.mha), and log pass/fail and values (INFO/ERROR).
-        If slice_index is not given, the middle slice is used.
-        If the baseline file does not exist, it is created from the corresponding slice of the 3D result and a warning is logged.
-        Returns True if comparison passed (pixels and total absolute error within tolerance).
+        Load a 3D result image and a 3D baseline image (.mha), compare the full
+        volumes voxel-by-voxel, save the difference image with "_diff" in the
+        name on failure, and log pass/fail.
+
+        If the baseline file does not exist and --create-baselines was given,
+        the 3D result is copied as the new baseline.
+
+        Returns True if comparison passed (pixels and total absolute error
+        within tolerance).
+
+        Args:
+            filename: File name (relative to class results/baselines dirs).
+            per_pixel_absolute_error_tol: Per-voxel absolute error threshold.
+            max_number_of_pixels_above_tol: Max allowed voxels exceeding threshold.
+            total_absolute_error_tol: Max allowed sum of absolute differences.
         """
         results_path = Path(self._results_dir / filename)
         baseline_path = Path(self._baselines_dir / filename)
         if not results_path.exists():
             raise FileNotFoundError(f"Results image not found: {results_path}")
 
-        image_3d = itk.imread(str(results_path))
-        arr_3d = np.asarray(itk.array_from_image(image_3d), dtype=np.float64)
-        if slice_index is None:
-            slice_index = arr_3d.shape[axis] // 2
+        image_result = itk.imread(str(results_path))
 
         if not baseline_path.exists():
             if not _create_baseline_if_missing:
@@ -341,48 +275,55 @@ class TestTools(PhysioMotion4DBase):
                     baseline_path,
                 )
                 return False
-            # Create baseline from the corresponding slice of the 3D result
-            slice_3d = np.take(arr_3d, slice_index, axis=axis)
-            slice_2d = np.squeeze(slice_3d) if slice_3d.ndim == 3 else slice_3d
-            slice_itk = itk.image_from_array(slice_2d.astype(np.float64))
-            baseline_path = (
-                (self._baselines_dir / filename).with_suffix(".mha")
-                if baseline_path.suffix.lower() != ".mha"
-                else baseline_path
-            )
             baseline_path.parent.mkdir(parents=True, exist_ok=True)
-            itk.imwrite(slice_itk, str(baseline_path), compression=True)
+            shutil.copy(str(results_path), str(baseline_path))
             self.log_warning(
-                "Baseline file did not exist; created from 3D result slice: %s",
+                "Baseline file did not exist; copied 3D result: %s",
                 baseline_path,
             )
-            image_2d = slice_itk
+            image_baseline = image_result
         else:
-            image_2d = itk.imread(str(baseline_path))
+            image_baseline = itk.imread(str(baseline_path))
 
-        passed = self.compare_2d_to_3d_slice(
-            image_2d,
-            image_3d,
-            slice_index,
-            axis=axis,
-            per_pixel_absolute_error_tol=per_pixel_absolute_error_tol,
-            max_number_of_pixels_above_tol=max_number_of_pixels_above_tol,
-            total_absolute_error_tol=total_absolute_error_tol,
+        arr_result = np.asarray(itk.array_from_image(image_result), dtype=np.float64)
+        arr_baseline = np.asarray(
+            itk.array_from_image(image_baseline), dtype=np.float64
         )
 
-        # Save difference image to results dir
-        stem = Path(filename).stem
-        if "." in stem:
-            stem = stem.split(".")[0]
-        diff_filename = stem + "_diff.mha"
-        diff_path = self._results_dir / diff_filename
-        itk.imwrite(self._last_image_difference_image, str(diff_path), compression=True)
+        if arr_result.shape != arr_baseline.shape:
+            raise ValueError(
+                f"Shape mismatch: result {arr_result.shape} vs baseline {arr_baseline.shape}"
+            )
 
-        # Log pass/fail and values
-        _, number_of_pixels_above_tol = (
-            self.image_pass_fail_and_pixels_above_tolerance()
+        diff_magnitude = np.abs(arr_result - arr_baseline)
+        total_absolute_error = float(np.sum(diff_magnitude))
+        number_of_pixels_above_tol = int(
+            np.sum(diff_magnitude > per_pixel_absolute_error_tol)
         )
-        _, total_absolute_error = self.image_pass_fail_and_total_absolute_error()
+
+        self._last_image_per_pixel_absolute_error_tol = per_pixel_absolute_error_tol
+        self._last_image_number_of_pixels_above_tol = number_of_pixels_above_tol
+        self._last_image_max_number_of_pixels_above_tol = max_number_of_pixels_above_tol
+        self._last_image_total_absolute_error = total_absolute_error
+        self._last_image_total_absolute_error_tol = total_absolute_error_tol
+        self._last_image_difference_image = itk.image_from_array(
+            diff_magnitude.astype(np.float64)
+        )
+
+        passed = (
+            number_of_pixels_above_tol <= max_number_of_pixels_above_tol
+            and total_absolute_error <= total_absolute_error_tol
+        )
+
+        if not passed:
+            stem = Path(filename).stem
+            if "." in stem:
+                stem = stem.split(".")[0]
+            diff_path = self._results_dir / (stem + "_diff.mha")
+            itk.imwrite(
+                self._last_image_difference_image, str(diff_path), compression=True
+            )
+
         if passed:
             self.log_info(
                 "PASS: number_of_pixels_above_tol=%d (max=%d), total_absolute_error=%.6g (tol=%.6g)",

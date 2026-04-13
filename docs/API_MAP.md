@@ -286,17 +286,16 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def set_create_baseline_if_missing(value)` (line 28): Set whether to create baseline files when missing (used by pytest conftest).
 - **class TestTools** (line 34): Utilities for pytest image comparison: baseline directory, results directory,
   - `def __init__(self, results_dir, baselines_dir, class_name, *, log_level=logging.INFO)` (line 44)
-  - `def compare_2d_to_3d_slice(self, image_2d, image_3d, slice_index, axis=0, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 78): Compare a 2D itk.Image to a slice of a 3D itk.Image. Converts to numpy only for computing differences.
-  - `def image_pass_fail_and_pixels_above_tolerance(self)` (line 152): Return (pass, value) for number of pixels above tolerance from the most recent compare_2d_to_3d_slice call.
-  - `def image_pass_fail_and_total_absolute_error(self)` (line 166): Return (pass, value) for total absolute error from the most recent compare_2d_to_3d_slice call.
-  - `def image_difference(self)` (line 180): Return the difference image (itk.Image) from the most recent compare_2d_to_3d_slice call.
-  - `def transform_pass_fail_and_number_of_values_above_tolerance(self)` (line 186): Return (pass, value) for number of values above tolerance from the most recent compare_result_to_baseline_transform call.
-  - `def transform_pass_fail_and_total_absolute_error(self)` (line 202): Return (pass, value) for total absolute error from the most recent compare_result_to_baseline_transform call.
-  - `def transform_difference(self)` (line 216): Return the difference transform (itk.Transform) from the most recent compare_result_to_baseline_transform call.
-  - `def write_result_image(self, image, filename)` (line 222): Write the image to the results directory.
-  - `def write_result_transform(self, transform, filename)` (line 226): Write the transform to the results directory.
-  - `def compare_result_to_baseline_transform(self, filename, *, per_value_absolute_error_tol=0.0, max_number_of_values_above_tol=0, total_absolute_error_tol=0.0)` (line 232): Compare the transform to the baseline transform.
-  - `def compare_result_to_baseline_image(self, filename, slice_index=None, axis=0, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 310): Load 3D image from results_filename and 2D baseline from baseline_filename (.mha), compare the given slice to baseline,
+  - `def image_pass_fail_and_pixels_above_tolerance(self)` (line 78): Return (pass, value) for number of pixels above tolerance from the most
+  - `def image_pass_fail_and_total_absolute_error(self)` (line 93): Return (pass, value) for total absolute error from the most recent
+  - `def image_difference(self)` (line 108): Return the difference image (itk.Image) from the most recent
+  - `def transform_pass_fail_and_number_of_values_above_tolerance(self)` (line 115): Return (pass, value) for number of values above tolerance from the most recent compare_result_to_baseline_transform call.
+  - `def transform_pass_fail_and_total_absolute_error(self)` (line 131): Return (pass, value) for total absolute error from the most recent compare_result_to_baseline_transform call.
+  - `def transform_difference(self)` (line 145): Return the difference transform (itk.Transform) from the most recent compare_result_to_baseline_transform call.
+  - `def write_result_image(self, image, filename)` (line 151): Write the image to the results directory.
+  - `def write_result_transform(self, transform, filename)` (line 155): Write the transform to the results directory.
+  - `def compare_result_to_baseline_transform(self, filename, *, per_value_absolute_error_tol=0.0, max_number_of_values_above_tol=0, total_absolute_error_tol=0.0)` (line 161): Compare the transform to the baseline transform.
+  - `def compare_result_to_baseline_image(self, filename, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 239): Load a 3D result image and a 3D baseline image (.mha), compare the full
 
 ## src/physiomotion4d/transform_tools.py
 
