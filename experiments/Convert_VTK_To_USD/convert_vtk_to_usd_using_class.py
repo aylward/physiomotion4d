@@ -34,7 +34,6 @@ from physiomotion4d import ContourTools, ConvertVTKToUSD
 
 # read_vtk_file is internal API used here only for data inspection/diagnostics
 from physiomotion4d.vtk_to_usd.vtk_reader import read_vtk_file
-from physiomotion4d.vtk_to_usd import DataType, GenericArray
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -235,7 +234,9 @@ else:
 base_mesh = pv.read(str(vtp_file))
 
 
-def create_deformed_pv_mesh(base: pv.PolyData, time_step: int, num_steps: int = 10) -> pv.PolyData:
+def create_deformed_pv_mesh(
+    base: pv.PolyData, time_step: int, num_steps: int = 10
+) -> pv.PolyData:
     """Return a sinusoidally scaled copy of base with a synthetic pressure field."""
     t = time_step / num_steps * 2 * np.pi
     scale = 1.0 + 0.1 * np.sin(t)
@@ -243,12 +244,16 @@ def create_deformed_pv_mesh(base: pv.PolyData, time_step: int, num_steps: int = 
     deformed = base.copy(deep=True)
     deformed.points = centroid + (base.points - centroid) * scale
     num_points = len(deformed.points)
-    deformed.point_data['pressure'] = np.sin(t + np.linspace(0, 2 * np.pi, num_points)).astype(np.float32)
+    deformed.point_data["pressure"] = np.sin(
+        t + np.linspace(0, 2 * np.pi, num_points)
+    ).astype(np.float32)
     return deformed
 
 
 num_time_steps = 10
-pv_sequence = [create_deformed_pv_mesh(base_mesh, t, num_time_steps) for t in range(num_time_steps)]
+pv_sequence = [
+    create_deformed_pv_mesh(base_mesh, t, num_time_steps) for t in range(num_time_steps)
+]
 print(f"\nCreated {len(pv_sequence)} time steps")
 
 # %%

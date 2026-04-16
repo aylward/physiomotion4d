@@ -73,7 +73,7 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         compute_normals: bool = False,
         convert_to_surface: bool = True,
         times_per_second: float = 24.0,
-        separate_by: Literal['none', 'connectivity', 'cell_type'] = 'none',
+        separate_by: Literal["none", "connectivity", "cell_type"] = "none",
         solid_color: tuple[float, float, float] = (0.8, 0.8, 0.8),
         log_level: int | str = logging.INFO,
     ) -> None:
@@ -138,14 +138,14 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         vtk_files: Sequence[Path | str],
         *,
         extract_surface: bool = True,
-        separate_by: Literal['none', 'connectivity', 'cell_type'] = 'none',
+        separate_by: Literal["none", "connectivity", "cell_type"] = "none",
         times_per_second: float = 24.0,
         solid_color: tuple[float, float, float] = (0.8, 0.8, 0.8),
         time_codes: Optional[list[float]] = None,
         static_merge: bool = False,
         mask_ids: Optional[dict[int, str]] = None,
         log_level: int | str = logging.INFO,
-    ) -> 'ConvertVTKToUSD':
+    ) -> "ConvertVTKToUSD":
         """Create a converter by loading VTK files from disk.
 
         Accepts .vtk (legacy), .vtp (PolyData), and .vtu (UnstructuredGrid) files.
@@ -171,18 +171,20 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         """
         file_list = [Path(f) for f in vtk_files]
         if not file_list:
-            raise ValueError('vtk_files must not be empty')
+            raise ValueError("vtk_files must not be empty")
 
         meshes: list[pv.DataSet | vtk.vtkDataSet] = []
         for path in file_list:
             mesh = pv.read(str(path))
             if extract_surface and isinstance(mesh, pv.UnstructuredGrid):
-                mesh = mesh.extract_surface(algorithm='dataset_surface')
+                mesh = mesh.extract_surface(algorithm="dataset_surface")
             meshes.append(mesh)
 
-        resolved_time_codes = time_codes if time_codes is not None else [
-            float(i) for i in range(len(meshes))
-        ]
+        resolved_time_codes = (
+            time_codes
+            if time_codes is not None
+            else [float(i) for i in range(len(meshes))]
+        )
 
         instance = cls(
             data_basename=data_basename,
@@ -199,13 +201,16 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         # Validate topology consistency for multi-frame time series
         if len(meshes) > 1 and not static_merge:
             from .vtk_to_usd.vtk_reader import validate_time_series_topology
-            mesh_data_seq = [instance._vtk_to_mesh_data(m, i) for i, m in enumerate(meshes)]
+
+            mesh_data_seq = [
+                instance._vtk_to_mesh_data(m, i) for i, m in enumerate(meshes)
+            ]
             try:
                 report = validate_time_series_topology(mesh_data_seq)
-                for w in report.get('warnings', []):
-                    instance.log_warning('%s', w)
+                for w in report.get("warnings", []):
+                    instance.log_warning("%s", w)
             except Exception as exc:
-                instance.log_debug('Topology validation skipped: %s', exc)
+                instance.log_debug("Topology validation skipped: %s", exc)
 
         return instance
 
@@ -365,7 +370,9 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
 
         # Set time range for animation (not for static merge)
         if len(self.input_polydata) > 1 and not self._is_static_merge:
-            time_codes = self._time_codes or [float(i) for i in range(len(self.input_polydata))]
+            time_codes = self._time_codes or [
+                float(i) for i in range(len(self.input_polydata))
+            ]
             stage.SetStartTimeCode(time_codes[0])
             stage.SetEndTimeCode(time_codes[-1])
             stage.SetTimeCodesPerSecond(self.settings.times_per_second)
@@ -398,20 +405,20 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         mesh_converter: UsdMeshConverter,
     ) -> None:
         """Convert all meshes as a single mesh (or split by connectivity/cell_type)."""
-        self.logger.debug(
-            "Converting mesh(es), separate_by='%s'", self.separate_by
-        )
+        self.logger.debug("Converting mesh(es), separate_by='%s'", self.separate_by)
 
         mesh_data_sequence = [
             self._vtk_to_mesh_data(m, i) for i, m in enumerate(self.input_polydata)
         ]
 
-        time_codes = self._time_codes or [float(i) for i in range(len(mesh_data_sequence))]
+        time_codes = self._time_codes or [
+            float(i) for i in range(len(mesh_data_sequence))
+        ]
 
-        if self.separate_by == 'none':
+        if self.separate_by == "none":
             # Single prim path for all time steps
-            parts_per_frame = [[(md, 'Mesh')] for md in mesh_data_sequence]
-        elif self.separate_by == 'connectivity':
+            parts_per_frame = [[(md, "Mesh")] for md in mesh_data_sequence]
+        elif self.separate_by == "connectivity":
             parts_per_frame = [
                 split_mesh_data_by_connectivity(md, self.data_basename)
                 for md in mesh_data_sequence
@@ -476,9 +483,9 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
             mesh_data = self._vtk_to_mesh_data(vtk_mesh, i)
             frame_name = f"Mesh_{i}"
 
-            if self.separate_by == 'none':
+            if self.separate_by == "none":
                 parts = [(mesh_data, frame_name)]
-            elif self.separate_by == 'connectivity':
+            elif self.separate_by == "connectivity":
                 parts = split_mesh_data_by_connectivity(mesh_data, frame_name)
             else:  # cell_type
                 parts = split_mesh_data_by_cell_type(mesh_data, frame_name)

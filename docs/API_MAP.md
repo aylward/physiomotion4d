@@ -15,8 +15,8 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## experiments/Convert_VTK_To_USD/convert_vtk_to_usd_using_class.py
 
-- `def create_deformed_pv_mesh(base, time_step, num_steps=10)` (line 238): Return a sinusoidally scaled copy of base with a synthetic pressure field.
-- `def verify_usd_file(usd_path)` (line 310): Verify USD file integrity.
+- `def create_deformed_pv_mesh(base, time_step, num_steps=10)` (line 237): Return a sinusoidally scaled copy of base with a synthetic pressure field.
+- `def verify_usd_file(usd_path)` (line 315): Verify USD file integrity.
 
 ## experiments/DisplacementField_To_USD/displacement_field_to_usd.py
 
@@ -118,10 +118,10 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - **class ConvertVTKToUSD** (line 38): Advanced VTK to USD converter with colormap and anatomical labeling support.
   - `def __init__(self, data_basename, input_polydata, mask_ids=None, compute_normals=False, convert_to_surface=True, times_per_second=24.0, separate_by='none', solid_color=(0.8, 0.8, 0.8), log_level=logging.INFO)` (line 68): Initialize converter.
   - `def from_files(cls, data_basename, vtk_files, *, extract_surface=True, separate_by='none', times_per_second=24.0, solid_color=(0.8, 0.8, 0.8), time_codes=None, static_merge=False, mask_ids=None, log_level=logging.INFO)` (line 135): Create a converter by loading VTK files from disk.
-  - `def supports_mesh_type(self, mesh)` (line 212): Check if mesh type is supported for conversion.
-  - `def list_available_arrays(self)` (line 240): List all point data arrays available across all time steps.
-  - `def set_colormap(self, color_by_array=None, colormap='plasma', intensity_range=None)` (line 286): Configure colormap for visualization.
-  - `def convert(self, output_usd_file, convert_to_surface=None, compute_normals=None)` (line 320): Convert VTK meshes to USD.
+  - `def supports_mesh_type(self, mesh)` (line 217): Check if mesh type is supported for conversion.
+  - `def list_available_arrays(self)` (line 245): List all point data arrays available across all time steps.
+  - `def set_colormap(self, color_by_array=None, colormap='plasma', intensity_range=None)` (line 291): Configure colormap for visualization.
+  - `def convert(self, output_usd_file, convert_to_surface=None, compute_normals=None)` (line 325): Convert VTK meshes to USD.
 
 ## src/physiomotion4d/image_tools.py
 

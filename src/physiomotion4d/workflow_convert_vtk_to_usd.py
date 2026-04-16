@@ -165,10 +165,12 @@ class WorkflowConvertVTKToUSD(PhysioMotion4DBase):
             )
         self.log_info("Output: %s", self.output_usd)
 
-        separate_by: Literal['none', 'connectivity', 'cell_type'] = (
-            'connectivity' if self.separate_by_connectivity
-            else 'cell_type' if self.separate_by_cell_type
-            else 'none'
+        separate_by: Literal["none", "connectivity", "cell_type"] = (
+            "connectivity"
+            if self.separate_by_connectivity
+            else "cell_type"
+            if self.separate_by_cell_type
+            else "none"
         )
 
         converter = ConvertVTKToUSD.from_files(

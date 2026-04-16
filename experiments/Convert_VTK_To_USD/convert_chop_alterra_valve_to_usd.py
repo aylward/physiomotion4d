@@ -68,7 +68,7 @@ colormap_range_min = 25
 colormap_range_max = 200
 
 # Conversion parameters
-separate_by = 'connectivity'  # Essential for alterra vtk file
+separate_by = "connectivity"  # Essential for alterra vtk file
 times_per_second = 60.0
 solid_color = (0.5, 0.5, 0.5)
 
@@ -161,9 +161,9 @@ stage = ConvertVTKToUSD.from_files(
 # %%
 usd_tools = USDTools()
 # ConvertVTKToUSD places prims at /World/{basename}/{part_name}
-if separate_by == 'connectivity':
+if separate_by == "connectivity":
     vessel_path = "/World/AlterraValve/AlterraValve_object3"
-elif separate_by == 'cell_type':
+elif separate_by == "cell_type":
     vessel_path = "/World/AlterraValve/AlterraValve_Triangle"
 else:
     vessel_path = "/World/AlterraValve/Mesh"
