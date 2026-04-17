@@ -14,6 +14,7 @@ Note: Tests marked requires_data need manually downloaded data:
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -24,6 +25,7 @@ from physiomotion4d import ConvertVTKToUSD
 from physiomotion4d.vtk_to_usd import (
     DataType,
     GenericArray,
+    MeshData,
     read_vtk_file,
 )
 
@@ -203,6 +205,102 @@ class TestGenericArray:
         assert array.data.ndim == 2
         assert array.data.shape == (2, 9)
         np.testing.assert_array_equal(array.data, data.reshape(-1, 9))
+
+
+class TestFromFilesValidation:
+    """Synthetic tests for ConvertVTKToUSD.from_files() — no real data required.
+
+    Covers:
+    - Gap A: time_codes length and monotonicity validation
+    - Gap B: _cached_mesh_data population and reuse in _convert_unified()
+    """
+
+    # ------------------------------------------------------------------
+    # Gap A — time_codes validation
+    # ------------------------------------------------------------------
+
+    def test_time_codes_length_mismatch_raises(self, tmp_path: Path) -> None:
+        """from_files() must reject time_codes whose length != len(vtk_files)."""
+        sphere = pv.Sphere(theta_resolution=4, phi_resolution=4)
+        f0 = tmp_path / "f0.vtp"
+        f1 = tmp_path / "f1.vtp"
+        sphere.save(str(f0))
+        sphere.save(str(f1))
+        with pytest.raises(ValueError, match="time_codes length"):
+            ConvertVTKToUSD.from_files("X", [f0, f1], time_codes=[0.0])
+
+    def test_time_codes_non_monotone_raises(self, tmp_path: Path) -> None:
+        """from_files() must reject time_codes that decrease between frames."""
+        sphere = pv.Sphere(theta_resolution=4, phi_resolution=4)
+        f0 = tmp_path / "f0.vtp"
+        f1 = tmp_path / "f1.vtp"
+        sphere.save(str(f0))
+        sphere.save(str(f1))
+        with pytest.raises(ValueError, match="non-decreasing order"):
+            ConvertVTKToUSD.from_files("X", [f0, f1], time_codes=[2.0, 1.0])
+
+    def test_time_codes_equal_consecutive_is_valid(self, tmp_path: Path) -> None:
+        """Equal consecutive time codes are non-decreasing and must not raise."""
+        sphere = pv.Sphere(theta_resolution=4, phi_resolution=4)
+        f0 = tmp_path / "f0.vtp"
+        f1 = tmp_path / "f1.vtp"
+        sphere.save(str(f0))
+        sphere.save(str(f1))
+        converter = ConvertVTKToUSD.from_files("X", [f0, f1], time_codes=[1.0, 1.0])
+        assert converter._time_codes == [1.0, 1.0]
+
+    # ------------------------------------------------------------------
+    # Gap B — topology cache population and reuse
+    # ------------------------------------------------------------------
+
+    def test_from_files_populates_cached_mesh_data(self, tmp_path: Path) -> None:
+        """from_files() with >1 frame must populate _cached_mesh_data."""
+        plane = pv.Plane(i_resolution=2, j_resolution=2)
+        files = []
+        for i in range(3):
+            p = tmp_path / f"p{i}.vtp"
+            plane.save(str(p))
+            files.append(p)
+        converter = ConvertVTKToUSD.from_files("Plane", files)
+        assert converter._cached_mesh_data is not None
+        assert len(converter._cached_mesh_data) == 3
+        assert all(isinstance(m, MeshData) for m in converter._cached_mesh_data)
+
+    def test_from_files_cache_reused_in_convert(self, tmp_path: Path) -> None:
+        """_convert_unified() must not call _vtk_to_mesh_data() when cache is populated."""
+        plane = pv.Plane(i_resolution=2, j_resolution=2)
+        files = []
+        for i in range(3):
+            p = tmp_path / f"p{i}.vtp"
+            plane.save(str(p))
+            files.append(p)
+        converter = ConvertVTKToUSD.from_files("Plane", files)
+        with patch.object(
+            converter, "_vtk_to_mesh_data", wraps=converter._vtk_to_mesh_data
+        ) as spy:
+            stage = converter.convert(str(tmp_path / "out.usd"))
+        assert spy.call_count == 0, (
+            f"_vtk_to_mesh_data called {spy.call_count} time(s); cache should have been used"
+        )
+        assert stage.GetPrimAtPath("/World/Plane/Mesh").IsValid()
+
+    def test_from_files_single_file_no_cache(self, tmp_path: Path) -> None:
+        """A single-file converter must not populate _cached_mesh_data."""
+        plane = pv.Plane(i_resolution=2, j_resolution=2)
+        f0 = tmp_path / "p0.vtp"
+        plane.save(str(f0))
+        converter = ConvertVTKToUSD.from_files("P", [f0])
+        assert converter._cached_mesh_data is None
+
+    def test_from_files_static_merge_no_cache(self, tmp_path: Path) -> None:
+        """static_merge=True must not populate _cached_mesh_data."""
+        plane = pv.Plane(i_resolution=2, j_resolution=2)
+        f0 = tmp_path / "p0.vtp"
+        f1 = tmp_path / "p1.vtp"
+        plane.save(str(f0))
+        plane.save(str(f1))
+        converter = ConvertVTKToUSD.from_files("P", [f0, f1], static_merge=True)
+        assert converter._cached_mesh_data is None
 
 
 @pytest.mark.requires_data

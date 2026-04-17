@@ -113,6 +113,10 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         # Set by from_files() for file-based construction
         self._is_static_merge: bool = False
         self._time_codes: Optional[list[float]] = None
+        # Pre-converted MeshData for each time step; populated by from_files() so
+        # _convert_unified() can reuse the topology-validation work instead of
+        # calling _vtk_to_mesh_data() a second time.
+        self._cached_mesh_data: Optional[list[MeshData]] = None
 
         # Conversion settings
         self.settings = ConversionSettings(
@@ -213,13 +217,16 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         instance._is_static_merge = static_merge
         instance._time_codes = resolved_time_codes
 
-        # Validate topology consistency for multi-frame time series
+        # Validate topology consistency for multi-frame time series and cache the
+        # converted MeshData so _convert_unified() can reuse it without a second
+        # round of _vtk_to_mesh_data() calls.
         if len(meshes) > 1 and not static_merge:
             from .vtk_to_usd.vtk_reader import validate_time_series_topology
 
             mesh_data_seq = [
                 instance._vtk_to_mesh_data(m, i) for i, m in enumerate(meshes)
             ]
+            instance._cached_mesh_data = mesh_data_seq
             try:
                 report = validate_time_series_topology(mesh_data_seq)
                 for w in report.get("warnings", []):
@@ -422,7 +429,9 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         """Convert all meshes as a single mesh (or split by connectivity/cell_type)."""
         self.logger.debug("Converting mesh(es), separate_by='%s'", self.separate_by)
 
-        mesh_data_sequence = [
+        # Reuse pre-converted data built during topology validation in from_files();
+        # fall back to computing fresh when called without the file-based factory.
+        mesh_data_sequence = self._cached_mesh_data or [
             self._vtk_to_mesh_data(m, i) for i, m in enumerate(self.input_polydata)
         ]
 
@@ -470,14 +479,12 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
                 continue
 
             mesh_path = f"{root_path}/{part_name}"
-            if len(part_sequence) == 1:
-                mesh_converter.create_mesh(
-                    part_sequence[0], mesh_path, bind_material=True
-                )
-            else:
-                mesh_converter.create_time_varying_mesh(
-                    part_sequence, mesh_path, part_time_codes, bind_material=True
-                )
+            # Always use create_time_varying_mesh so the prim carries explicit time
+            # samples and is only visible at the frames it was present in, even when
+            # a part appears in only one frame.
+            mesh_converter.create_time_varying_mesh(
+                part_sequence, mesh_path, part_time_codes, bind_material=True
+            )
 
     def _convert_static_merge(
         self,
