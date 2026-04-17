@@ -12,16 +12,10 @@ import re
 from pathlib import Path
 from typing import Literal
 
+from physiomotion4d.convert_vtk_to_usd import ConvertVTKToUSD
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.usd_anatomy_tools import USDAnatomyTools
 from physiomotion4d.usd_tools import USDTools
-from physiomotion4d.vtk_to_usd import (
-    ConversionSettings,
-    MaterialData,
-    VTKToUSDConverter,
-    read_vtk_file,
-    validate_time_series_topology,
-)
 
 AppearanceKind = Literal["solid", "anatomy", "colormap"]
 
@@ -41,8 +35,6 @@ class WorkflowConvertVTKToUSD(PhysioMotion4DBase):
         separate_by_cell_type: bool = False,
         mesh_name: str = "Mesh",
         times_per_second: float = 60.0,
-        up_axis: str = "Y",
-        triangulate: bool = True,
         extract_surface: bool = True,
         time_series_pattern: str = r"\.t(\d+)\.(vtk|vtp|vtu)$",
         appearance: AppearanceKind = "solid",
@@ -65,8 +57,6 @@ class WorkflowConvertVTKToUSD(PhysioMotion4DBase):
                 Cannot be True when separate_by_connectivity is True.
             mesh_name: Base name for the mesh (or first mesh when not splitting).
             times_per_second: FPS for time-varying data.
-            up_axis: "Y" or "Z".
-            triangulate: Triangulate meshes.
             extract_surface: For .vtu, extract surface before conversion.
             time_series_pattern: Regex to extract time index from filenames (one group).
             appearance: "solid" | "anatomy" | "colormap".
@@ -86,8 +76,6 @@ class WorkflowConvertVTKToUSD(PhysioMotion4DBase):
         self.separate_by_cell_type = separate_by_cell_type
         self.mesh_name = mesh_name
         self.times_per_second = times_per_second
-        self.up_axis = up_axis
-        self.triangulate = triangulate
         self.extract_surface = extract_surface
         self.time_series_pattern = time_series_pattern
         self.appearance = appearance
@@ -159,7 +147,7 @@ class WorkflowConvertVTKToUSD(PhysioMotion4DBase):
         paths_ordered = [p for _, p in time_series]
         n_frames = len(paths_ordered)
 
-        # Multiple files but no pattern match: treat as static scene (all at time 0, no time samples)
+        # Multiple files but no pattern match: treat as static scene (no time samples)
         is_static_merge = n_frames > 1 and not pattern_matched
 
         self.log_info("Input: %d file(s), time steps: %s", n_frames, time_steps[:5])
@@ -171,73 +159,34 @@ class WorkflowConvertVTKToUSD(PhysioMotion4DBase):
             )
         self.log_info("Output: %s", self.output_usd)
 
-        settings = ConversionSettings(
-            triangulate_meshes=self.triangulate,
-            compute_normals=False,
-            preserve_point_arrays=True,
-            preserve_cell_arrays=True,
-            separate_objects_by_connectivity=self.separate_by_connectivity,
-            separate_objects_by_cell_type=self.separate_by_cell_type,
-            up_axis=self.up_axis,
+        separate_by: Literal["none", "connectivity", "cell_type"] = (
+            "connectivity"
+            if self.separate_by_connectivity
+            else "cell_type"
+            if self.separate_by_cell_type
+            else "none"
+        )
+
+        converter = ConvertVTKToUSD.from_files(
+            data_basename=self.mesh_name,
+            vtk_files=paths_ordered,
+            extract_surface=self.extract_surface,
+            separate_by=separate_by,
             times_per_second=self.times_per_second,
-            use_time_samples=not is_static_merge,
+            solid_color=self.solid_color,
+            time_codes=time_codes if not is_static_merge else None,
+            static_merge=is_static_merge,
+            log_level=self.log_level,
         )
+        stage = converter.convert(str(self.output_usd))
 
-        converter = VTKToUSDConverter(settings)
-        default_material = MaterialData(
-            name="default_material",
-            diffuse_color=self.solid_color,
-            use_vertex_colors=False,
-        )
-
-        if n_frames == 1:
-            stage = converter.convert_file(
-                paths_ordered[0],
-                self.output_usd,
-                mesh_name=self.mesh_name,
-                material=default_material,
-                extract_surface=self.extract_surface,
-            )
-        elif is_static_merge:
-            stage = converter.convert_files_static(
-                paths_ordered,
-                self.output_usd,
-                mesh_name=self.mesh_name,
-                material=default_material,
-                extract_surface=self.extract_surface,
-            )
-        else:
-            # Load mesh sequence once for both validation and conversion (avoids double I/O)
-            mesh_sequence = [
-                read_vtk_file(p, extract_surface=self.extract_surface)
-                for p in paths_ordered
-            ]
-            # Optional: validate topology consistency across frames
-            try:
-                report = validate_time_series_topology(mesh_sequence)
-                if report.get("topology_changes"):
-                    self.log_warning(
-                        "Topology changes across %d frames",
-                        len(report["topology_changes"]),
-                    )
-            except Exception as e:
-                self.log_debug("Time series validation skipped: %s", e)
-
-            stage = converter.convert_mesh_data_sequence(
-                mesh_sequence,
-                self.output_usd,
-                mesh_name=self.mesh_name,
-                time_codes=time_codes,
-                material=default_material,
-            )
-
-        # Post-process: apply chosen appearance to all meshes under /World/Meshes
+        # Post-process: apply chosen appearance to all meshes under /World/{mesh_name}
         usd_tools = USDTools(log_level=self.log_level)
         mesh_paths = usd_tools.list_mesh_paths_under(
-            str(self.output_usd), parent_path="/World/Meshes"
+            str(self.output_usd), parent_path=f"/World/{self.mesh_name}"
         )
         if not mesh_paths:
-            self.log_warning("No mesh prims found under /World/Meshes")
+            self.log_warning("No mesh prims found under /World/%s", self.mesh_name)
             return str(self.output_usd)
 
         # Static merge has no time samples; pass None so only default time is used

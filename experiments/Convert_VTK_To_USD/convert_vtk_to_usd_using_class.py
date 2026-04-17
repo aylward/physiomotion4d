@@ -22,7 +22,6 @@
 # - `average_mesh.vtk`: Volumetric mesh of the heart
 
 # %%
-import copy
 import logging
 import os
 from pathlib import Path
@@ -31,18 +30,10 @@ import numpy as np
 import pyvista as pv
 from pxr import Usd, UsdGeom, UsdShade
 
-from physiomotion4d import ContourTools
+from physiomotion4d import ContourTools, ConvertVTKToUSD
 
-# Import the new vtk_to_usd library
-from physiomotion4d.vtk_to_usd import (
-    VTKToUSDConverter,
-    ConversionSettings,
-    DataType,
-    GenericArray,
-    MaterialData,
-    convert_vtk_file,
-    read_vtk_file,
-)
+# read_vtk_file is internal API used here only for data inspection/diagnostics
+from physiomotion4d.vtk_to_usd.vtk_reader import read_vtk_file
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -76,12 +67,12 @@ if not vtp_file.exists():
 print(f"  VTP: {vtp_file.exists()} - {vtp_file}")
 
 # %%
-# Simple conversion using convenience function
+# Simple conversion using ConvertVTKToUSD
 output_usd = output_dir / "heart_surface_simple.usd"
 
-stage = convert_vtk_file(
-    vtk_file=vtp_file, output_usd=output_usd, mesh_name="HeartSurface"
-)
+stage = ConvertVTKToUSD.from_files(
+    data_basename="HeartSurface", vtk_files=[vtp_file]
+).convert(str(output_usd))
 
 print(f"\nCreated USD file: {output_usd}")
 print("Stage info:")
@@ -145,35 +136,13 @@ for i, array in enumerate(mesh_data_vtk.generic_arrays, 1):
 # Now let's use custom settings to control the conversion process.
 
 # %%
-# Create custom conversion settings
-settings = ConversionSettings(
-    triangulate_meshes=True,  # Ensure all faces are triangles
-    compute_normals=True,  # Compute normals if not present
-    preserve_point_arrays=True,  # Keep all point data as primvars
-    preserve_cell_arrays=True,  # Keep all cell data as primvars
-    meters_per_unit=0.001,  # Assume VTK data is in millimeters
-    up_axis="Y",  # Use Y-up (USD standard)
-)
-
-# Create custom material
-material = MaterialData(
-    name="heart_material",
-    diffuse_color=(0.9, 0.3, 0.3),  # Reddish color for heart
-    roughness=0.4,
-    metallic=0.0,
-)
-
-# Create converter
-converter = VTKToUSDConverter(settings)
-
-# Convert with custom settings
+# Convert with a custom solid color
 output_usd_custom = output_dir / "heart_surface_custom.usd"
-stage_custom = converter.convert_file(
-    vtk_file=vtp_file,
-    output_usd=output_usd_custom,
-    mesh_name="HeartSurface",
-    material=material,
-)
+stage_custom = ConvertVTKToUSD.from_files(
+    data_basename="HeartSurface",
+    vtk_files=[vtp_file],
+    solid_color=(0.9, 0.3, 0.3),  # Reddish color for heart
+).convert(str(output_usd_custom))
 
 print(f"\nCreated custom USD file: {output_usd_custom}")
 
@@ -183,23 +152,14 @@ print(f"\nCreated custom USD file: {output_usd_custom}")
 # Now let's convert the legacy VTK format file.
 
 # %%
-# Convert VTK file with custom material
+# Convert VTK (legacy volumetric mesh) with surface extraction
 output_usd_vtk = output_dir / "heart_mesh.usd"
-
-material_mesh = MaterialData(
-    name="heart_mesh_material",
-    diffuse_color=(0.8, 0.4, 0.4),
-    roughness=0.5,
-    metallic=0.0,
-)
-
-stage_vtk = converter.convert_file(
-    vtk_file=vtk_file,
-    output_usd=output_usd_vtk,
-    mesh_name="HeartMesh",
-    material=material_mesh,
+stage_vtk = ConvertVTKToUSD.from_files(
+    data_basename="HeartMesh",
+    vtk_files=[vtk_file],
     extract_surface=True,  # Extract surface from volumetric mesh
-)
+    solid_color=(0.8, 0.4, 0.4),
+).convert(str(output_usd_vtk))
 
 print(f"\nCreated VTK USD file: {output_usd_vtk}")
 
@@ -216,8 +176,8 @@ print("=" * 60)
 print("USD File Inspection")
 print("=" * 60)
 
-# Get the mesh prim
-mesh_path = "/World/Meshes/HeartSurface"
+# Get the mesh prim (ConvertVTKToUSD places meshes at /World/{basename}/Mesh)
+mesh_path = "/World/HeartSurface/Mesh"
 mesh_prim = inspect_stage.GetPrimAtPath(mesh_path)
 
 if mesh_prim:
@@ -270,77 +230,41 @@ else:
 # Demonstrate time-series conversion by creating synthetic deformation of the mesh.
 
 # %%
-# Create a simple time-series by deforming the mesh
+# Create a simple time-series by deforming the mesh using PyVista
+base_mesh = pv.read(str(vtp_file))
 
 
-def create_deformed_mesh(base_mesh_data, time_step, num_steps=10):
-    """Create a deformed version of the mesh for animation."""
-    # Clone the mesh data
-    deformed_mesh = copy.deepcopy(base_mesh_data)
-
-    # Apply sinusoidal deformation
+def create_deformed_pv_mesh(
+    base: pv.PolyData, time_step: int, num_steps: int = 10
+) -> pv.PolyData:
+    """Return a sinusoidally scaled copy of base with a synthetic pressure field."""
     t = time_step / num_steps * 2 * np.pi
-    scale_factor = 1.0 + 0.1 * np.sin(t)  # 10% amplitude
-
-    # Scale points radially from centroid
-    centroid = np.mean(deformed_mesh.points, axis=0)
-    deformed_mesh.points = centroid + (deformed_mesh.points - centroid) * scale_factor
-
-    # Add a time-varying scalar field (simulated pressure)
-    num_points = len(deformed_mesh.points)
-    pressure = np.sin(t + np.linspace(0, 2 * np.pi, num_points))
-    pressure_array = GenericArray(
-        name="pressure",
-        data=pressure,
-        num_components=1,
-        data_type=DataType.FLOAT,
-        interpolation="vertex",
-    )
-
-    # Add to generic arrays if not already present
-    array_names = [arr.name for arr in deformed_mesh.generic_arrays]
-    if "pressure" not in array_names:
-        deformed_mesh.generic_arrays.append(pressure_array)
-    else:
-        # Replace existing pressure array
-        for i, arr in enumerate(deformed_mesh.generic_arrays):
-            if arr.name == "pressure":
-                deformed_mesh.generic_arrays[i] = pressure_array
-                break
-
-    return deformed_mesh
+    scale = 1.0 + 0.1 * np.sin(t)
+    centroid = np.mean(base.points, axis=0)
+    deformed = base.copy(deep=True)
+    deformed.points = centroid + (base.points - centroid) * scale
+    num_points = len(deformed.points)
+    deformed.point_data["pressure"] = np.sin(
+        t + np.linspace(0, 2 * np.pi, num_points)
+    ).astype(np.float32)
+    return deformed
 
 
-# Create sequence of deformed meshes
 num_time_steps = 10
-mesh_sequence = []
-time_codes = list(range(num_time_steps))
-
-for t in range(num_time_steps):
-    deformed = create_deformed_mesh(mesh_data, t, num_time_steps)
-    mesh_sequence.append(deformed)
-    print(f"Created time step {t + 1}/{num_time_steps}")
-
-print(f"\nCreated {len(mesh_sequence)} time steps")
+pv_sequence = [
+    create_deformed_pv_mesh(base_mesh, t, num_time_steps) for t in range(num_time_steps)
+]
+print(f"\nCreated {len(pv_sequence)} time steps")
 
 # %%
 # Convert time series to USD
 output_usd_anim = output_dir / "heart_surface_animated.usd"
 
-material_anim = MaterialData(
-    name="heart_animated_material",
-    diffuse_color=(0.9, 0.2, 0.2),
-    roughness=0.3,
-    metallic=0.0,
-)
-
-stage_anim = converter.convert_mesh_data_sequence(
-    mesh_data_sequence=mesh_sequence,
-    output_usd=output_usd_anim,
-    mesh_name="HeartAnimated",
-    time_codes=time_codes,
-    material=material_anim,
-)
+stage_anim = ConvertVTKToUSD(
+    data_basename="HeartAnimated",
+    input_polydata=pv_sequence,
+    solid_color=(0.9, 0.2, 0.2),
+).convert(str(output_usd_anim))
 
 print(f"\nCreated animated USD file: {output_usd_anim}")
 print(f"Time range: {stage_anim.GetStartTimeCode()} to {stage_anim.GetEndTimeCode()}")

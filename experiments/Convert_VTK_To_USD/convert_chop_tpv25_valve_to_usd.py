@@ -36,15 +36,11 @@ from physiomotion4d.notebook_utils import running_as_test
 # Import USDTools for post-processing colormap
 from physiomotion4d.usd_tools import USDTools
 
-# Import the vtk_to_usd library
-from physiomotion4d.vtk_to_usd import (
-    ConversionSettings,
-    MaterialData,
-    VTKToUSDConverter,
-    cell_type_name_for_vertex_count,
-    read_vtk_file,
-    validate_time_series_topology,
-)
+from physiomotion4d import ConvertVTKToUSD
+
+# cell_type_name_for_vertex_count and read_vtk_file are internal APIs used for diagnostics
+from physiomotion4d.vtk_to_usd import cell_type_name_for_vertex_count
+from physiomotion4d.vtk_to_usd.vtk_reader import read_vtk_file
 
 # %% [markdown]
 # ## 1. Discover and Organize Time-Series Files
@@ -70,25 +66,10 @@ colormap_name = "jet"  # matplotlib colormap name
 colormap_range_min = 25
 colormap_range_max = 200
 
-conversion_settings = ConversionSettings(
-    triangulate_meshes=True,
-    compute_normals=False,  # Use existing normals if available
-    preserve_point_arrays=True,
-    preserve_cell_arrays=True,
-    separate_objects_by_cell_type=False,
-    separate_objects_by_connectivity=True,  # Essential for tpv25 vtk file
-    up_axis="Y",
-    times_per_second=60.0,  # 60 FPS for smooth animation
-    use_time_samples=True,
-)
-
-stent_material = MaterialData(
-    name="tpv25_valve",
-    diffuse_color=(0.5, 0.5, 0.5),
-    roughness=0.4,
-    metallic=0.9,
-    use_vertex_colors=False,
-)
+# Conversion parameters
+separate_by = "connectivity"  # Essential for tpv25 vtk file
+times_per_second = 60.0
+solid_color = (0.5, 0.5, 0.5)
 
 # %%
 output_dir.mkdir(parents=True, exist_ok=True)
@@ -154,8 +135,6 @@ for u, n in zip(unique_counts, num_each):
 # ## 3. Convert TPV25
 
 # %%
-converter = VTKToUSDConverter(conversion_settings)
-
 tpv25_files = [file_path for _, file_path in tpv25_series]
 tpv25_times = [float(time_step) for time_step, _ in tpv25_series]
 
@@ -167,39 +146,34 @@ print(f"\nConverting to: {output_usd}")
 print(f"Number of time steps: {len(tpv25_times)}")
 print("\nThis may take several minutes...\n")
 
-# Read MeshData
-mesh_data_sequence = [read_vtk_file(f, extract_surface=True) for f in tpv25_files]
-
-# Validate topology consistency across time series
-validation_report = validate_time_series_topology(
-    mesh_data_sequence, filenames=tpv25_files
-)
-if not validation_report["is_consistent"]:
-    print(
-        f"Warning: Found {len(validation_report['warnings'])} topology/primvar issues"
-    )
-    if validation_report["topology_changes"]:
-        print(
-            f"  Topology changes in {len(validation_report['topology_changes'])} frames"
-        )
-
-# Convert to USD (preserves all primvars from VTK)
-stage = converter.convert_mesh_data_sequence(
-    mesh_data_sequence=mesh_data_sequence,
-    output_usd=output_usd,
-    mesh_name="TPV25Valve",
+# topology validation and conversion happen inside from_files()
+stage = ConvertVTKToUSD.from_files(
+    data_basename="TPV25Valve",
+    vtk_files=tpv25_files,
+    extract_surface=True,
+    separate_by=separate_by,
+    times_per_second=times_per_second,
+    solid_color=solid_color,
     time_codes=tpv25_times,
-    material=stent_material,
-)
+).convert(str(output_usd))
 
 # %%
 usd_tools = USDTools()
-if conversion_settings.separate_objects_by_connectivity is True:
-    vessel_path = "/World/Meshes/TPV25Valve_object4"
-elif conversion_settings.separate_objects_by_cell_type is True:
-    vessel_path = "/World/Meshes/TPV25Valve_triangle1"
+# ConvertVTKToUSD places prims at /World/{basename}/{part_name}.
+# Discover the target prim dynamically so the path stays valid regardless
+# of how many connected components or cell types the VTK file produces.
+if separate_by == "connectivity":
+    mesh_paths = usd_tools.list_mesh_paths_under(stage, parent_path="/World/TPV25Valve")
+    candidates = [
+        p for p in mesh_paths if p.split("/")[-1].startswith("TPV25Valve_object")
+    ]
+    vessel_path = candidates[-1] if candidates else "/World/TPV25Valve/Mesh"
+elif separate_by == "cell_type":
+    mesh_paths = usd_tools.list_mesh_paths_under(stage, parent_path="/World/TPV25Valve")
+    triangle_paths = [p for p in mesh_paths if p.split("/")[-1].endswith("_Triangle")]
+    vessel_path = triangle_paths[0] if triangle_paths else "/World/TPV25Valve/Mesh"
 else:
-    vessel_path = "/World/Meshes/TPV25Valve"
+    vessel_path = "/World/TPV25Valve/Mesh"
 
 # Select primvar for coloring
 primvars = usd_tools.list_mesh_primvars(str(output_usd), vessel_path)

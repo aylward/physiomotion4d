@@ -10,12 +10,26 @@ from pathlib import Path
 from typing import Any
 
 import itk
+import numpy as np
 import pytest
 import pyvista as pv
 from pxr import UsdGeom
 
 from physiomotion4d import ConvertVTKToUSD
 from physiomotion4d.contour_tools import ContourTools
+
+
+def _make_poly(label_ids: list[int] | None = None) -> pv.PolyData:
+    """Return a small synthetic PolyData (9 quad cells, 16 points).
+
+    Args:
+        label_ids: If given, attached as ``cell_data['boundary_labels']`` (int32).
+            Must have exactly 9 elements to match the plane's cell count.
+    """
+    mesh = pv.Plane(i_resolution=3, j_resolution=3)
+    if label_ids is not None:
+        mesh.cell_data["boundary_labels"] = np.array(label_ids, dtype=np.int32)
+    return mesh
 
 
 @pytest.mark.requires_data
@@ -406,3 +420,135 @@ class TestConvertVTKToUSD:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+
+
+class TestSyntheticConversion:
+    """Synthetic (no-disk-data) tests for ConvertVTKToUSD.
+
+    Covers:
+    - Gap C: single-frame prim carries explicit time sample after create_time_varying_mesh change
+    - Gap D: mask_ids / _convert_with_labels — per-label prims, time-code filtering
+    - Gap E: static-merge prim naming uses data_basename
+    """
+
+    # ------------------------------------------------------------------
+    # Gap C — single-part prim must carry explicit time sample
+    # ------------------------------------------------------------------
+
+    def test_single_frame_prim_has_time_sample(self, tmp_path: Path) -> None:
+        """Single-frame _convert_unified() must author one time sample, not a static prim."""
+        mesh = _make_poly()
+        converter = ConvertVTKToUSD(data_basename="P", input_polydata=[mesh])
+        stage = converter.convert(str(tmp_path / "out.usd"))
+
+        prim = stage.GetPrimAtPath("/World/P/Mesh")
+        assert prim.IsValid(), "Mesh prim not found"
+        samples = UsdGeom.Mesh(prim).GetPointsAttr().GetTimeSamples()
+        assert len(samples) == 1, f"Expected 1 time sample, got {len(samples)}"
+        assert samples[0] == pytest.approx(0.0)
+
+    # ------------------------------------------------------------------
+    # Gap E — static-merge prim naming uses data_basename
+    # ------------------------------------------------------------------
+
+    def test_static_merge_prim_names_use_data_basename(self, tmp_path: Path) -> None:
+        """Static-merge prims must be named {data_basename}_{i}, not Mesh_{i}."""
+        mesh_a, mesh_b = _make_poly(), _make_poly()
+        converter = ConvertVTKToUSD(
+            data_basename="Organ", input_polydata=[mesh_a, mesh_b]
+        )
+        converter._is_static_merge = True
+        stage = converter.convert(str(tmp_path / "out.usd"))
+
+        assert stage.GetPrimAtPath("/World/Organ/Organ_0").IsValid()
+        assert stage.GetPrimAtPath("/World/Organ/Organ_1").IsValid()
+        assert not stage.GetPrimAtPath("/World/Organ/Mesh_0").IsValid(), (
+            "Old naming still present"
+        )
+        assert not stage.GetPrimAtPath("/World/Organ/Mesh_1").IsValid(), (
+            "Old naming still present"
+        )
+        # Static prims carry no time samples
+        for prim_path in ("/World/Organ/Organ_0", "/World/Organ/Organ_1"):
+            samples = (
+                UsdGeom.Mesh(stage.GetPrimAtPath(prim_path))
+                .GetPointsAttr()
+                .GetTimeSamples()
+            )
+            assert samples == [], (
+                f"{prim_path} should have no time samples but got {samples}"
+            )
+
+    # ------------------------------------------------------------------
+    # Gap D — mask_ids / _convert_with_labels
+    # ------------------------------------------------------------------
+
+    def test_mask_ids_basic_produces_per_label_prims(self, tmp_path: Path) -> None:
+        """mask_ids must produce one USD prim per label; no unified /Mesh prim."""
+        label_ids = [1, 1, 1, 1, 1, 2, 2, 2, 2]
+        mesh = _make_poly(label_ids=label_ids)
+        converter = ConvertVTKToUSD(
+            data_basename="Heart",
+            input_polydata=[mesh],
+            mask_ids={1: "ventricle", 2: "atrium"},
+        )
+        stage = converter.convert(str(tmp_path / "out.usd"))
+
+        ventricle = stage.GetPrimAtPath("/World/Heart/ventricle")
+        atrium = stage.GetPrimAtPath("/World/Heart/atrium")
+        assert ventricle.IsValid(), "ventricle prim not found"
+        assert atrium.IsValid(), "atrium prim not found"
+        assert ventricle.IsA(UsdGeom.Mesh)
+        assert atrium.IsA(UsdGeom.Mesh)
+        # Unified prim must NOT exist when mask_ids is active
+        assert not stage.GetPrimAtPath("/World/Heart/Mesh").IsValid()
+
+    def test_mask_ids_missing_label_filters_time_codes(self, tmp_path: Path) -> None:
+        """Time codes for a label must be filtered to frames where it actually appears.
+
+        3-frame setup:
+          Frame 0 (t=0.0): labels 1 and 2 both present
+          Frame 1 (t=1.0): only label 1
+          Frame 2 (t=2.0): labels 1 and 2 both present
+
+        Both labels have > 1 frame, so create_time_varying_mesh() is called for each.
+        The atrium (label 2) must carry time samples [0.0, 2.0], not [0.0, 1.0, 2.0].
+        """
+        mesh0 = _make_poly(label_ids=[1, 1, 1, 1, 1, 2, 2, 2, 2])
+        mesh1 = _make_poly(label_ids=[1, 1, 1, 1, 1, 1, 1, 1, 1])
+        mesh2 = _make_poly(label_ids=[1, 1, 1, 1, 1, 2, 2, 2, 2])
+        converter = ConvertVTKToUSD(
+            data_basename="Heart",
+            input_polydata=[mesh0, mesh1, mesh2],
+            mask_ids={1: "ventricle", 2: "atrium"},
+        )
+        converter._time_codes = [0.0, 1.0, 2.0]
+        stage = converter.convert(str(tmp_path / "out.usd"))
+
+        ventricle = stage.GetPrimAtPath("/World/Heart/ventricle")
+        atrium = stage.GetPrimAtPath("/World/Heart/atrium")
+        assert ventricle.IsValid()
+        assert atrium.IsValid()
+
+        v_samples = UsdGeom.Mesh(ventricle).GetPointsAttr().GetTimeSamples()
+        a_samples = UsdGeom.Mesh(atrium).GetPointsAttr().GetTimeSamples()
+        assert list(v_samples) == [0.0, 1.0, 2.0], f"ventricle samples: {v_samples}"
+        # atrium absent from frame 1 — time code 1.0 must NOT appear
+        assert list(a_samples) == [0.0, 2.0], (
+            f"atrium should only appear at t=0 and t=2, got {a_samples}"
+        )
+
+    def test_mask_ids_missing_boundary_labels_falls_back(self, tmp_path: Path) -> None:
+        """Mesh without boundary_labels array falls back to a 'default' prim."""
+        mesh = _make_poly()  # no boundary_labels
+        converter = ConvertVTKToUSD(
+            data_basename="FB",
+            input_polydata=[mesh],
+            mask_ids={1: "ventricle"},
+        )
+        stage = converter.convert(str(tmp_path / "out.usd"))
+
+        assert stage.GetPrimAtPath("/World/FB/default").IsValid(), (
+            "'default' fallback prim missing"
+        )
+        assert not stage.GetPrimAtPath("/World/FB/ventricle").IsValid()

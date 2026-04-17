@@ -34,9 +34,6 @@ except ImportError:
         stacklevel=2,
     )
 
-# VTK to USD library
-# VTK to USD library (new modular implementation)
-from . import vtk_to_usd
 from .contour_tools import ContourTools
 
 # Data processing utilities
@@ -113,6 +110,4 @@ __all__ = [
     # Data processing utilities
     "ConvertNRRD4DTo3D",
     "ConvertVTKToUSD",
-    # VTK to USD library
-    "vtk_to_usd",
 ]

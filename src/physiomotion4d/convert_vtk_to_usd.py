@@ -14,7 +14,7 @@ Uses the vtk_to_usd library internally for core conversion functionality.
 import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 import numpy as np
 import pyvista as pv
@@ -30,6 +30,8 @@ from .vtk_to_usd import (
     MaterialManager,
     MeshData,
     UsdMeshConverter,
+    split_mesh_data_by_cell_type,
+    split_mesh_data_by_connectivity,
 )
 
 
@@ -71,6 +73,8 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         compute_normals: bool = False,
         convert_to_surface: bool = True,
         times_per_second: float = 24.0,
+        separate_by: Literal["none", "connectivity", "cell_type"] = "none",
+        solid_color: tuple[float, float, float] = (0.8, 0.8, 0.8),
         log_level: int | str = logging.INFO,
     ) -> None:
         """
@@ -85,6 +89,10 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
             convert_to_surface: If True, extract surface from volumetric meshes
             times_per_second: Time codes per second (default 24.0).
                             For medical imaging time series where each frame = 1 second, use 1.0.
+            separate_by: How to split the mesh into sub-prims.
+                        'none' keeps the mesh as-is, 'connectivity' splits by connected
+                        component, 'cell_type' splits by face vertex count.
+            solid_color: Default RGB diffuse color in [0, 1] used when no colormap is set.
             log_level: Logging level
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
@@ -94,11 +102,21 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         self.mask_ids = mask_ids
         self.compute_normals = compute_normals
         self.convert_to_surface = convert_to_surface
+        self.separate_by = separate_by
+        self.solid_color = solid_color
 
         # Colormap settings
         self.color_by_array: Optional[str] = None
         self.colormap: str = "plasma"
         self.intensity_range: Optional[tuple[float, float]] = None
+
+        # Set by from_files() for file-based construction
+        self._is_static_merge: bool = False
+        self._time_codes: Optional[list[float]] = None
+        # Pre-converted MeshData for each time step; populated by from_files() so
+        # _convert_unified() can reuse the topology-validation work instead of
+        # calling _vtk_to_mesh_data() a second time.
+        self._cached_mesh_data: Optional[list[MeshData]] = None
 
         # Conversion settings
         self.settings = ConversionSettings(
@@ -113,8 +131,110 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
 
         self.logger.info(
             f"Initialized converter with {len(input_polydata)} time steps, "
-            f"mask_ids={'enabled' if mask_ids else 'disabled'}"
+            f"mask_ids={'enabled' if mask_ids else 'disabled'}, "
+            f"separate_by='{separate_by}'"
         )
+
+    @classmethod
+    def from_files(
+        cls,
+        data_basename: str,
+        vtk_files: Sequence[Path | str],
+        *,
+        extract_surface: bool = True,
+        separate_by: Literal["none", "connectivity", "cell_type"] = "none",
+        times_per_second: float = 24.0,
+        solid_color: tuple[float, float, float] = (0.8, 0.8, 0.8),
+        time_codes: Optional[list[float]] = None,
+        static_merge: bool = False,
+        mask_ids: Optional[dict[int, str]] = None,
+        log_level: int | str = logging.INFO,
+    ) -> "ConvertVTKToUSD":
+        """Create a converter by loading VTK files from disk.
+
+        Accepts .vtk (legacy), .vtp (PolyData), and .vtu (UnstructuredGrid) files.
+        For time-series input, pass files ordered by time and supply time_codes.
+        For a static scene with multiple disconnected meshes, set static_merge=True.
+
+        Args:
+            data_basename: Base name for USD prim paths.
+            vtk_files: Paths to VTK files; one file = one time step (or one static mesh).
+            extract_surface: If True, extract surface from UnstructuredGrid (.vtu) meshes.
+            separate_by: How to split each mesh into sub-prims.
+            times_per_second: FPS for time-varying animation.
+            solid_color: Default RGB diffuse color in [0, 1].
+            time_codes: Explicit time codes aligned to vtk_files. If None, uses
+                        sequential integers [0, 1, 2, ...].
+            static_merge: If True, treat each file as a separate mesh object in a
+                          single static scene (no time samples).
+            mask_ids: Optional anatomical label mapping.
+            log_level: Logging level.
+
+        Returns:
+            ConvertVTKToUSD instance ready to call .convert().
+        """
+        file_list = [Path(f) for f in vtk_files]
+        if not file_list:
+            raise ValueError("vtk_files must not be empty")
+
+        if time_codes is not None and len(time_codes) != len(file_list):
+            raise ValueError(
+                f"time_codes length ({len(time_codes)}) must match "
+                f"vtk_files length ({len(file_list)})"
+            )
+        if time_codes is not None and len(time_codes) > 1:
+            if any(
+                time_codes[i] > time_codes[i + 1] for i in range(len(time_codes) - 1)
+            ):
+                raise ValueError(
+                    "time_codes must be in non-decreasing order; "
+                    "got values that decrease between consecutive frames"
+                )
+
+        meshes: list[pv.DataSet | vtk.vtkDataSet] = []
+        for path in file_list:
+            mesh = pv.read(str(path))
+            if extract_surface and isinstance(mesh, pv.UnstructuredGrid):
+                mesh = mesh.extract_surface(algorithm="dataset_surface")
+            meshes.append(mesh)
+
+        resolved_time_codes = (
+            time_codes
+            if time_codes is not None
+            else [float(i) for i in range(len(meshes))]
+        )
+
+        instance = cls(
+            data_basename=data_basename,
+            input_polydata=meshes,
+            mask_ids=mask_ids,
+            separate_by=separate_by,
+            convert_to_surface=extract_surface,
+            times_per_second=times_per_second,
+            solid_color=solid_color,
+            log_level=log_level,
+        )
+        instance._is_static_merge = static_merge
+        instance._time_codes = resolved_time_codes
+
+        # Validate topology consistency for multi-frame time series and cache the
+        # converted MeshData so _convert_unified() can reuse it without a second
+        # round of _vtk_to_mesh_data() calls.
+        if len(meshes) > 1 and not static_merge:
+            from .vtk_to_usd.vtk_reader import validate_time_series_topology
+
+            mesh_data_seq = [
+                instance._vtk_to_mesh_data(m, i) for i, m in enumerate(meshes)
+            ]
+            instance._cached_mesh_data = mesh_data_seq
+            try:
+                report = validate_time_series_topology(mesh_data_seq)
+                for w in report.get("warnings", []):
+                    instance.log_warning("%s", w)
+            except Exception as exc:
+                instance.log_debug("Topology validation skipped: %s", exc)
+
+        return instance
 
     def supports_mesh_type(self, mesh: pv.DataSet | vtk.vtkDataSet) -> bool:
         """
@@ -270,10 +390,13 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         root_prim = stage.DefinePrim("/World", "Xform")
         stage.SetDefaultPrim(root_prim)
 
-        # Set time range for animation
-        if len(self.input_polydata) > 1:
-            stage.SetStartTimeCode(0)
-            stage.SetEndTimeCode(len(self.input_polydata) - 1)
+        # Set time range for animation (not for static merge)
+        if len(self.input_polydata) > 1 and not self._is_static_merge:
+            time_codes = self._time_codes or [
+                float(i) for i in range(len(self.input_polydata))
+            ]
+            stage.SetStartTimeCode(time_codes[0])
+            stage.SetEndTimeCode(time_codes[-1])
             stage.SetTimeCodesPerSecond(self.settings.times_per_second)
 
         # Initialize managers
@@ -281,11 +404,13 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         mesh_converter = UsdMeshConverter(stage, self.settings, material_mgr)
 
         # Process meshes
-        if self.mask_ids:
+        if self._is_static_merge:
+            self._convert_static_merge(stage, root_path, material_mgr, mesh_converter)
+        elif self.mask_ids:
             # Split by anatomical regions
             self._convert_with_labels(stage, root_path, material_mgr, mesh_converter)
         else:
-            # Single mesh conversion
+            # Single mesh (or time series) conversion
             self._convert_unified(stage, root_path, material_mgr, mesh_converter)
 
         # Save stage
@@ -301,36 +426,99 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         material_mgr: MaterialManager,
         mesh_converter: UsdMeshConverter,
     ) -> None:
-        """Convert all meshes as a single unified mesh."""
-        self.logger.debug("Converting as unified mesh (no label splitting)")
+        """Convert all meshes as a single mesh (or split by connectivity/cell_type)."""
+        self.logger.debug("Converting mesh(es), separate_by='%s'", self.separate_by)
 
-        # Convert meshes to MeshData
-        mesh_data_sequence = []
-        for time_idx, vtk_mesh in enumerate(self.input_polydata):
-            mesh_data = self._vtk_to_mesh_data(vtk_mesh, time_idx)
-            mesh_data_sequence.append(mesh_data)
+        # Reuse pre-converted data built during topology validation in from_files();
+        # fall back to computing fresh when called without the file-based factory.
+        mesh_data_sequence = self._cached_mesh_data or [
+            self._vtk_to_mesh_data(m, i) for i, m in enumerate(self.input_polydata)
+        ]
 
-        # Create material
-        material = self._create_material_from_colormap("unified_material")
+        time_codes = self._time_codes or [
+            float(i) for i in range(len(mesh_data_sequence))
+        ]
 
-        # Convert to USD
-        mesh_path = f"{root_path}/Mesh"
-        if len(mesh_data_sequence) == 1:
-            # Single frame
-            mesh_data_sequence[0].material_id = material.name
+        if self.separate_by == "none":
+            # Single prim path for all time steps
+            parts_per_frame = [[(md, "Mesh")] for md in mesh_data_sequence]
+        elif self.separate_by == "connectivity":
+            parts_per_frame = [
+                split_mesh_data_by_connectivity(md, self.data_basename)
+                for md in mesh_data_sequence
+            ]
+        else:  # cell_type
+            parts_per_frame = [
+                split_mesh_data_by_cell_type(md, self.data_basename)
+                for md in mesh_data_sequence
+            ]
+
+        # Collect all part names across frames for stable prim paths
+        all_part_names: list[str] = []
+        for parts in parts_per_frame:
+            for _, name in parts:
+                if name not in all_part_names:
+                    all_part_names.append(name)
+
+        for part_name in all_part_names:
+            material = self._create_material_from_colormap(f"{part_name}_material")
             material_mgr.get_or_create_material(material)
-            mesh_converter.create_mesh(
-                mesh_data_sequence[0], mesh_path, bind_material=True
-            )
-        else:
-            # Time series
-            time_codes = [float(i) for i in range(len(mesh_data_sequence))]
-            for md in mesh_data_sequence:
-                md.material_id = material.name
-            material_mgr.get_or_create_material(material)
+
+            # Collect frames that contain this part
+            part_sequence = []
+            part_time_codes = []
+            for frame_idx, parts in enumerate(parts_per_frame):
+                for md, name in parts:
+                    if name == part_name:
+                        md.material_id = material.name
+                        part_sequence.append(md)
+                        part_time_codes.append(time_codes[frame_idx])
+                        break
+
+            if not part_sequence:
+                continue
+
+            mesh_path = f"{root_path}/{part_name}"
+            # Always use create_time_varying_mesh so the prim carries explicit time
+            # samples and is only visible at the frames it was present in, even when
+            # a part appears in only one frame.
             mesh_converter.create_time_varying_mesh(
-                mesh_data_sequence, mesh_path, time_codes, bind_material=True
+                part_sequence, mesh_path, part_time_codes, bind_material=True
             )
+
+    def _convert_static_merge(
+        self,
+        stage: Usd.Stage,
+        root_path: str,
+        material_mgr: MaterialManager,
+        mesh_converter: UsdMeshConverter,
+    ) -> None:
+        """Write each input mesh as a separate prim with no time samples.
+
+        Used when multiple files don't match a time-series pattern.
+        """
+        self.logger.debug(
+            "Static merge: writing %d mesh(es) as separate prims",
+            len(self.input_polydata),
+        )
+        for i, vtk_mesh in enumerate(self.input_polydata):
+            mesh_data = self._vtk_to_mesh_data(vtk_mesh, i)
+            frame_name = f"{self.data_basename}_{i}"
+
+            if self.separate_by == "none":
+                parts = [(mesh_data, frame_name)]
+            elif self.separate_by == "connectivity":
+                parts = split_mesh_data_by_connectivity(mesh_data, frame_name)
+            else:  # cell_type
+                parts = split_mesh_data_by_cell_type(mesh_data, frame_name)
+
+            for part_md, part_name in parts:
+                material = self._create_material_from_colormap(f"{part_name}_material")
+                material_mgr.get_or_create_material(material)
+                part_md.material_id = material.name
+                mesh_converter.create_mesh(
+                    part_md, f"{root_path}/{part_name}", bind_material=True
+                )
 
     def _convert_with_labels(
         self,
@@ -359,13 +547,16 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         for label_name in sorted(all_labels):
             self.logger.debug(f"Processing label: {label_name}")
 
-            # Collect mesh data for this label across time
+            # Collect mesh data for this label across time, tracking which
+            # original frame indices contribute so time codes stay aligned.
             label_mesh_sequence = []
-            for labeled_meshes in labeled_meshes_by_time:
+            label_frame_indices: list[int] = []
+            for time_idx, labeled_meshes in enumerate(labeled_meshes_by_time):
                 if label_name in labeled_meshes:
                     label_mesh_sequence.append(labeled_meshes[label_name])
+                    label_frame_indices.append(time_idx)
                 else:
-                    # Label not present in this time step - use empty mesh or skip
+                    # Label not present in this time step - skip
                     self.logger.warning(f"Label '{label_name}' missing in time step")
 
             if not label_mesh_sequence:
@@ -383,12 +574,17 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
                     label_mesh_sequence[0], mesh_path, bind_material=True
                 )
             else:
-                time_codes = [float(i) for i in range(len(label_mesh_sequence))]
+                if self._time_codes is not None:
+                    label_time_codes = [
+                        self._time_codes[i] for i in label_frame_indices
+                    ]
+                else:
+                    label_time_codes = [float(i) for i in label_frame_indices]
                 for md in label_mesh_sequence:
                     md.material_id = material.name
                 material_mgr.get_or_create_material(material)
                 mesh_converter.create_time_varying_mesh(
-                    label_mesh_sequence, mesh_path, time_codes, bind_material=True
+                    label_mesh_sequence, mesh_path, label_time_codes, bind_material=True
                 )
 
     def _vtk_to_mesh_data(
@@ -554,19 +750,17 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
     def _create_material_from_colormap(self, name: str) -> MaterialData:
         """Create material based on colormap settings."""
         if self.color_by_array:
-            # Use vertex colors
             return MaterialData(
                 name=name,
-                diffuse_color=(0.8, 0.8, 0.8),
+                diffuse_color=self.solid_color,
                 roughness=0.5,
                 metallic=0.0,
                 use_vertex_colors=True,
             )
         else:
-            # Use solid color
             return MaterialData(
                 name=name,
-                diffuse_color=(0.8, 0.8, 0.8),
+                diffuse_color=self.solid_color,
                 roughness=0.5,
                 metallic=0.0,
                 use_vertex_colors=False,

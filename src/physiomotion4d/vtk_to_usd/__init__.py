@@ -1,28 +1,16 @@
-"""VTK to USD conversion library.
+"""Internal VTK-to-USD plumbing for PhysioMotion4D.
 
-A comprehensive library for converting VTK files (VTK, VTP, VTU) to USD format.
-Based on the ParaViewConnector architecture but simplified for file-based conversion.
+This subpackage is private. External code and all PhysioMotion4D modules must
+use ConvertVTKToUSD from physiomotion4d.convert_vtk_to_usd; they must not
+import from this package directly.
 
-Features:
-- Supports VTK legacy format (.vtk), XML PolyData (.vtp), and UnstructuredGrid (.vtu)
-- Preserves geometry, topology, normals, and colors
-- Converts VTK data arrays to USD primvars
-- Supports time-series/animated data
-- Material system with UsdPreviewSurface
-- Coordinate conversion from RAS to USD Y-up
-
-Example Usage:
-    >>> from physiomotion4d.vtk_to_usd import convert_vtk_file
-    >>> stage = convert_vtk_file('mesh.vtp', 'output.usd')
-
-    >>> # Advanced usage with custom settings
-    >>> from physiomotion4d.vtk_to_usd import VTKToUSDConverter, ConversionSettings
-    >>> settings = ConversionSettings(triangulate_meshes=True, compute_normals=True)
-    >>> converter = VTKToUSDConverter(settings)
-    >>> converter.convert_sequence(['mesh_0.vtp', 'mesh_1.vtp'], 'output.usd')
+Provides:
+- Data containers: MeshData, ConversionSettings, MaterialData, etc.
+- VTK file readers (.vtk, .vtp, .vtu)
+- USD primitive writers: UsdMeshConverter, MaterialManager
+- Coordinate helpers (RAS → Y-up) and mesh splitting utilities
 """
 
-from .converter import VTKToUSDConverter, convert_vtk_file, convert_vtk_sequence
 from .data_structures import (
     ConversionSettings,
     DataType,
@@ -58,10 +46,6 @@ from .vtk_reader import (
 )
 
 __all__ = [
-    # Main converter
-    "VTKToUSDConverter",
-    "convert_vtk_file",
-    "convert_vtk_sequence",
     # Data structures
     "ConversionSettings",
     "DataType",

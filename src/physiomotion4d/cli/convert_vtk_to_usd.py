@@ -96,12 +96,6 @@ Examples:
         help="Frames per second for time series (default: 60)",
     )
     parser.add_argument(
-        "--up-axis",
-        choices=["Y", "Z"],
-        default="Y",
-        help="USD up axis (default: Y)",
-    )
-    parser.add_argument(
         "--no-extract-surface",
         action="store_false",
         dest="extract_surface",
@@ -214,7 +208,6 @@ Examples:
             separate_by_cell_type=separate_by_cell_type,
             mesh_name=args.mesh_name,
             times_per_second=args.times_per_second,
-            up_axis=args.up_axis,
             extract_surface=args.extract_surface,
             appearance=args.appearance,
             solid_color=solid_color,
