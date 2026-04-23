@@ -2,7 +2,71 @@
 Quick Start
 ===========
 
-This guide will help you get started with PhysioMotion4D quickly. We'll walk through a basic workflow for processing heart-gated CT data.
+This guide will help you get started with PhysioMotion4D quickly.
+
+.. _tutorials:
+
+Tutorials
+=========
+
+The ``tutorials/`` directory contains six end-to-end scripts, one per major
+workflow.  Each script is self-contained, includes its own ``argparse`` CLI, and
+can be imported as a module from the test suite.
+
+.. list-table:: Tutorial index
+   :header-rows: 1
+   :widths: 5 45 25 25
+
+   * - #
+     - Script
+     - Workflow
+     - Dataset
+   * - 1
+     - ``tutorial_01_heart_gated_ct_to_usd.py``
+     - Heart-gated CT → animated USD
+     - Slicer-Heart-CT (auto-download)
+   * - 2
+     - ``tutorial_02_ct_to_vtk.py``
+     - CT → VTK surfaces
+     - Slicer-Heart-CT (auto-download)
+   * - 3
+     - ``tutorial_03_fit_statistical_model_to_patient.py``
+     - Fit statistical model to patient
+     - KCL-Heart-Model (manual)
+   * - 4
+     - ``tutorial_04_create_statistical_model.py``
+     - Build PCA shape model
+     - KCL-Heart-Model (manual)
+   * - 5
+     - ``tutorial_05_vtk_to_usd.py``
+     - VTK surfaces → animated USD
+     - output of tutorial 2
+   * - 6
+     - ``tutorial_06_reconstruct_highres_4d_ct.py``
+     - Reconstruct high-resolution 4D CT
+     - DirLab-4DCT (manual)
+
+Run the first two tutorials (no manual download required):
+
+.. code-block:: bash
+
+   python tutorials/tutorial_01_heart_gated_ct_to_usd.py \
+       --data-dir ./data --output-dir ./output/tutorial_01 \
+       --registration-method ants
+
+   python tutorials/tutorial_02_ct_to_vtk.py \
+       --data-dir ./data --output-dir ./output/tutorial_02
+
+Each script prints the paths of outputs and screenshots it created.
+See ``tutorials/README.md`` for dataset download instructions and the
+recommended run order.
+
+Recommended run order:
+
+1. Tutorials 1 and 2 first (auto-download data).
+2. Tutorial 5 after Tutorial 2 (consumes Tutorial 2 output).
+3. Tutorials 3 and 4 after downloading KCL-Heart-Model.
+4. Tutorial 6 after downloading DirLab-4DCT.
 
 Prerequisites
 =============

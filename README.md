@@ -141,6 +141,35 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 - **Visualization**: USD-core, PyVista
 - **Segmentation**: TotalSegmentator
 
+## Getting Started: Tutorials
+
+The `tutorials/` directory contains six end-to-end Python scripts, one for each
+major workflow. They are the recommended starting point for new users.
+
+| # | Script | Workflow | Dataset |
+|---|--------|----------|---------|
+| 1 | `tutorials/tutorial_01_heart_gated_ct_to_usd.py` | Heart-gated CT → animated USD | Slicer-Heart-CT (auto) |
+| 2 | `tutorials/tutorial_02_ct_to_vtk.py` | CT → VTK surfaces | Slicer-Heart-CT (auto) |
+| 3 | `tutorials/tutorial_03_fit_statistical_model_to_patient.py` | Fit statistical model to patient | KCL-Heart-Model (manual) |
+| 4 | `tutorials/tutorial_04_create_statistical_model.py` | Build PCA shape model | KCL-Heart-Model (manual) |
+| 5 | `tutorials/tutorial_05_vtk_to_usd.py` | VTK surfaces → animated USD | output of tutorial 2 |
+| 6 | `tutorials/tutorial_06_reconstruct_highres_4d_ct.py` | Reconstruct high-res 4D CT | DirLab-4DCT (manual) |
+
+Each script is runnable directly:
+
+```bash
+# Tutorial 1 (CPU-safe ANTs registration; auto-downloads Slicer-Heart-CT)
+python tutorials/tutorial_01_heart_gated_ct_to_usd.py \
+    --data-dir ./data --output-dir ./output/tutorial_01
+
+# Tutorial 2 (CT → VTK)
+python tutorials/tutorial_02_ct_to_vtk.py \
+    --data-dir ./data --output-dir ./output/tutorial_02
+```
+
+See `tutorials/README.md` for the full tutorial index, dataset download
+instructions, recommended run order, and experiment-test instructions.
+
 ## 🎯 Quick Start
 
 ### Command-Line Interface

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import itk
 import numpy as np
@@ -342,3 +342,116 @@ class TestTools(PhysioMotion4DBase):
             )
 
         return passed
+
+    def save_screenshot_mesh(
+        self,
+        mesh: Any,  # pv.PolyData
+        filename: str,
+        *,
+        camera_position: str = "iso",
+        window_size: tuple[int, int] = (800, 600),
+        color: str = "pink",
+        opacity: float = 0.9,
+    ) -> Path:
+        """Render a PyVista mesh off-screen and save a PNG.
+
+        Saves to results_dir/class_name/filename. On Linux headless environments,
+        calls pv.start_xvfb() before rendering (no-op when a display is present).
+
+        Args:
+            mesh: PyVista PolyData or compatible mesh object.
+            filename: Output PNG filename (relative to results/class_name dir).
+            camera_position: PyVista camera preset, e.g. ``'iso'``, ``'xy'``, ``'xz'``.
+            window_size: Off-screen render size ``(width, height)`` in pixels.
+            color: Mesh color string accepted by PyVista.
+            opacity: Mesh opacity in [0, 1].
+
+        Returns:
+            Absolute Path to the saved PNG.
+        """
+        import pyvista as pv
+
+        try:
+            pv.start_xvfb()
+        except Exception:
+            pass
+
+        output_path = self._results_dir / filename
+        plotter = pv.Plotter(off_screen=True, window_size=list(window_size))
+        plotter.add_mesh(mesh, color=color, opacity=opacity)
+        plotter.camera_position = camera_position
+        plotter.screenshot(str(output_path))
+        plotter.close()
+        self.log_info("Screenshot saved: %s", output_path)
+        return output_path
+
+    def save_screenshot_image_slice(
+        self,
+        image: Any,  # itk.Image, axes X Y Z in RAS world space
+        filename: str,
+        *,
+        axis: int = 0,
+        slice_fraction: float = 0.5,
+        colormap: str = "gray",
+        vmin: Optional[float] = None,
+        vmax: Optional[float] = None,
+        overlay_mask: Optional[Any] = None,  # itk.Image same spatial extent
+        overlay_alpha: float = 0.4,
+    ) -> Path:
+        """Extract one slice from an ITK image and save a PNG via matplotlib.
+
+        The numpy array from ``itk.array_view_from_image`` has shape ``(Z, Y, X)``
+        (ITK stores X fastest; numpy reverses the axis order). Axis indices:
+        - axis=0 → axial (constant-Z plane)
+        - axis=1 → coronal (constant-Y plane)
+        - axis=2 → sagittal (constant-X plane)
+
+        Saves to results_dir/class_name/filename.
+
+        Args:
+            image: 3-D ``itk.Image`` in RAS world space, axes X Y Z.
+            filename: Output PNG filename (relative to results/class_name dir).
+            axis: Numpy axis along which to slice (0=axial, 1=coronal, 2=sagittal).
+            slice_fraction: Fractional position along ``axis`` in [0, 1].
+            colormap: Matplotlib colormap name for the base image.
+            vmin: Lower clamp for display; None → data minimum.
+            vmax: Upper clamp for display; None → data maximum.
+            overlay_mask: Optional binary ITK mask rendered as a semi-transparent
+                overlay. Must have the same spatial extent as ``image``.
+            overlay_alpha: Opacity of the mask overlay in [0, 1].
+
+        Returns:
+            Absolute Path to the saved PNG.
+        """
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        arr = np.asarray(itk.array_view_from_image(image), dtype=np.float64)
+        idx = int(arr.shape[axis] * slice_fraction)
+        idx = max(0, min(idx, arr.shape[axis] - 1))
+
+        slices: list[Any] = [slice(None)] * arr.ndim
+        slices[axis] = idx
+        slice_data = arr[tuple(slices)]
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.imshow(slice_data, cmap=colormap, vmin=vmin, vmax=vmax, origin="lower")
+
+        if overlay_mask is not None:
+            mask_arr = np.asarray(
+                itk.array_view_from_image(overlay_mask), dtype=np.float64
+            )
+            mask_slice = mask_arr[tuple(slices)]
+            ax.imshow(
+                np.ma.masked_where(mask_slice == 0, mask_slice),
+                cmap="autumn",
+                alpha=overlay_alpha,
+                origin="lower",
+            )
+
+        ax.axis("off")
+        output_path = self._results_dir / filename
+        fig.savefig(str(output_path), bbox_inches="tight", dpi=100)
+        plt.close(fig)
+        self.log_info("Screenshot saved: %s", output_path)
+        return output_path
