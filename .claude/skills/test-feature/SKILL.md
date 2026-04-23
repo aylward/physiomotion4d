@@ -16,3 +16,26 @@ Instructions:
 6. Mark any test that genuinely requires real data with `@pytest.mark.requires_data`.
 7. Show the exact command to run the new tests:
    `py -m pytest tests/test_<module>.py -v`
+
+## Examples
+
+Synthetic volumes must be ≤64 voxels/side. State shape and axes in every test docstring.
+
+Good invocations:
+
+```
+/test-feature SegmentChestTotalSegmentator with synthetic (64,64,32) ITK image in RAS —
+              no GPU required; use CPU fallback mode
+
+/test-feature RegisterImagesICON.register returns dict with forward_transform and
+              inverse_transform keys pointing to .hdf files
+
+/test-feature tutorial_01_heart_gated_ct_to_usd.run_tutorial with synthetic
+              single-frame NRRD and a temporary output directory
+```
+
+Anti-example (no class, no data shape, scope is unclear):
+
+```
+/test-feature segmentation   # which class? what behaviors? what synthetic data?
+```

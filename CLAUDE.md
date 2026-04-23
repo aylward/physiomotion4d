@@ -83,12 +83,30 @@ Breaking changes are acceptable. Backward-compatibility shims are not.
 ## Agents and Skills
 
 Role-specific subagents live in `.claude/agents/`; slash-command skills in `.claude/skills/`.
-See `AGENTS.md` for role-based guidance that applies across all AI tooling.
+See `AGENTS.md` for role-based rules and the skill decision tree.
 
-- `/plan` — inspect files, summarize design, produce a numbered plan (no code changes)
-- `/impl` — read → summarize → plan → implement in small diffs
-- `/test-feature` — propose test plan, write synthetic-data pytest tests
-- `/doc-feature` — update docstrings and regenerate API map
+| Skill           | What it produces                                       | Modifies files? |
+|-----------------|--------------------------------------------------------|-----------------|
+| `/plan`         | Numbered design plan, affected-file list, open qs     | No              |
+| `/impl`         | Summarize → plan → diff → lint → docstring update     | Yes             |
+| `/test-feature` | Test plan + complete pytest file with synthetic data   | Yes             |
+| `/doc-feature`  | Updated NumPy docstrings + regenerated API_MAP.md     | Yes             |
+| `/commit`       | Staged commit with pre-commit hook fix loop            | Yes             |
+
+The docs agent updates docstrings and `docs/API_MAP.md` only — it does not create
+new `.md` files. The implementation agent adds no backward-compat shims.
+
+Typical workflow for a new feature (e.g., a new segmenter):
+
+```text
+# 1. Read the tutorial first:
+#    docs/developer/segmentation.rst  — existing segmenter patterns
+#    docs/developer/extending.rst     — custom class template
+/plan add SegmentChestNNUNet following existing TotalSegmentator pattern
+/impl add SegmentChestNNUNet to src/physiomotion4d/segment_chest_nnunet.py
+/test-feature SegmentChestNNUNet with synthetic 64×64×32 ITK image
+/doc-feature update docstrings for SegmentChestNNUNet
+```
 
 ## File Operations
 

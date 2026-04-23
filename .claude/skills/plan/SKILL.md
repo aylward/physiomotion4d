@@ -14,3 +14,27 @@ Instructions:
 5. Call out any image-shape, axis-order, or coordinate-system implications explicitly.
 6. List open questions that need user input before coding starts.
 7. Do not modify any files unless the task explicitly asks you to.
+
+## Examples
+
+Pre-read the relevant `docs/developer/` guide before planning structural changes.
+
+Good invocations:
+
+```
+/plan add SegmentChestNNUNet following the TotalSegmentator pattern
+      (pre-read: docs/developer/segmentation.rst, docs/developer/extending.rst)
+
+/plan redesign the ITK↔PyVista boundary in contour_tools.py to support mesh
+      decimation before surface extraction
+      (pre-read: docs/developer/architecture.rst)
+
+/plan add tutorial_07_lung_gated_ct_to_usd.py following the tutorial_01 pattern
+      (pre-read: tutorials/README.md, tutorials/tutorial_01_heart_gated_ct_to_usd.py)
+```
+
+Anti-example (too vague — /plan cannot scope this):
+
+```
+/plan improve segmentation   # which segmenter? what improvement? what files?
+```

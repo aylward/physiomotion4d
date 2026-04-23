@@ -43,3 +43,15 @@ Use `docs/API_MAP.md` to locate classes and signatures without manual searching.
 6. **Recommended next action** — one sentence.
 
 Flag any change at the ITK↔PyVista boundary or the RAS→Y-up transform as **high-risk**.
+
+## Example tasks
+
+- "Design a plan to add mesh decimation at the ITK↔PyVista boundary in
+  `contour_tools.py`. Flag coordinate-system and boundary risks.
+  Reference `docs/developer/architecture.rst` for the data-flow diagram."
+- "Analyze whether `RegisterImagesGreedy` should live in a new
+  `register_images_greedy.py` module or extend an existing class. Produce a numbered
+  plan with trade-offs; list every affected file."
+- "Design a `tutorials/tutorial_07_lung_gated_ct_to_usd.py` that follows the same
+  structural pattern as `tutorial_01` — identify which workflow class it needs,
+  what datasets it requires, and whether any new public API is needed."

@@ -46,3 +46,13 @@ Key modules: `physiomotion4d_base.py`, `segment_chest_*.py`, `register_images_*.
 - Do not add error handling for impossible internal states.
 - Do not create new files when editing an existing one suffices.
 - Do not add features beyond what was requested.
+
+## Example tasks
+
+- "Add `tutorials/tutorial_07_lung_gated_ct_to_usd.py` following the pattern of
+  `tutorials/tutorial_01_heart_gated_ct_to_usd.py` — same `run_tutorial()` signature,
+  argparse CLI, and screenshot helpers. See `tutorials/README.md` for the index format."
+- "Fix the RAS-to-Y-up coordinate transform being applied twice in
+  `vtk_to_usd/usd_utils.py` (high-risk: ITK↔PyVista boundary)."
+- "Refactor `WorkflowConvertHeartGatedCTToUSD._run_registration` to accept an optional
+  pre-computed transform path; update the docstring per `docs/developer/workflows.rst`."

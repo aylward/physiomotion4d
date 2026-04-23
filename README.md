@@ -406,6 +406,52 @@ Classes that inherit from `PhysioMotion4DBase` provide:
 - Class-based log filtering
 - Unified logging interface across the package
 
+## 🤖 AI-Assisted Workflows
+
+PhysioMotion4D ships with Claude Code configuration that lets you ask plain-language
+questions about the pipeline, debug errors, and request code changes — all grounded in
+the actual source code and docstrings.
+
+### Install Claude Code
+
+| Platform | Install |
+|----------|---------|
+| Windows  | `winget install Anthropic.ClaudeCode` |
+| macOS    | `brew install claude` or download from claude.ai/code |
+| Linux    | Download AppImage from claude.ai/code; place on `$PATH` |
+
+For Python package installation, see `docs/installation.rst`.
+
+### What you can ask
+
+Plain-language prompts work. Claude reads the actual source code, docstrings, and
+tutorial scripts to ground its answers.
+
+- **Tutorial walkthrough:**
+  `"Walk me through tutorials/tutorial_01_heart_gated_ct_to_usd.py step by step
+  — what does each stage do and what files does it produce?"`
+- **Method selection:**
+  `"I'm processing lung 4D-CT. Should I use RegisterImagesICON, RegisterImagesANTs,
+  or RegisterTimeSeriesImages? My priority is speed over accuracy."`
+- **Error debugging:**
+  `"My pipeline failed at registration with: itk::ERROR: ITK only supports images
+  with 1-4 components. I'm passing a 5-phase 4D image."`
+- **Extension guidance:**
+  `"I want to add a new segmenter for brain vessels. What's the pattern shown in
+  docs/developer/extending.rst and what base class do I inherit from?"`
+- **API clarification:**
+  `"Explain WorkflowConvertHeartGatedCTToUSD.run() — what does it return and
+  where is the USD file written?"`
+
+### What Claude will not do
+
+- Will not run the pipeline on your data.
+- Will not fabricate results — answers are grounded in the actual source and docstrings.
+- Will not create new `.md` files in the repository.
+
+For developer workflows (adding features, writing tests, updating docs), see the skill
+decision tree in `AGENTS.md`.
+
 ## 📊 Experiments and Examples
 
 The `experiments/` directory contains comprehensive Jupyter notebooks demonstrating the complete PhysioMotion4D pipeline:

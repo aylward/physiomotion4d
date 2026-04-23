@@ -40,3 +40,14 @@ py -m pytest tests/ --create-baselines                        # create missing b
 - Test files: `test_<module_name>.py`
 - Test functions: `test_<behavior_under_test>`
 - Fixtures: descriptive noun phrases, e.g. `small_heart_image`
+
+## Example tasks
+
+- "Write tests for `SegmentChestTotalSegmentator` using a synthetic `(64, 64, 32)`
+  ITK image in RAS space. No GPU required — use CPU fallback mode.
+  Test file: `tests/test_segment_chest_total_segmentator.py`."
+- "Add a regression test for `ConvertVTKToUSD.from_files` using a small
+  `pv.PolyData` sphere (50 faces). Baseline via `test_tools.py` surface comparison."
+- "Write `tests/test_tutorials.py::TestTutorial01` that calls
+  `tutorial_01_heart_gated_ct_to_usd.run_tutorial(data_dir, tmp_path)` with a
+  synthetic single-frame NRRD (64×64×32, RAS). Mark `@pytest.mark.experiment`."

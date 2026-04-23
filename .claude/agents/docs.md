@@ -50,3 +50,13 @@ def register(self, moving_image: itk.Image) -> dict[str, Any]:
 - Do not add obvious comments like `# increment counter`.
 - Do not document private methods unless they contain tricky logic.
 - Do not create changelog or status `.md` files.
+
+## Example tasks
+
+- "Update docstrings for `RegisterImagesICON` after the `mask_image` parameter was
+  added. State image shape `(X, Y, Z)` in RAS in both the param and return blocks."
+- "Update `WorkflowConvertHeartGatedCTToUSD.run()` docstring — return type changed
+  to `Path`; follow the style in `docs/developer/workflows.rst`."
+- "Update the `Purpose / Inputs / Outputs` block in
+  `tutorials/tutorial_01_heart_gated_ct_to_usd.py` after a new screenshot output
+  was added; regenerate `docs/API_MAP.md` if any public API signature changed."
