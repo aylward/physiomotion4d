@@ -1,79 +1,127 @@
 .. PhysioMotion4D documentation master file
 
-=====================================
-PhysioMotion4D Documentation
-=====================================
+.. title:: PhysioMotion4D Documentation
 
-**Generate anatomic models in Omniverse with physiological motion derived from 4D medical images.**
+.. raw:: html
 
-PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4D medical scans (particularly heart and lung gated CT data) into dynamic 3D models for visualization in NVIDIA Omniverse. The package provides state-of-the-art deep learning-based image processing, segmentation, registration, and USD file generation capabilities.
+   <section class="pm4d-hero">
+     <div class="pm4d-hero__brand">
+       <img src="_static/nvidia-logo.svg" alt="NVIDIA logo">
+     </div>
+     <p class="pm4d-kicker">PhysioMotion4D tutorials</p>
+     <h1>Build animated medical USD workflows for NVIDIA Omniverse</h1>
+     <p>
+       PhysioMotion4D converts 3D and 4D medical scans into dynamic OpenUSD
+       assets for NVIDIA Omniverse. Start with the tutorial cards, then use the
+       documentation sections below for installation, CLI workflows, API
+       references, developer notes, and contribution guidance.
+     </p>
+   </section>
 
-.. image:: https://img.shields.io/pypi/v/physiomotion4d.svg
-   :target: https://pypi.org/project/physiomotion4d/
-   :alt: PyPI Version
+   <section class="pm4d-card-grid" aria-label="Tutorial cards">
+     <a class="pm4d-card" href="tutorials.html#tutorial-1-heart-gated-ct-to-animated-usd">
+       <span class="pm4d-card__number">01</span>
+       <h2>Heart-Gated CT to Animated USD</h2>
+       <p>Convert cardiac 4D CT frames into registered contours and an animated OpenUSD model.</p>
+       <span class="pm4d-card__meta">Slicer-Heart-CT</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-2-ct-segmentation-to-vtk-surfaces">
+       <span class="pm4d-card__number">02</span>
+       <h2>CT Segmentation to VTK Surfaces</h2>
+       <p>Segment one CT phase and export patient anatomy as VTK PolyData surfaces.</p>
+       <span class="pm4d-card__meta">Slicer-Heart-CT</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-3-fit-statistical-model-to-patient">
+       <span class="pm4d-card__number">03</span>
+       <h2>Fit Statistical Model to Patient</h2>
+       <p>Fit a PCA heart model to patient-specific anatomy for model-based reconstruction.</p>
+       <span class="pm4d-card__meta">KCL-Heart-Model</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-4-create-a-pca-shape-model">
+       <span class="pm4d-card__number">04</span>
+       <h2>Create a PCA Shape Model</h2>
+       <p>Build a statistical shape model from aligned cardiac meshes.</p>
+       <span class="pm4d-card__meta">KCL-Heart-Model</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-5-vtk-surface-series-to-animated-usd">
+       <span class="pm4d-card__number">05</span>
+       <h2>VTK Surface Series to Animated USD</h2>
+       <p>Convert VTK meshes into a time-sampled USD scene for Omniverse playback.</p>
+       <span class="pm4d-card__meta">Tutorial 2 output</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-6-reconstruct-high-resolution-4d-ct">
+       <span class="pm4d-card__number">06</span>
+       <h2>Reconstruct High-Resolution 4D CT</h2>
+       <p>Register respiratory CT phases and reconstruct a higher-resolution 4D volume series.</p>
+       <span class="pm4d-card__meta">DirLab-4DCT</span>
+     </a>
+   </section>
 
-.. image:: https://img.shields.io/pypi/pyversions/physiomotion4d.svg
-   :target: https://pypi.org/project/physiomotion4d/
-   :alt: Python Versions
+   <section class="pm4d-topic-section" aria-label="Documentation topics">
+     <div class="pm4d-section-heading">
+       <p class="pm4d-kicker">Documentation</p>
+       <h2>Explore the rest of the docs</h2>
+     </div>
+     <div class="pm4d-topic-grid">
+       <a class="pm4d-topic-card" href="installation.html">
+         <h3>Installation</h3>
+         <p>Set up PhysioMotion4D with CUDA extras, CPU-only options, and required system tools.</p>
+       </a>
+       <a class="pm4d-topic-card" href="quickstart.html">
+         <h3>Getting Started</h3>
+         <p>Run your first workflow and understand the basic CT-to-USD processing path.</p>
+       </a>
+       <a class="pm4d-topic-card" href="examples.html">
+         <h3>Examples</h3>
+         <p>Review focused usage patterns for common cardiac, lung, segmentation, and USD tasks.</p>
+       </a>
+       <a class="pm4d-topic-card" href="cli_scripts/overview.html">
+         <h3>CLI Workflows</h3>
+         <p>Use production command-line workflows for conversion, reconstruction, modeling, and USD export.</p>
+       </a>
+       <a class="pm4d-topic-card" href="api/index.html">
+         <h3>API Reference</h3>
+         <p>Browse classes and modules for workflows, segmentation, registration, USD, and utilities.</p>
+       </a>
+       <a class="pm4d-topic-card" href="developer/architecture.html">
+         <h3>Developer Docs</h3>
+         <p>Understand architecture, extension points, coordinate transforms, and implementation boundaries.</p>
+       </a>
+       <a class="pm4d-topic-card" href="contributing.html">
+         <h3>Contributing</h3>
+         <p>Follow repository conventions for code style, testing, documentation, and pull requests.</p>
+       </a>
+       <a class="pm4d-topic-card" href="testing.html">
+         <h3>Testing</h3>
+         <p>Run the fast test suite, data-gated tutorial tests, and regression checks.</p>
+       </a>
+       <a class="pm4d-topic-card" href="troubleshooting.html">
+         <h3>Troubleshooting</h3>
+         <p>Diagnose environment, data, segmentation, registration, and USD playback issues.</p>
+       </a>
+     </div>
+   </section>
 
-.. image:: https://img.shields.io/badge/license-Apache%202.0-blue.svg
-   :target: https://github.com/Project-MONAI/physiomotion4d/blob/main/LICENSE
-   :alt: License
+Tutorial Details
+================
 
-.. image:: https://img.shields.io/github/actions/workflow/status/Project-MONAI/physiomotion4d/nightly-health.yml?branch=main&label=Nightly%20CI%20Tests
-   :target: https://github.com/Project-MONAI/physiomotion4d/actions/workflows/nightly-health.yml
-   :alt: Nightly CI Tests
-
-.. image:: https://img.shields.io/badge/tests-Windows%20%7C%20Linux%20%7C%20Python%203.10--3.12-blue
-   :target: https://github.com/Project-MONAI/physiomotion4d/actions/workflows/ci.yml
-   :alt: Test Matrix: Windows, Linux, Python 3.10-3.12
-
-.. image:: https://codecov.io/gh/Project-MONAI/physiomotion4d/branch/main/graph/badge.svg
-   :target: https://codecov.io/gh/Project-MONAI/physiomotion4d
-   :alt: Test Coverage
-
-🚀 Key Features
-===============
-
-* **Complete 4D Medical Imaging Pipeline**: End-to-end processing from 4D CT/MR data to animated USD models
-* **Multiple AI Segmentation Methods**: TotalSegmentator and Simpleware cardiac segmentation
-* **Deep Learning Registration**: GPU-accelerated image registration using Icon algorithm
-* **NVIDIA Omniverse Integration**: Direct USD file export for medical visualization
-* **Physiological Motion Analysis**: Capture and visualize cardiac and respiratory motion
-* **Flexible Workflow Control**: Step-based processing with checkpoint management
-
-📋 Supported Applications
-==========================
-
-* **Cardiac Imaging**: Heart-gated CT/MR processing with cardiac motion analysis
-* **Pulmonary Imaging**: Lung 4D-CT/MR processing with respiratory motion tracking
-* **Medical Education**: Interactive 3D anatomical models with physiological motion
-* **Research Visualization**: Advanced medical imaging research in Omniverse
-* **Clinical Planning**: Dynamic anatomical models for treatment planning
-
-.. tip::
-
-   **Getting Started with Code Examples:**
-
-   This documentation uses examples from the CLI commands (``physiomotion4d-heart-gated-ct``,
-   ``physiomotion4d-create-statistical-model``, ``physiomotion4d-fit-statistical-model-to-patient``)
-   and their implementations in ``src/physiomotion4d/cli/``,
-   which contain production-ready workflows and proper library usage patterns. The repository also includes
-   an ``experiments/`` directory with research prototypes that can inspire adaptations to
-   new digital twin models and anatomical regions—see the experiments README for details on
-   how to adapt these conceptual patterns to your own applications.
+See :doc:`tutorials` for the recommended run order, commands, datasets, and
+per-tutorial implementation details.
 
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started
+   :hidden:
 
    installation
    quickstart
+   tutorials
    examples
 
 .. toctree::
    :maxdepth: 2
    :caption: CLI & Scripts Guide
+   :hidden:
 
    cli_scripts/overview
    cli_scripts/heart_gated_ct
@@ -88,6 +136,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 .. toctree::
    :maxdepth: 2
    :caption: API Reference
+   :hidden:
 
    api/index
    api/base
@@ -101,6 +150,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 .. toctree::
    :maxdepth: 2
    :caption: Developer Guides
+   :hidden:
 
    developer/architecture
    developer/extending
@@ -115,6 +165,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 .. toctree::
    :maxdepth: 1
    :caption: Contributing
+   :hidden:
 
    contributing
    testing
@@ -122,6 +173,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 3D and 4
 .. toctree::
    :maxdepth: 1
    :caption: Additional Resources
+   :hidden:
 
    faq
    troubleshooting

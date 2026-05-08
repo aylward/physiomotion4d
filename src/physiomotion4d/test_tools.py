@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Optional
 
 import itk
 import numpy as np
@@ -33,9 +33,9 @@ def set_create_baseline_if_missing(value: bool) -> None:
 
 class TestTools(PhysioMotion4DBase):
     """
-    Utilities for pytest image comparison: baseline directory, results directory,
+    Utilities for pytest image comparison: baseline directory, result directory,
     and comparison with configurable tolerances. Inherits from PhysioMotion4DBase
-    for logging. All image I/O uses ITK .mha with compression.
+    for logging. All image I/O uses ITK with compression where supported.
     """
 
     # Prevent pytest from collecting this as a test class
@@ -47,11 +47,28 @@ class TestTools(PhysioMotion4DBase):
         baselines_dir: Path,
         class_name: str,
         *,
+        results_output_dir: Optional[Path] = None,
         log_level: int = logging.INFO,
     ) -> None:
+        """Initialize test helpers.
+
+        Args:
+            results_dir: Root directory for result artifacts.
+            baselines_dir: Root directory for baseline artifacts.
+            class_name: Subdirectory name for baselines and, by default, results.
+            results_output_dir: Optional exact directory for result artifacts.
+                When set, results are read and written there instead of
+                ``results_dir / class_name`` while baselines still use
+                ``baselines_dir / class_name``.
+            log_level: Logging level.
+        """
         super().__init__(class_name=class_name, log_level=log_level)
 
-        self._results_dir = results_dir / class_name
+        self._results_dir = (
+            results_output_dir
+            if results_output_dir is not None
+            else results_dir / class_name
+        )
         self._results_dir.mkdir(parents=True, exist_ok=True)
 
         self._baselines_dir = baselines_dir / class_name
@@ -149,11 +166,11 @@ class TestTools(PhysioMotion4DBase):
         return self._last_transform_difference_transform
 
     def write_result_image(self, image: Any, filename: str) -> None:
-        """Write the image to the results directory."""
+        """Write the image to the configured result artifact directory."""
         itk.imwrite(image, str(self._results_dir / filename), compression=True)
 
     def write_result_transform(self, transform: Any, filename: str) -> None:
-        """Write the transform to the results directory."""
+        """Write the transform to the configured result artifact directory."""
         itk.transformwrite(
             transform, str(self._results_dir / filename), compression=True
         )
@@ -342,3 +359,124 @@ class TestTools(PhysioMotion4DBase):
             )
 
         return passed
+
+    def save_screenshot_mesh(
+        self,
+        mesh: Any,  # pv.PolyData
+        filename: str,
+        *,
+        camera_position: Literal["xy", "xz", "yz", "yx", "zx", "zy", "iso"] = "iso",
+        window_size: tuple[int, int] = (800, 600),
+        color: str = "pink",
+        opacity: float = 0.9,
+    ) -> Path:
+        """Render a PyVista mesh off-screen and save a PNG.
+
+        Saves to the configured result artifact directory. On Linux headless
+        environments, calls pv.start_xvfb() before rendering (no-op when a
+        display is present).
+
+        Args:
+            mesh: PyVista PolyData or compatible mesh object.
+            filename: Output PNG filename, relative to the result artifact dir.
+            camera_position: PyVista camera preset, e.g. ``'iso'``, ``'xy'``, ``'xz'``.
+            window_size: Off-screen render size ``(width, height)`` in pixels.
+            color: Mesh color string accepted by PyVista.
+            opacity: Mesh opacity in [0, 1].
+
+        Returns:
+            Absolute Path to the saved PNG.
+        """
+        import pyvista as pv
+
+        xvfb_started = False
+        try:
+            pv.start_xvfb()
+            xvfb_started = True
+        except Exception:
+            pass
+
+        output_path = self._results_dir / filename
+        plotter = pv.Plotter(off_screen=True, window_size=list(window_size))
+        try:
+            plotter.add_mesh(mesh, color=color, opacity=opacity)
+            plotter.camera_position = camera_position
+            plotter.screenshot(str(output_path))
+        finally:
+            plotter.close()
+            if xvfb_started and hasattr(pv, "stop_xvfb"):
+                pv.stop_xvfb()
+        self.log_info("Screenshot saved: %s", output_path)
+        return output_path
+
+    def save_screenshot_image_slice(
+        self,
+        image: Any,  # itk.Image, axes X Y Z in RAS world space
+        filename: str,
+        *,
+        axis: int = 0,
+        slice_fraction: float = 0.5,
+        colormap: str = "gray",
+        vmin: Optional[float] = None,
+        vmax: Optional[float] = None,
+        overlay_mask: Optional[Any] = None,  # itk.Image same spatial extent
+        overlay_alpha: float = 0.4,
+    ) -> Path:
+        """Extract one slice from an ITK image and save a PNG via matplotlib.
+
+        The numpy array from ``itk.array_view_from_image`` has shape ``(Z, Y, X)``
+        (ITK stores X fastest; numpy reverses the axis order). Axis indices:
+        - axis=0: axial (constant-Z plane)
+        - axis=1: coronal (constant-Y plane)
+        - axis=2: sagittal (constant-X plane)
+
+        Saves to the configured result artifact directory.
+
+        Args:
+            image: 3-D ``itk.Image`` in RAS world space, axes X Y Z.
+            filename: Output PNG filename, relative to the result artifact dir.
+            axis: Numpy axis along which to slice (0=axial, 1=coronal, 2=sagittal).
+            slice_fraction: Fractional position along ``axis`` in [0, 1].
+            colormap: Matplotlib colormap name for the base image.
+            vmin: Lower clamp for display; None means data minimum.
+            vmax: Upper clamp for display; None means data maximum.
+            overlay_mask: Optional binary ITK mask rendered as a semi-transparent
+                overlay. Must have the same spatial extent as ``image``.
+            overlay_alpha: Opacity of the mask overlay in [0, 1].
+
+        Returns:
+            Absolute Path to the saved PNG.
+        """
+        import matplotlib.pyplot as plt
+
+        arr = np.asarray(itk.array_view_from_image(image), dtype=np.float64)
+        idx = int(arr.shape[axis] * slice_fraction)
+        idx = max(0, min(idx, arr.shape[axis] - 1))
+
+        slices: list[Any] = [slice(None)] * arr.ndim
+        slices[axis] = idx
+        slice_data = arr[tuple(slices)]
+
+        output_path = self._results_dir / filename
+        fig, ax = plt.subplots(figsize=(6, 6))
+        try:
+            ax.imshow(slice_data, cmap=colormap, vmin=vmin, vmax=vmax, origin="lower")
+
+            if overlay_mask is not None:
+                mask_arr = np.asarray(
+                    itk.array_view_from_image(overlay_mask), dtype=np.float64
+                )
+                mask_slice = mask_arr[tuple(slices)]
+                ax.imshow(
+                    np.ma.masked_where(mask_slice == 0, mask_slice),
+                    cmap="autumn",
+                    alpha=overlay_alpha,
+                    origin="lower",
+                )
+
+            ax.axis("off")
+            fig.savefig(str(output_path), bbox_inches="tight", dpi=100)
+        finally:
+            plt.close(fig)
+        self.log_info("Screenshot saved: %s", output_path)
+        return output_path

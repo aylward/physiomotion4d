@@ -2,7 +2,41 @@
 Quick Start
 ===========
 
-This guide will help you get started with PhysioMotion4D quickly. We'll walk through a basic workflow for processing heart-gated CT data.
+This guide will help you get started with PhysioMotion4D quickly.
+
+.. _tutorials:
+
+Tutorials
+=========
+
+The ``tutorials/`` directory contains six end-to-end scripts, one per major
+workflow.  Each script is self-contained, includes its own ``argparse`` CLI, and
+can be imported as a module from the test suite.
+
+See :doc:`tutorials` for the NVIDIA-styled tutorial card index, dataset
+requirements, commands, and workflow details.
+
+After preparing the Slicer-Heart-CT data, run the first two tutorials:
+
+.. code-block:: bash
+
+   python tutorials/tutorial_01_heart_gated_ct_to_usd.py \
+       --data-dir ./data --output-dir ./output/tutorial_01 \
+       --registration-method ants
+
+   python tutorials/tutorial_02_ct_to_vtk.py \
+       --data-dir ./data --output-dir ./output/tutorial_02
+
+Each script prints the paths of outputs and screenshots it created.
+See ``tutorials/README.md`` for dataset download instructions and the
+recommended run order.
+
+Recommended run order:
+
+1. Tutorials 1 and 2 first, after preparing Slicer-Heart-CT data.
+2. Tutorial 5 after Tutorial 2 (consumes Tutorial 2 output).
+3. Tutorials 3 and 4 after downloading KCL-Heart-Model.
+4. Tutorial 6 after downloading DirLab-4DCT.
 
 Prerequisites
 =============
@@ -10,7 +44,7 @@ Prerequisites
 Before starting, ensure you have:
 
 * PhysioMotion4D installed (see :doc:`installation`)
-* NVIDIA GPU with CUDA 13 (default) or CUDA 12 — recommended for production performance; see :doc:`installation` for the ``[cuda13]`` and ``[cuda12]`` extras. A CPU-only install works for evaluation but is slow.
+* NVIDIA GPU with CUDA 13 - recommended for production performance; see :doc:`installation` for the ``[cuda13]`` extra. A CPU-only PyPI install works for evaluation but is slow.
 * 4D cardiac CT data or access to sample datasets
 
 Basic Workflow
@@ -216,7 +250,7 @@ In NVIDIA Omniverse
 
 1. Open NVIDIA Omniverse
 2. Launch USD Composer or USD Presenter
-3. File → Open → Select your generated `.usd` file
+3. File -> Open -> Select your generated `.usd` file
 4. Press Play to view the animation
 
 Using USD Viewer

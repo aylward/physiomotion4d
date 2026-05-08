@@ -26,7 +26,7 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 ### Prerequisites
 
 - Python 3.10+ (Python 3.10, 3.11, or 3.12 recommended)
-- NVIDIA GPU with CUDA 13 (default) or CUDA 12 — recommended for production use; CPU-only installation is supported but slow
+- NVIDIA GPU with CUDA 13 — recommended for production use; CPU-only installation is supported but slow
 - 16GB+ RAM (32GB+ recommended for large datasets)
 - NVIDIA Omniverse (for USD visualization)
 - **Git LFS** (required for running tests: baseline files in `tests/baselines/` are stored with Git LFS; install from [git-lfs.github.com](https://git-lfs.github.com), then run `git lfs install` and `git lfs pull` after cloning)
@@ -34,20 +34,16 @@ PhysioMotion4D is a comprehensive medical imaging package that converts 4D CT sc
 ### Installation from PyPI
 
 ```bash
-# CPU-only install — works out of the box; a runtime warning points to the GPU extras
+# CPU-only PyPI install — works out of the box; a runtime warning points to the GPU extra
 pip install physiomotion4d
 
 # CUDA 13 install (recommended for production)
 uv pip install "physiomotion4d[cuda13]"
-
-# CUDA 12 install
-uv pip install "physiomotion4d[cuda12]"
 ```
 
-The `[cuda13]` and `[cuda12]` extras install both CuPy and the matching
-CUDA-built PyTorch wheel in one step — there is no need to install PyTorch
-separately. PyTorch is listed in the extras so that uv's dependency resolver
-fetches the GPU wheel from the PyTorch index instead of the CPU wheel from PyPI.
+The `[cuda13]` extra installs CuPy. In uv-managed source environments, PyTorch,
+torchvision, and torchaudio resolve from the CUDA 13.0 PyTorch wheel index.
+There is no need to install PyTorch separately.
 
 For development with NVIDIA NIM cloud services:
 ```bash
@@ -77,14 +73,11 @@ pip install physiomotion4d[nim]
 
 4. **Install PhysioMotion4D**:
    ```bash
-   # CPU-only (evaluation / no GPU)
+   # CUDA 13 PyTorch is the default for uv-managed source environments
    uv pip install -e "."
 
-   # CUDA 13 (recommended for production)
+   # Add CuPy for CUDA 13 GPU acceleration
    uv pip install -e ".[cuda13]"
-
-   # CUDA 12
-   uv pip install -e ".[cuda12]"
    ```
 
 ### Verify Installation
@@ -136,10 +129,39 @@ print(f"PhysioMotion4D version: {physiomotion4d.__version__}")
 ### Key Dependencies
 
 - **Medical Imaging**: ITK, TubeTK, MONAI, nibabel, PyVista
-- **AI/ML**: PyTorch, CuPy (CUDA 13 default; CUDA 12 via `[cuda12]` extra), transformers, MONAI
+- **AI/ML**: PyTorch, CuPy (CUDA 13), transformers, MONAI
 - **Registration**: icon-registration, unigradicon
 - **Visualization**: USD-core, PyVista
 - **Segmentation**: TotalSegmentator
+
+## Getting Started: Tutorials
+
+The `tutorials/` directory contains six end-to-end Python scripts, one for each
+major workflow. They are the recommended starting point for new users.
+
+| # | Script | Workflow | Dataset |
+|---|--------|----------|---------|
+| 1 | `tutorials/tutorial_01_heart_gated_ct_to_usd.py` | Heart-gated CT to animated USD | Slicer-Heart-CT (prepare first) |
+| 2 | `tutorials/tutorial_02_ct_to_vtk.py` | CT to VTK surfaces | Slicer-Heart-CT (prepare first) |
+| 3 | `tutorials/tutorial_03_fit_statistical_model_to_patient.py` | Fit statistical model to patient | KCL-Heart-Model (manual) |
+| 4 | `tutorials/tutorial_04_create_statistical_model.py` | Build PCA shape model | KCL-Heart-Model (manual) |
+| 5 | `tutorials/tutorial_05_vtk_to_usd.py` | VTK surfaces to animated USD | output of tutorial 2 |
+| 6 | `tutorials/tutorial_06_reconstruct_highres_4d_ct.py` | Reconstruct high-res 4D CT | DirLab-4DCT (manual) |
+
+Each script is runnable directly:
+
+```bash
+# Tutorial 1 (CPU-safe ANTs registration; requires Slicer-Heart-CT data)
+python tutorials/tutorial_01_heart_gated_ct_to_usd.py \
+    --data-dir ./data --output-dir ./output/tutorial_01
+
+# Tutorial 2 (CT to VTK)
+python tutorials/tutorial_02_ct_to_vtk.py \
+    --data-dir ./data --output-dir ./output/tutorial_02
+```
+
+See `tutorials/README.md` for the full tutorial index, dataset preparation
+instructions, recommended run order, and experiment-test instructions.
 
 ## 🎯 Quick Start
 

@@ -94,7 +94,8 @@ class UsdMeshConverter:
         mesh.CreateFaceVertexCountsAttr(face_counts_vt)
         mesh.CreateFaceVertexIndicesAttr(face_indices_vt)
 
-        # Set points (time-varying if time_code provided)
+        # Set points (time-varying if time_code provided). Also author a
+        # default value for readers that inspect the prim without a time code.
         points_attr = mesh.CreatePointsAttr()
         if time_code is not None:
             if points_attr.Get() is None:
