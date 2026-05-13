@@ -21,7 +21,8 @@ Quick Links
 **USD Modules**:
    * :doc:`tools` - Core USD utilities
    * :doc:`anatomy_tools` - Anatomical structure tools
-   * :doc:`vtk_conversion` - VTK to USD conversion
+   * :doc:`vtk_conversion` - VTK to USD conversion (preferred high-level API)
+   * :doc:`vtk_to_usd_lib` - Low-level ``vtk_to_usd`` subpackage (advanced)
 
 Module Documentation
 ====================
@@ -32,6 +33,7 @@ Module Documentation
    tools
    anatomy_tools
    vtk_conversion
+   vtk_to_usd_lib
 
 Quick Start
 ===========

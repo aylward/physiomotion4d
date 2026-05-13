@@ -131,6 +131,7 @@ converter = ConvertVTKToUSD(
     data_basename="CardiacModel", input_polydata=meshes, mask_ids=None
 )
 
+print("Setting colormap")
 converter.set_colormap(
     color_by_array="transmembrane_potential",
     colormap="rainbow",
@@ -138,6 +139,7 @@ converter.set_colormap(
 )
 
 output_file = output_dir / "example2_rainbow_custom.usd"
+print("Creating file:", output_file)
 stage = converter.convert(str(output_file))
 print(f"✓ Created: {output_file}")
 

@@ -37,6 +37,14 @@ Getting Started
 
       pip install -e ".[dev]"
 
+   To install the full developer environment with CUDA 13, documentation, test,
+   and development dependencies, use either of these equivalent uv forms:
+
+   .. code-block:: bash
+
+      uv pip install -e ".[cuda13,docs,test,dev]"
+      uv pip install -e . --all-extras
+
 5. **Install pre-commit hooks**:
 
    .. code-block:: bash
@@ -64,10 +72,10 @@ For the best development experience with VS Code or Cursor, install these extens
 
 **Not Needed (Replaced by Ruff):**
 
-* ❌ ms-python.black-formatter - No longer needed
-* ❌ ms-python.isort - No longer needed
-* ❌ ms-python.flake8 - No longer needed
-* ❌ ms-python.pylint - No longer needed
+* ms-python.black-formatter - No longer needed
+* ms-python.isort - No longer needed
+* ms-python.flake8 - No longer needed
+* ms-python.pylint - No longer needed
 
 VS Code Settings
 ----------------
@@ -101,9 +109,10 @@ This configuration:
 Experiment Scripts
 ------------------
 
-Experiments in the ``experiments/`` directory are ``# %%`` percent-format Python
-scripts (Jupytext style). They run interactively via the VS Code Python extension's
-"Run Cell" feature — no Jupyter extension required.
+Experiments in the ``experiments/`` directory are ``# %%`` percent-format
+Python scripts. They run end-to-end as plain Python (``python <script>.py``)
+or cell-by-cell via the VS Code / Cursor Python extension's "Run Cell"
+feature.
 
 * Ruff formats these cell-separated scripts automatically
 * Type checking is less strict in experiment scripts (expected for exploratory work)
@@ -113,13 +122,16 @@ First-Time Setup Checklist
 
 After cloning the repository:
 
-1. ✅ Install Python 3.10+ and create virtual environment
-2. ✅ Install development dependencies: ``pip install -e ".[dev]"``
-3. ✅ Install pre-commit hooks: ``pre-commit install``
-4. ✅ Install Ruff extension in VS Code/Cursor
-5. ✅ Remove old formatter extensions (black, isort, flake8, pylint)
-6. ✅ Verify settings: Open a Python file and save to test auto-formatting
-7. ✅ Run tests: ``pytest tests/ -m "not slow"`` to verify setup
+1. Install Python 3.11+ and create virtual environment
+2. Install development dependencies: ``pip install -e ".[dev]"``,
+   or install all extras with
+   ``uv pip install -e ".[cuda13,docs,test,dev]"`` or
+   ``uv pip install -e . --all-extras``
+3. Install pre-commit hooks: ``pre-commit install``
+4. Install Ruff extension in VS Code/Cursor
+5. Remove old formatter extensions (black, isort, flake8, pylint)
+6. Verify settings: Open a Python file and save to test auto-formatting
+7. Run tests: ``pytest tests/ -m "not slow"`` to verify setup
 
 Code Style
 ==========
@@ -289,7 +301,7 @@ When contributing new workflows or examples:
 
 **Production Code (src/physiomotion4d/cli/):**
 
-* ✅ **DO contribute here** for production-ready CLI implementations
+* **DO contribute here** for production-ready CLI implementations
 * Must include proper error handling and validation
 * Should follow all code style and testing requirements
 * Serves as definitive usage examples for users
@@ -297,15 +309,11 @@ When contributing new workflows or examples:
 
 **Research Code (experiments/ directory):**
 
-* 💡 **May contribute here** for exploratory research and design experiments
+* **May contribute here** for exploratory research and design experiments
 * Can have hardcoded paths and minimal error handling
 * Should document what was learned and how it informed production code
 * Helps others understand adaptation possibilities for new domains
 * Should reference corresponding production implementation in CLI commands or ``src/physiomotion4d/cli/``
-
-**Key Principle:** If users might copy your code for production use, it should use the CLI commands
-or extend the implementations in ``src/physiomotion4d/cli/``.
-If it's a proof-of-concept demonstrating what's possible, it belongs in ``experiments/``.
 
 Docstring Format
 ----------------

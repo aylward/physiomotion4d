@@ -14,7 +14,7 @@ import pyvista as pv
 from physiomotion4d import (
     WorkflowFitStatisticalModelToPatient,
 )
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 # %% [markdown]
 # ## Define File Paths
@@ -114,7 +114,7 @@ plotter.add_mesh(
 plotter.add_title("Final Registration")
 
 plotter.link_views()
-if not running_as_test():
+if not TestTools.running_as_test():
     plotter.show()
 
 # %% [markdown]
@@ -132,7 +132,7 @@ if "DeformationMagnitude" in registered_model_surface.point_data:
         scalar_bar_args={"title": "Deformation (mm)"},
     )
     plotter.add_title("Deformation Magnitude")
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plotter.show()
 
     # Print statistics

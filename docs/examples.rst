@@ -416,9 +416,9 @@ Batch process multiple datasets:
 
        try:
            final_usd = workflow.process()
-           print(f"  ✓ Complete: {final_usd}")
+           print(f"  Complete: {final_usd}")
        except Exception as e:
-           print(f"  ✗ Failed: {e}")
+           print(f"  Failed: {e}")
 
 Parallel Segmentation
 ---------------------
@@ -459,14 +459,10 @@ Download Slicer-Heart Dataset
 
 .. code-block:: python
 
-   from pathlib import Path
-   from urllib.request import urlretrieve
+   from physiomotion4d import DataDownloadTools
 
-   data_dir = Path("data/Slicer-Heart-CT")
-   data_dir.mkdir(parents=True, exist_ok=True)
-
-   url = "https://github.com/SlicerHeart/SlicerHeart/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
-   urlretrieve(url, data_dir / "TruncalValve_4DCT.seq.nrrd")
+   data_file = DataDownloadTools.DownloadSlicerHeartCTData("data/Slicer-Heart-CT")
+   assert DataDownloadTools.VerifySlicerHeartCTData("data/Slicer-Heart-CT")
 
 Custom Workflow Examples
 =========================

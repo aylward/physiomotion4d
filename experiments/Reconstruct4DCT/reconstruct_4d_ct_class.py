@@ -17,7 +17,7 @@ import itk
 import numpy as np
 
 from physiomotion4d import RegisterTimeSeriesImages, TransformTools
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,7 +40,7 @@ print(f"Found {len(files)} slice files")
 
 # %%
 # Configuration: quick run when executed as test (pytest); full run when manual (set quick_run = True for interactive quick test)
-quick_run = running_as_test()
+quick_run = TestTools.running_as_test()
 
 # Select files and parameters based on mode
 if quick_run:

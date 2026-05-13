@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from itk import TubeTK as ttk
 
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
@@ -168,7 +168,7 @@ if valid.any():
     ax.set_ylabel("Time (seconds)")
     ax.set_title("Registration time: two time points (Slicer-Heart-CT)")
     plt.tight_layout()
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plt.show()
 else:
     print("No successful runs to plot.")

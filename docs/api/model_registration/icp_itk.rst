@@ -2,6 +2,7 @@
 ICP with ITK Backend
 ====================================
 
+.. module:: physiomotion4d.register_models_icp_itk
 .. currentmodule:: physiomotion4d
 
 ICP registration using ITK's optimized implementation.

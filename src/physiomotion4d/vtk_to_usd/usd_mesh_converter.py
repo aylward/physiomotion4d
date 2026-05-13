@@ -49,6 +49,10 @@ class UsdMeshConverter:
         self.stage = stage
         self.settings = settings
         self.material_mgr = material_mgr
+        # Most recent triangulation face-map from create_mesh(). Reused by
+        # create_time_varying_mesh() when writing per-time-step cell primvars,
+        # since topology (and thus the map) is invariant across time samples.
+        self._last_triangulation_face_map: Optional[np.ndarray] = None
 
     def create_mesh(
         self,
@@ -80,11 +84,17 @@ class UsdMeshConverter:
         face_counts = mesh_data.face_vertex_counts
         face_indices = mesh_data.face_vertex_indices
 
+        triangulation_face_map: Optional[np.ndarray] = None
         if self.settings.triangulate_meshes:
             # Check if any faces are not triangles
             if not all(count == 3 for count in face_counts):
                 logger.debug("Triangulating mesh faces")
-                face_counts, face_indices = triangulate_face(face_counts, face_indices)
+                (
+                    face_counts,
+                    face_indices,
+                    triangulation_face_map,
+                ) = triangulate_face(face_counts, face_indices)
+        self._last_triangulation_face_map = triangulation_face_map
 
         # Convert to Vt arrays
         face_counts_vt = Vt.IntArray(face_counts.tolist())
@@ -140,9 +150,12 @@ class UsdMeshConverter:
             logger.debug("Adding vertex colors to mesh")
             self._add_vertex_colors(mesh, mesh_data.colors, time_code)
 
-        # Handle generic arrays (primvars)
+        # Handle generic arrays (primvars). Pass the triangulation face-map so
+        # uniform (per-source-face) arrays are expanded to match the
+        # post-triangulation face count; otherwise USD would drop them on size
+        # mismatch.
         if self.settings.preserve_point_arrays or self.settings.preserve_cell_arrays:
-            self._add_generic_arrays(mesh, mesh_data, time_code)
+            self._add_generic_arrays(mesh, mesh_data, time_code, triangulation_face_map)
 
         # Bind material (if material_id is provided and material exists in cache)
         if bind_material and mesh_data.material_id:
@@ -205,7 +218,11 @@ class UsdMeshConverter:
                 display_opacity_primvar.Set(opacity_array)
 
     def _add_generic_arrays(
-        self, mesh: UsdGeom.Mesh, mesh_data: MeshData, time_code: Optional[float]
+        self,
+        mesh: UsdGeom.Mesh,
+        mesh_data: MeshData,
+        time_code: Optional[float],
+        triangulation_face_map: Optional[np.ndarray] = None,
     ) -> None:
         """Add generic data arrays as primvars.
 
@@ -213,8 +230,31 @@ class UsdMeshConverter:
             mesh: USD mesh
             mesh_data: Mesh data containing arrays
             time_code: Optional time code
+            triangulation_face_map: Optional int32 array mapping each
+                triangulated face back to its source face. When provided,
+                uniform-interpolation arrays sized to the source face count
+                are expanded so they match the triangulated face count.
         """
         for array in mesh_data.generic_arrays:
+            if triangulation_face_map is not None and array.interpolation == "uniform":
+                data = np.asarray(array.data)
+                if len(data) == triangulation_face_map.shape[0]:
+                    # Already triangle-aligned (e.g. derived primvar that was
+                    # built post-triangulation). Leave it alone.
+                    pass
+                elif (
+                    len(data) > 0
+                    and triangulation_face_map.size > 0
+                    and triangulation_face_map.max() < len(data)
+                ):
+                    expanded_data = data[triangulation_face_map]
+                    array = GenericArray(
+                        name=array.name,
+                        data=expanded_data,
+                        num_components=array.num_components,
+                        data_type=array.data_type,
+                        interpolation=array.interpolation,
+                    )
             # Avoid authoring large multi-component tensors as flat float[] vertex primvars.
             # Omniverse/Hydra can be unstable when such primvars have elementSize > 1.
             # Instead, split into multiple primvars with <= 3 components each.
@@ -347,12 +387,18 @@ class UsdMeshConverter:
             if mesh_data.colors is not None:
                 self._add_vertex_colors(mesh, mesh_data.colors, time_code)
 
-            # Update generic arrays
+            # Update generic arrays (reuse the triangulation map computed
+            # for the first time sample; topology is invariant across time).
             if (
                 self.settings.preserve_point_arrays
                 or self.settings.preserve_cell_arrays
             ):
-                self._add_generic_arrays(mesh, mesh_data, time_code)
+                self._add_generic_arrays(
+                    mesh,
+                    mesh_data,
+                    time_code,
+                    self._last_triangulation_face_map,
+                )
 
         logger.info(f"Created time-varying mesh with {len(time_codes)} time samples")
 

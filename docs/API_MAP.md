@@ -26,21 +26,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 - `def generate_pc_variation(pc_index, std_dev_multiplier=3.0)` (line 155): Generate shape variations along a principal component.
 
-## experiments/Heart-GatedCT_To_USD/3-transform_dynamic_and_static_contours.py
-
-- `def transform_contours(contours, transform_filenames, frame_indices, base_name, output_dir)` (line 31)
-- `def convert_contours(base_name, output_dir, project_name, compute_normals=False)` (line 49)
-
-## experiments/Lung-GatedCT_To_USD/0-register_dirlab_4dct.py
-
-- `def dilate_mask(mask, dilation)` (line 30)
-- `def register_image(fixed_image, fixed_mask, moving_image, moving_mask, case_name, image_num, mask_name, output_dir)` (line 39): Register a moving image to a fixed image using a mask.
-
-## experiments/Lung-GatedCT_To_USD/1-make_dirlab_models.py
-
-- `def transform_contours_list(contours, case_name, mask_name, output_dir)` (line 22): Transform a list of contours to a list of transformed contours.
-- `def make_dirlab_models(output_dir, label, case_name, base_timepoint, all_labelmap_arr, all_mask_ids, con_tools)` (line 42): Make DirLab models for a list of cases.
-
 ## experiments/Lung-GatedCT_To_USD/data_dirlab_4d_ct.py
 
 - **class DataDirLab4DCT** (line 10): This class is used to store the data for the DirLab 4DCT dataset.
@@ -63,6 +48,20 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 - `def register_slices(reg_tool, reg_tool_name, fixed_image, images, files_indx, reference_image_num, reference_image_reg_use_identity, portion_of_prior_to_use=0.0)` (line 62)
 
+## src/physiomotion4d/anatomy_taxonomy.py
+
+- **class AnatomyGroup** (line 26): One named anatomy group together with the organ labels it contains.
+- **class AnatomyTaxonomy** (line 38): Mapping of anatomical groups to the organs each group contains.
+  - `def __init__(self)` (line 58)
+  - `def add_group(self, name)` (line 61): Ensure a group exists and return it.
+  - `def add_organ(self, group, label_id, organ_name)` (line 74): Add one organ label to the named group.
+  - `def group_names(self)` (line 104): Return group names in the order they were first added.
+  - `def labels_in_group(self, group)` (line 108): Return ``{label_id: organ_name}`` for *group*; empty dict if absent.
+  - `def all_labels(self)` (line 113): Return the union of every group's organs as a single id→name dict.
+  - `def group_for_label(self, label_name)` (line 120): Return the group containing *label_name*.
+  - `def group_for_id(self, label_id)` (line 132): Return the group containing *label_id*; :data:`OTHER_GROUP` if absent.
+  - `def fill_other_group(self, id_range=range(1, 256), name_template='other_{id}')` (line 139): Populate the ``other`` group with any ids not already claimed.
+
 ## src/physiomotion4d/cli/convert_ct_to_vtk.py
 
 - `def main()` (line 26): CLI entry point for CT to VTK conversion.
@@ -73,7 +72,7 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/cli/convert_vtk_to_usd.py
 
-- `def main()` (line 28): Command-line interface for VTK to USD conversion.
+- `def main()` (line 22): Command-line interface for VTK to USD conversion.
 
 ## src/physiomotion4d/cli/create_statistical_model.py
 
@@ -105,24 +104,34 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/convert_nrrd_4d_to_3d.py
 
-- **class ConvertNRRD4DTo3D** (line 11)
-  - `def __init__(self, log_level=logging.INFO)` (line 12): Initialize the NRRD 4D to 3D converter.
-  - `def load_nrrd_3d(self, filenames)` (line 22)
-  - `def load_nrrd_4d(self, filename)` (line 28)
-  - `def get_3d_image(self, index)` (line 62)
-  - `def get_number_of_3d_images(self)` (line 65)
-  - `def save_3d_images(self, basename)` (line 68)
+- **class ConvertNRRD4DTo3D** (line 13)
+  - `def __init__(self, log_level=logging.INFO)` (line 14): Initialize the NRRD 4D to 3D converter.
+  - `def load_nrrd_3d(self, filenames)` (line 24)
+  - `def load_nrrd_4d(self, filename)` (line 30)
+  - `def get_3d_image(self, index)` (line 64)
+  - `def get_number_of_3d_images(self)` (line 67)
+  - `def save_3d_images(self, directory, basename)` (line 70)
 
 ## src/physiomotion4d/convert_vtk_to_usd.py
 
-- **class ConvertVTKToUSD** (line 43): Advanced VTK to USD converter with colormap and anatomical labeling support.
-  - `def __init__(self, data_basename, input_polydata, mask_ids=None, compute_normals=False, convert_to_surface=True, times_per_second=24.0, separate_by='none', solid_color=(0.8, 0.8, 0.8), log_level=logging.INFO)` (line 73): Initialize converter.
-  - `def from_files(cls, data_basename, vtk_files, *, extract_surface=True, separate_by='none', times_per_second=24.0, solid_color=(0.8, 0.8, 0.8), time_codes=None, static_merge=False, mask_ids=None, log_level=logging.INFO)` (line 144): Create a converter by loading VTK files from disk.
-  - `def supports_mesh_type(self, mesh)` (line 242): Check if mesh type is supported for conversion.
-  - `def inspect_file(cls, vtk_file, *, extract_surface=True)` (line 271): Summarize a VTK file using the same low-level reader as conversion.
-  - `def list_available_arrays(self)` (line 343): List all point data arrays available across all time steps.
-  - `def set_colormap(self, color_by_array=None, colormap='plasma', intensity_range=None)` (line 389): Configure colormap for visualization.
-  - `def convert(self, output_usd_file, convert_to_surface=None, compute_normals=None)` (line 423): Convert VTK meshes to USD.
+- **class ConvertVTKToUSD** (line 45): Advanced VTK to USD converter with colormap and anatomical labeling support.
+  - `def __init__(self, data_basename, input_polydata, mask_ids=None, compute_normals=False, convert_to_surface=True, times_per_second=24.0, separate_by='none', solid_color=(0.8, 0.8, 0.8), segmenter=None, log_level=logging.INFO)` (line 75): Initialize converter.
+  - `def from_files(cls, data_basename, vtk_files, *, extract_surface=True, separate_by='none', times_per_second=24.0, solid_color=(0.8, 0.8, 0.8), time_codes=None, static_merge=False, mask_ids=None, segmenter=None, log_level=logging.INFO)` (line 154): Create a converter by loading VTK files from disk.
+  - `def supports_mesh_type(self, mesh)` (line 256): Check if mesh type is supported for conversion.
+  - `def inspect_file(cls, vtk_file, *, extract_surface=True)` (line 285): Summarize a VTK file using the same low-level reader as conversion.
+  - `def list_available_arrays(self)` (line 357): List all point data arrays available across all time steps.
+  - `def set_colormap(self, color_by_array=None, colormap='plasma', intensity_range=None)` (line 403): Configure colormap for visualization.
+  - `def compute_von_mises_stress(self, stress_array_name='stress', output_name='von_mises_stress')` (line 437): Add a scalar von Mises stress array derived from a 9-component
+  - `def convert(self, output_usd_file, convert_to_surface=None, compute_normals=None)` (line 538): Convert VTK meshes to USD.
+
+## src/physiomotion4d/data_download_tools.py
+
+- **class DataDownloadTools** (line 20): Download and verify optional PhysioMotion4D example datasets.
+  - `def DownloadSlicerHeartCTData(dirname)` (line 30): Download the Slicer-Heart-CT 4-D CT sample into ``dirname``.
+  - `def VerifySlicerHeartCTData(dirname)` (line 80): Return True when Slicer-Heart-CT has the expected 4-D CT file.
+  - `def VerifyCHOPValve4DData(dirname)` (line 85): Return True when CHOP-Valve4D files referenced by the repo exist.
+  - `def VerifyDirLab4DCTData(dirname)` (line 107): Return True when a supported DirLab-4DCT case layout exists.
+  - `def VerifyKCLHeartModelData(dirname)` (line 122): Return True when KCL-Heart-Model has its expected mesh inputs.
 
 ## src/physiomotion4d/image_tools.py
 
@@ -134,10 +143,6 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def convert_sitk_image_to_itk(self, sitk_image)` (line 151): Convert a SimpleITK image to an ITK image.
   - `def convert_array_to_image_of_vectors(self, arr_data, reference_image, ptype=itk.D)` (line 218): Convert a numpy array to an ITK image of vector type.
   - `def flip_image(self, in_image, in_mask=None, flip_x=False, flip_y=False, flip_z=False, flip_and_make_identity=False)` (line 249): Flip the image and mask.
-
-## src/physiomotion4d/notebook_utils.py
-
-- `def running_as_test()` (line 11): True when the notebook is run as a test (e.g. by pytest experiment tests).
 
 ## src/physiomotion4d/physiomotion4d_base.py
 
@@ -160,14 +165,14 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/register_images_ants.py
 
-- **class RegisterImagesANTs** (line 25): ANTs-based deformable image registration implementation.
-  - `def __init__(self, log_level=logging.INFO)` (line 71): Initialize the ANTs image registration class.
-  - `def set_number_of_iterations(self, number_of_iterations)` (line 86): Set the number of iterations for ANTs registration.
-  - `def set_transform_type(self, transform_type)` (line 95): Set the type of transform to use for registration.
-  - `def set_metric(self, metric)` (line 107): Set the similarity metric to use for registration.
-  - `def itk_affine_transform_to_ants_transform(self, itk_tfm)` (line 317): Convert ITK affine/rigid transform to ANTs affine transform.
-  - `def itk_transform_to_antsfile(self, itk_tfm, reference_image, output_filename)` (line 410): Convert ITK transform to ANTs transform file.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 510): Register moving image to fixed image using ANTs registration algorithm.
+- **class RegisterImagesANTs** (line 24): ANTs-based deformable image registration implementation.
+  - `def __init__(self, log_level=logging.INFO)` (line 70): Initialize the ANTs image registration class.
+  - `def set_number_of_iterations(self, number_of_iterations)` (line 85): Set the number of iterations for ANTs registration.
+  - `def set_transform_type(self, transform_type)` (line 94): Set the type of transform to use for registration.
+  - `def set_metric(self, metric)` (line 106): Set the similarity metric to use for registration.
+  - `def itk_affine_transform_to_ants_transform(self, itk_tfm)` (line 316): Convert ITK affine/rigid transform to ANTs affine transform.
+  - `def itk_transform_to_antsfile(self, itk_tfm, reference_image, output_filename)` (line 409): Convert ITK transform to ANTs transform file.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 509): Register moving image to fixed image using ANTs registration algorithm.
 
 ## src/physiomotion4d/register_images_base.py
 
@@ -254,102 +259,105 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/segment_anatomy_base.py
 
-- **class SegmentAnatomyBase** (line 18): Base class for anatomy segmentation that provides common functionality for
-  - `def __init__(self, log_level=logging.INFO)` (line 45): Initialize the SegmentAnatomyBase class.
-  - `def set_other_and_all_mask_ids(self)` (line 78): Set the other mask IDs and consolidate all mask ID dictionaries.
-  - `def set_target_spacing(self, target_spacing)` (line 111): Set the target isotropic spacing for image resampling.
-  - `def preprocess_input(self, input_image)` (line 123): Preprocess the input image for segmentation.
-  - `def postprocess_labelmap(self, labelmap_image, input_image)` (line 245): Resample the labelmap to match the input image spacing.
-  - `def segment_connected_component(self, preprocessed_image, labelmap_image, lower_threshold, upper_threshold, labelmap_ids=None, mask_id=0, use_mid_slice=True, hole_fill=2)` (line 341): Segment connected components based on intensity thresholding.
-  - `def segment_contrast_agent(self, preprocessed_image, labelmap_image)` (line 448): Include contrast-enhanced blood in the labelmap.
-  - `def create_anatomy_group_masks(self, labelmap_image)` (line 490): Create binary masks for different anatomical groups from the labelmap.
-  - `def segmentation_method(self, preprocessed_image)` (line 576): Abstract method for image segmentation - must be implemented by subclasses.
-  - `def dilate_mask(self, mask, dilation)` (line 598): Dilate a binary mask using morphological operations.
-  - `def segment(self, input_image, contrast_enhanced_study=False)` (line 621): Perform complete chest CT segmentation.
+- **class SegmentAnatomyBase** (line 19): Base class for anatomy segmentation that provides common functionality for
+  - `def __init__(self, log_level=logging.INFO)` (line 50): Initialize the SegmentAnatomyBase class.
+  - `def label_to_type(self, label_name)` (line 92): Return the anatomy group ('heart', 'lung', etc.) for a label name.
+  - `def set_target_spacing(self, target_spacing)` (line 108): Set the target isotropic spacing for image resampling.
+  - `def preprocess_input(self, input_image)` (line 120): Preprocess the input image for segmentation.
+  - `def postprocess_labelmap(self, labelmap_image, input_image)` (line 242): Resample the labelmap to match the input image spacing.
+  - `def segment_connected_component(self, preprocessed_image, labelmap_image, lower_threshold, upper_threshold, labelmap_ids=None, mask_id=0, use_mid_slice=True, hole_fill=2)` (line 338): Segment connected components based on intensity thresholding.
+  - `def segment_contrast_agent(self, preprocessed_image, labelmap_image)` (line 445): Include contrast-enhanced blood in the labelmap.
+  - `def create_anatomy_group_masks(self, labelmap_image)` (line 492): Create binary masks for different anatomical groups from the labelmap.
+  - `def segmentation_method(self, preprocessed_image)` (line 538): Abstract method for image segmentation - must be implemented by subclasses.
+  - `def dilate_mask(self, mask, dilation)` (line 560): Dilate a binary mask using morphological operations.
+  - `def segment(self, input_image, contrast_enhanced_study=False)` (line 583): Perform complete chest CT segmentation.
 
 ## src/physiomotion4d/segment_chest_total_segmentator.py
 
 - **class SegmentChestTotalSegmentator** (line 21): Chest CT segmentation using TotalSegmentator deep learning model.
-  - `def __init__(self, log_level=logging.INFO)` (line 57): Initialize the TotalSegmentator-based chest segmentation.
-  - `def segmentation_method(self, preprocessed_image)` (line 199): Run TotalSegmentator on the preprocessed image and return result.
+  - `def __init__(self, log_level=logging.INFO)` (line 50): Initialize the TotalSegmentator-based chest segmentation.
+  - `def segmentation_method(self, preprocessed_image)` (line 209): Run TotalSegmentator on the preprocessed image and return result.
 
 ## src/physiomotion4d/segment_heart_simpleware.py
 
 - **class SegmentHeartSimpleware** (line 23): Heart CT segmentation using Simpleware Medical's ASCardio module.
-  - `def __init__(self, log_level=logging.INFO)` (line 56): Initialize the Simpleware Medical based heart segmentation.
+  - `def __init__(self, log_level=logging.INFO)` (line 58): Initialize the Simpleware Medical based heart segmentation.
   - `def set_trim_mask_to_essentials(self, trim_mask)` (line 118): Set whether to trim mask to common and critical structures.
   - `def set_simpleware_executable_path(self, path)` (line 126): Set the path to the Simpleware Medical console executable.
   - `def segmentation_method(self, preprocessed_image)` (line 139): Run Simpleware Medical ASCardio segmentation on the preprocessed image.
-  - `def get_landmarks(self)` (line 327): Get the landmarks.
-  - `def trim_mask_to_essentials(self, labelmap_image)` (line 331): Trim mask to essentials.
+  - `def get_landmarks(self)` (line 339): Get the landmarks.
+  - `def trim_mask_to_essentials(self, labelmap_image)` (line 343): Trim mask to essentials.
 
 ## src/physiomotion4d/test_tools.py
 
-- `def set_create_baseline_if_missing(value)` (line 28): Set whether to create baseline files when missing (used by pytest conftest).
-- **class TestTools** (line 34): Utilities for pytest image comparison: baseline directory, result directory,
-  - `def __init__(self, results_dir, baselines_dir, class_name, *, results_output_dir=None, log_level=logging.INFO)` (line 44): Initialize test helpers.
-  - `def image_pass_fail_and_pixels_above_tolerance(self)` (line 95): Return (pass, value) for number of pixels above tolerance from the most
-  - `def image_pass_fail_and_total_absolute_error(self)` (line 110): Return (pass, value) for total absolute error from the most recent
-  - `def image_difference(self)` (line 125): Return the difference image (itk.Image) from the most recent
-  - `def transform_pass_fail_and_number_of_values_above_tolerance(self)` (line 132): Return (pass, value) for number of values above tolerance from the most recent compare_result_to_baseline_transform call.
-  - `def transform_pass_fail_and_total_absolute_error(self)` (line 148): Return (pass, value) for total absolute error from the most recent compare_result_to_baseline_transform call.
-  - `def transform_difference(self)` (line 162): Return the difference transform (itk.Transform) from the most recent compare_result_to_baseline_transform call.
-  - `def write_result_image(self, image, filename)` (line 168): Write the image to the configured result artifact directory.
-  - `def write_result_transform(self, transform, filename)` (line 172): Write the transform to the configured result artifact directory.
-  - `def compare_result_to_baseline_transform(self, filename, *, per_value_absolute_error_tol=0.0, max_number_of_values_above_tol=0, total_absolute_error_tol=0.0)` (line 178): Compare the transform to the baseline transform.
-  - `def compare_result_to_baseline_image(self, filename, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 256): Load a 3D result image and a 3D baseline image (.mha), compare the full
-  - `def save_screenshot_mesh(self, mesh, filename, *, camera_position='iso', window_size=(800, 600), color='pink', opacity=0.9)` (line 363): Render a PyVista mesh off-screen and save a PNG.
-  - `def save_screenshot_image_slice(self, image, filename, *, axis=0, slice_fraction=0.5, colormap='gray', vmin=None, vmax=None, overlay_mask=None, overlay_alpha=0.4)` (line 412): Extract one slice from an ITK image and save a PNG via matplotlib.
+- `def set_create_baseline_if_missing(value)` (line 29): Set whether to create baseline files when missing (used by pytest conftest).
+- **class TestTools** (line 35): Utilities for pytest image comparison: baseline directory, result directory,
+  - `def __init__(self, class_name, results_dir=None, baselines_dir=None, *, log_level=logging.INFO)` (line 45): Initialize test helpers.
+  - `def running_as_test()` (line 103): True when the script is run as a test (e.g. by pytest experiment tests).
+  - `def image_pass_fail_and_pixels_above_tolerance(self)` (line 121): Return (pass, value) for number of pixels above tolerance from the most
+  - `def image_pass_fail_and_total_absolute_error(self)` (line 136): Return (pass, value) for total absolute error from the most recent
+  - `def image_difference(self)` (line 151): Return the difference image (itk.Image) from the most recent
+  - `def transform_pass_fail_and_number_of_values_above_tolerance(self)` (line 158): Return (pass, value) for number of values above tolerance from the most recent compare_result_to_baseline_transform call.
+  - `def transform_pass_fail_and_total_absolute_error(self)` (line 174): Return (pass, value) for total absolute error from the most recent compare_result_to_baseline_transform call.
+  - `def transform_difference(self)` (line 188): Return the difference transform (itk.Transform) from the most recent compare_result_to_baseline_transform call.
+  - `def write_result_image(self, image, filename)` (line 194): Write the image to the configured result artifact directory.
+  - `def write_result_transform(self, transform, filename)` (line 198): Write the transform to the configured result artifact directory.
+  - `def compare_result_to_baseline_transform(self, filename, *, per_value_absolute_error_tol=0.0, max_number_of_values_above_tol=0, total_absolute_error_tol=0.0)` (line 204): Compare the transform to the baseline transform.
+  - `def compare_result_to_baseline_image(self, filename, *, per_pixel_absolute_error_tol=0.0, max_number_of_pixels_above_tol=0, total_absolute_error_tol=0.0)` (line 282): Load a 3D result image and a 3D baseline image (.mha), compare the full
+  - `def save_screenshot_mesh(self, mesh, filename, *, camera_position='iso', window_size=(800, 600), color='pink', opacity=0.9)` (line 389): Render a PyVista mesh off-screen and save a PNG.
+  - `def save_screenshot_openusd(self, usd_file, filename, *, prim_path='/World', time_code=None)` (line 438): Render USD mesh geometry off-screen and save a PNG.
+  - `def save_screenshot_image_slice(self, image, filename, *, axis=0, slice_fraction=0.5, colormap='gray', vmin=None, vmax=None, overlay_mask=None, overlay_alpha=0.4)` (line 507): Extract one slice from an ITK image and save a PNG via matplotlib.
 
 ## src/physiomotion4d/transform_tools.py
 
-- **class TransformTools** (line 39): Utilities for transforming and manipulating ITK transforms.
-  - `def __init__(self, log_level=logging.INFO)` (line 72): Initialize the TransformTools class.
-  - `def combine_displacement_field_transforms(self, tfm1, tfm2, reference_image, tfm1_weight=1.0, tfm2_weight=1.0, mode='compose', tfm1_blur_sigma=0.0, tfm2_blur_sigma=0.0)` (line 80): Compose two displacement field transforms.
-  - `def convert_transform_to_displacement_field(self, tfm, reference_image, np_component_type=np.float64, use_reference_image_as_mask=False)` (line 164): Generate a dense deformation field from an ITK transform.
-  - `def convert_transform_to_displacement_field_transform(self, tfm, reference_image)` (line 252): Convert an ITK transform to a displacement field transform.
-  - `def invert_displacement_field_transform(self, tfm)` (line 269): Invert a displacement field transform.
-  - `def transform_pvcontour(self, contour, tfm, with_deformation_magnitude=False)` (line 291): Transform PyVista contour meshes using an ITK transform.
-  - `def transform_dataset(self, mesh, tfm, with_deformation_magnitude=False)` (line 335): Transform a PyVista dataset while preserving mesh topology and data arrays.
-  - `def transform_image(self, img, tfm, reference_image, interpolation_method='linear')` (line 382): Transform an ITK image using a specified transform and interpolation.
-  - `def convert_vtk_matrix_to_itk_transform(self, vtk_mat)` (line 459): Convert a VTK matrix to an ITK transform.
-  - `def smooth_transform(self, tfm, sigma, reference_image)` (line 494): Smooth a transform using Gaussian filtering to reduce noise.
-  - `def combine_transforms_with_masks(self, transform1, transform2, mask1, mask2, reference_image, max_iter=10, jacobian_threshold=0.1)` (line 553): Combine two transforms using spatial masks with folding correction.
-  - `def compute_jacobian_determinant_from_field(self, field)` (line 643): Compute Jacobian determinant of a displacement field.
-  - `def detect_folding_in_field(self, jacobian_det, threshold=0.1)` (line 672): Detect spatial folding in a transform.
-  - `def reduce_folding_in_field(self, field, jacobian_det, reduction_factor=0.8, threshold=0.1)` (line 696): Reduce folding by scaling displacement field in problematic regions.
-  - `def generate_grid_image(self, reference_image, grid_size=60, line_width=3)` (line 742): Generate a grid image.
-  - `def convert_field_to_grid_visualization(self, tfm, reference_image, grid_size=60, line_width=3)` (line 775): Generate a visual deformation grid for transform visualization.
-  - `def convert_itk_transform_to_usd_visualization(self, tfm, reference_image, output_filename, visualization_type='arrows', subsample_factor=4, arrow_scale=1.0, magnitude_threshold=0.0)` (line 811): Convert an ITK transform to a USD visualization for NVIDIA Omniverse.
+- **class TransformTools** (line 41): Utilities for transforming and manipulating ITK transforms.
+  - `def __init__(self, log_level=logging.INFO)` (line 74): Initialize the TransformTools class.
+  - `def combine_displacement_field_transforms(self, tfm1, tfm2, reference_image, tfm1_weight=1.0, tfm2_weight=1.0, mode='compose', tfm1_blur_sigma=0.0, tfm2_blur_sigma=0.0)` (line 82): Compose two displacement field transforms.
+  - `def convert_transform_to_displacement_field(self, tfm, reference_image, np_component_type=np.float64, use_reference_image_as_mask=False)` (line 166): Generate a dense deformation field from an ITK transform.
+  - `def convert_transform_to_displacement_field_transform(self, tfm, reference_image)` (line 254): Convert an ITK transform to a displacement field transform.
+  - `def invert_displacement_field_transform(self, tfm)` (line 271): Invert a displacement field transform.
+  - `def transform_pvcontour(self, contour, tfm, with_deformation_magnitude=False)` (line 293): Transform PyVista contour meshes using an ITK transform.
+  - `def transform_dataset(self, mesh, tfm, with_deformation_magnitude=False)` (line 337): Transform a PyVista dataset while preserving mesh topology and data arrays.
+  - `def transform_image(self, img, tfm, reference_image, interpolation_method='linear')` (line 384): Transform an ITK image using a specified transform and interpolation.
+  - `def convert_vtk_matrix_to_itk_transform(self, vtk_mat)` (line 461): Convert a VTK matrix to an ITK transform.
+  - `def smooth_transform(self, tfm, sigma, reference_image)` (line 496): Smooth a transform using Gaussian filtering to reduce noise.
+  - `def combine_transforms_with_masks(self, transform1, transform2, mask1, mask2, reference_image, max_iter=10, jacobian_threshold=0.1)` (line 555): Combine two transforms using spatial masks with folding correction.
+  - `def compute_jacobian_determinant_from_field(self, field)` (line 645): Compute Jacobian determinant of a displacement field.
+  - `def detect_folding_in_field(self, jacobian_det, threshold=0.1)` (line 674): Detect spatial folding in a transform.
+  - `def reduce_folding_in_field(self, field, jacobian_det, reduction_factor=0.8, threshold=0.1)` (line 698): Reduce folding by scaling displacement field in problematic regions.
+  - `def generate_grid_image(self, reference_image, grid_size=60, line_width=3)` (line 744): Generate a grid image.
+  - `def convert_field_to_grid_visualization(self, tfm, reference_image, grid_size=60, line_width=3)` (line 777): Generate a visual deformation grid for transform visualization.
+  - `def convert_itk_transform_to_usd_visualization(self, tfm, reference_image, output_filename, visualization_type='arrows', subsample_factor=4, arrow_scale=1.0, magnitude_threshold=0.0)` (line 813): Convert an ITK transform to a USD visualization for NVIDIA Omniverse.
 
 ## src/physiomotion4d/usd_anatomy_tools.py
 
-- **class USDAnatomyTools** (line 14): This class is used to enhance the appearance of anatomy meshes in a USD
-  - `def __init__(self, stage, log_level=logging.INFO)` (line 20): Initialize USDAnatomyTools.
-  - `def get_anatomy_types(self)` (line 195): Return list of supported anatomy type names for apply_anatomy_material_to_mesh.
-  - `def get_anatomy_diffuse_color(self, anatomy_type)` (line 199): Return the diffuse reflection RGB color for the given anatomy type.
-  - `def apply_anatomy_material_to_mesh(self, mesh_path, anatomy_type)` (line 226): Apply an anatomic OmniSurface material to a single mesh prim by type.
-  - `def apply_anatomy_material_to_prim(self, prim, material_params)` (line 250): Corrected material application with Omniverse-specific fixes
-  - `def enhance_meshes(self, segmentator)` (line 321): Find and enhance all heart meshes
+- **class USDAnatomyTools** (line 207): Apply OmniSurface materials to anatomy mesh prims in a USD stage.
+  - `def __init__(self, stage, log_level=logging.INFO)` (line 216): Initialize USDAnatomyTools.
+  - `def get_anatomy_types(self)` (line 233): Return list of registered render-param keys (groups + organ overrides).
+  - `def get_anatomy_diffuse_color(self, anatomy_type)` (line 237): Return the diffuse reflection RGB color for the given group/organ.
+  - `def apply_anatomy_material_to_mesh(self, mesh_path, anatomy_type)` (line 264): Apply an anatomic OmniSurface material to a single mesh prim by type.
+  - `def apply_anatomy_material_to_prim(self, prim, material_params)` (line 288): Corrected material application with Omniverse-specific fixes
+  - `def enhance_meshes(self, segmentator)` (line 359): Apply per-organ OmniSurface materials to every matching mesh prim.
 
 ## src/physiomotion4d/usd_tools.py
 
-- **class USDTools** (line 25): Utilities for manipulating Universal Scene Description (USD) files.
-  - `def __init__(self, log_level=logging.INFO)` (line 61): Initialize the USDTools class.
-  - `def get_subtree_bounding_box(self, prim)` (line 69): Compute the axis-aligned bounding box of a USD primitive subtree.
-  - `def save_usd_file_arrangement(self, new_stage_name, usd_file_names)` (line 129): Create a spatial grid arrangement of objects from multiple USD files.
-  - `def merge_usd_files(self, output_filename, input_filenames_list)` (line 252): Merge multiple USD files into a single comprehensive USD file.
-  - `def merge_usd_files_flattened(self, output_filename, input_filenames_list)` (line 443): Merge multiple USD files using references and flattening.
-  - `def list_mesh_primvars(self, stage_or_path, mesh_path, time_code=None)` (line 568): List all primvars on a USD mesh with metadata.
-  - `def pick_color_primvar(self, primvar_infos, keywords=('strain', 'stress'))` (line 663): Select a primvar for coloring based on keywords and preferences.
-  - `def apply_colormap_from_primvar(self, stage_or_path, mesh_path, source_primvar, *, cmap='viridis', time_codes=None, intensity_range=None, use_sigmoid_scale=False, write_default_at_t0=True, bind_vertex_color_material=True)` (line 717): Apply colormap visualization by converting a primvar to displayColor.
-  - `def set_solid_display_color(self, stage_or_path, mesh_path, color, *, time_codes=None, bind_vertex_color_material=True)` (line 1013): Set a constant (solid) displayColor for a mesh.
-  - `def list_mesh_paths_under(self, stage_or_path, parent_path='/World/Meshes')` (line 1106): List paths of all mesh prims under a parent path.
-  - `def repair_mesh_primvar_element_sizes(self, stage_or_path, mesh_path, *, time_code=None, save=True)` (line 1133): Repair missing/incorrect primvar elementSize metadata for a mesh.
+- **class USDTools** (line 28): Utilities for manipulating Universal Scene Description (USD) files.
+  - `def __init__(self, log_level=logging.INFO)` (line 64): Initialize the USDTools class.
+  - `def load_usd_as_vtk(self, usd_file, prim_path='/World', time_code=None)` (line 72): Load USD mesh geometry as a PyVista ``PolyData``.
+  - `def get_subtree_bounding_box(self, prim)` (line 218): Compute the axis-aligned bounding box of a USD primitive subtree.
+  - `def save_usd_file_arrangement(self, new_stage_name, usd_file_names)` (line 278): Create a spatial grid arrangement of objects from multiple USD files.
+  - `def merge_usd_files(self, output_filename, input_filenames_list)` (line 404): Merge multiple USD files into a single comprehensive USD file.
+  - `def merge_usd_files_flattened(self, output_filename, input_filenames_list)` (line 609): Merge multiple USD files using references and flattening.
+  - `def list_mesh_primvars(self, stage_or_path, mesh_path, time_code=None)` (line 737): List all primvars on a USD mesh with metadata.
+  - `def pick_color_primvar(self, primvar_infos, keywords=('strain', 'stress'))` (line 832): Select a primvar for coloring based on keywords and preferences.
+  - `def apply_colormap_from_primvar(self, stage_or_path, mesh_path, source_primvar, *, cmap='viridis', time_codes=None, intensity_range=None, use_sigmoid_scale=False, write_default_at_t0=True, bind_vertex_color_material=True)` (line 886): Apply colormap visualization by converting a primvar to displayColor.
+  - `def set_solid_display_color(self, stage_or_path, mesh_path, color, *, time_codes=None, bind_vertex_color_material=True)` (line 1182): Set a constant (solid) displayColor for a mesh.
+  - `def list_mesh_paths_under(self, stage_or_path, parent_path='/World/Meshes')` (line 1275): List paths of all mesh prims under a parent path.
+  - `def repair_mesh_primvar_element_sizes(self, stage_or_path, mesh_path, *, time_code=None, save=True)` (line 1302): Repair missing/incorrect primvar elementSize metadata for a mesh.
 
 ## src/physiomotion4d/vtk_to_usd/converter.py
 
-- `def convert_vtk_file(vtk_file, output_usd_file, *, data_basename=None, mesh_name='Mesh', extract_surface=True, settings=None, material=None)` (line 14): Convert one VTK file to one USD stage.
+- `def convert_vtk_file(vtk_file, output_usd_file, *, data_basename=None, mesh_name='Mesh', extract_surface=True, settings=None, material=None)` (line 15): Convert one VTK file to one USD stage.
 
 ## src/physiomotion4d/vtk_to_usd/data_structures.py
 
@@ -367,8 +375,8 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def __init__(self, stage, materials_scope_path='/World/Looks')` (line 23): Initialize material manager.
   - `def create_material(self, mat_data, time_code=None)` (line 37): Create a UsdPreviewSurface material.
   - `def bind_material(self, geom_prim, material)` (line 133): Bind a material to a geometry prim.
-  - `def get_or_create_material(self, mat_data, time_code=None)` (line 149): Get existing material from cache or create new one.
-  - `def create_default_material(self, name='default', color=(0.8, 0.8, 0.8))` (line 165): Create a simple default material.
+  - `def get_or_create_material(self, mat_data, time_code=None)` (line 152): Get existing material from cache or create new one.
+  - `def create_default_material(self, name='default', color=(0.8, 0.8, 0.8))` (line 168): Create a simple default material.
 
 ## src/physiomotion4d/vtk_to_usd/mesh_utils.py
 
@@ -376,12 +384,18 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def split_mesh_data_by_cell_type(mesh_data, mesh_name)` (line 32): Split MeshData into one mesh per distinct face vertex count (cell type).
 - `def split_mesh_data_by_connectivity(mesh_data, mesh_name)` (line 280): Split MeshData into one mesh per connected component.
 
+## src/physiomotion4d/vtk_to_usd/primvar_derivations.py
+
+- `def compute_von_mises_stress(stress_tensor)` (line 49): Compute scalar von Mises stress from a row-major 9-component tensor.
+- `def derive_von_mises_from_stress(array)` (line 107): Derive a scalar VonMises primvar from any 9-component stress tensor.
+- `def derive_primvars(arrays)` (line 147): Apply every registered derivation to every array in ``arrays``.
+
 ## src/physiomotion4d/vtk_to_usd/usd_mesh_converter.py
 
 - **class UsdMeshConverter** (line 25): Converts MeshData to UsdGeomMesh with full feature support.
   - `def __init__(self, stage, settings, material_mgr)` (line 36): Initialize mesh converter.
-  - `def create_mesh(self, mesh_data, mesh_path, time_code=None, bind_material=True)` (line 53): Create a UsdGeomMesh from MeshData.
-  - `def create_time_varying_mesh(self, mesh_data_sequence, mesh_path, time_codes, bind_material=True)` (line 289): Create a mesh with time-varying attributes.
+  - `def create_mesh(self, mesh_data, mesh_path, time_code=None, bind_material=True)` (line 57): Create a UsdGeomMesh from MeshData.
+  - `def create_time_varying_mesh(self, mesh_data_sequence, mesh_path, time_codes, bind_material=True)` (line 329): Create a mesh with time-varying attributes.
 
 ## src/physiomotion4d/vtk_to_usd/usd_utils.py
 
@@ -392,8 +406,9 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def get_sdf_value_type(data_type, num_components)` (line 173): Get appropriate SDF value type for primvar creation.
 - `def sanitize_primvar_name(name)` (line 220): Sanitize a name to be USD-compliant.
 - `def create_primvar(geom, array, array_name_prefix='', time_code=None)` (line 255): Create a USD primvar from a GenericArray.
-- `def triangulate_face(face_counts, face_indices)` (line 369): Triangulate polygonal faces.
-- `def compute_mesh_extent(points)` (line 409): Compute bounding box extent for a mesh.
+- `def triangulate_face(face_counts, face_indices)` (line 369): Triangulate polygonal faces using fan triangulation.
+- `def compute_mesh_extent(points)` (line 420): Compute bounding box extent for a mesh.
+- `def add_framing_camera(stage, *, parent_path='/World', name='Camera', bounds_min=None, bounds_max=None, focal_length_mm=50.0, horizontal_aperture_mm=36.0, distance_factor=3.0)` (line 432): Define a USD camera that frames stage geometry with tight clipping planes.
 
 ## src/physiomotion4d/vtk_to_usd/vtk_reader.py
 
@@ -411,17 +426,17 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 - **class WorkflowConvertCTToVTK** (line 58): Segment a CT image and produce per-anatomy-group VTK surfaces and meshes.
   - `def __init__(self, segmentation_method='total_segmentator', log_level=logging.INFO)` (line 98): Initialize the workflow.
-  - `def run_workflow(self, input_image, contrast_enhanced_study=False, anatomy_groups=None)` (line 240): Segment the CT image and extract per-anatomy-group VTK objects.
-  - `def save_surfaces(surfaces, output_dir, prefix='')` (line 343): Save each group surface to its own VTP file.
-  - `def save_meshes(meshes, output_dir, prefix='')` (line 370): Save each group voxel mesh to its own VTU file.
-  - `def save_combined_surface(surfaces, output_dir, prefix='')` (line 396): Merge all group surfaces into a single VTP file.
-  - `def save_combined_mesh(meshes, output_dir, prefix='')` (line 431): Merge all group meshes into a single VTU file.
+  - `def run_workflow(self, input_image, contrast_enhanced_study=False, anatomy_groups=None)` (line 241): Segment the CT image and extract per-anatomy-group VTK objects.
+  - `def save_surfaces(surfaces, output_dir, prefix='')` (line 344): Save each group surface to its own VTP file.
+  - `def save_meshes(meshes, output_dir, prefix='')` (line 371): Save each group voxel mesh to its own VTU file.
+  - `def save_combined_surface(surfaces, output_dir, prefix='')` (line 397): Merge all group surfaces into a single VTP file.
+  - `def save_combined_mesh(meshes, output_dir, prefix='')` (line 432): Merge all group meshes into a single VTU file.
 
 ## src/physiomotion4d/workflow_convert_heart_gated_ct_to_usd.py
 
 - **class WorkflowConvertHeartGatedCTToUSD** (line 28): Complete workflow for Heart-gated CT images to dynamic USD models.
-  - `def __init__(self, input_filenames, contrast_enhanced, output_directory, project_name, reference_image_filename=None, number_of_registration_iterations=1, registration_method='icon', log_level=logging.INFO)` (line 36): Initialize the Heart-gated CT to USD workflow.
-  - `def process(self)` (line 129): Execute the complete workflow from 4D CT to dynamic USD models.
+  - `def __init__(self, input_filenames, contrast_enhanced, output_directory, project_name, reference_image_filename=None, number_of_registration_iterations=1, registration_method='icon', log_level=logging.INFO, save_registered_images=True, save_registration_transforms=True, save_labelmaps=True)` (line 36): Initialize the Heart-gated CT to USD workflow.
+  - `def process(self)` (line 177): Execute the complete workflow from 4D CT to dynamic USD models.
 
 ## src/physiomotion4d/workflow_convert_vtk_to_usd.py
 
@@ -470,16 +485,16 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## tests/conftest.py
 
-- `def pytest_addoption(parser)` (line 36): Add custom command-line options for pytest.
-- `def pytest_configure(config)` (line 58): Configure pytest with custom markers and settings.
-- `def pytest_collection_modifyitems(config, items)` (line 85): Automatically skip experiment and tutorial tests unless their opt-in flags
-- `def pytest_runtest_logreport(report)` (line 110): Collect test timing information after each test completes.
-- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 135): Print comprehensive test timing report after all tests complete.
-- `def test_directories()` (line 297): Set up test directories for data and results.
-- `def download_test_data(test_directories)` (line 312): Download TruncalValve 4D CT data.
+- `def pytest_addoption(parser)` (line 35): Add custom command-line options for pytest.
+- `def pytest_configure(config)` (line 57): Configure pytest with custom markers and settings.
+- `def pytest_collection_modifyitems(config, items)` (line 84): Automatically skip experiment and tutorial tests unless their opt-in flags
+- `def pytest_runtest_logreport(report)` (line 109): Collect test timing information after each test completes.
+- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 134): Print comprehensive test timing report after all tests complete.
+- `def test_directories()` (line 296): Set up test directories for data and results.
+- `def download_test_data(test_directories)` (line 321): Download Slicer-Heart-CT data.
 - `def test_images(download_test_data, test_directories)` (line 348): Convert and resample 4D NRRD data; return pre-resampled time points.
-- `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 400): Segment each time point with TotalSegmentator and return result dicts.
-- `def test_transforms(registrar_ants, test_images, test_directories)` (line 441): Perform ANTs registration and return results.
+- `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 401): Segment each time point with TotalSegmentator and return result dicts.
+- `def test_transforms(registrar_ants, test_images, test_directories)` (line 442): Perform ANTs registration and return results.
 - `def segmenter_total_segmentator()` (line 497): Create a SegmentChestTotalSegmentator instance.
 - `def segmenter_simpleware()` (line 503): Create a SegmentHeartSimpleware instance.
 - `def contour_tools()` (line 509): Create a ContourTools instance.
@@ -487,6 +502,21 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def registrar_greedy()` (line 521): Create a RegisterImagesGreedy instance.
 - `def registrar_icon()` (line 527): Create a RegisterImagesICON instance.
 - `def transform_tools()` (line 533): Create a TransformTools instance.
+
+## tests/test_anatomy_taxonomy.py
+
+- `def test_add_organ_creates_group_lazily()` (line 14)
+- `def test_group_names_preserve_insertion_order()` (line 23)
+- `def test_labels_in_group_unknown_returns_empty_dict()` (line 31)
+- `def test_labels_in_group_returns_copy_not_alias()` (line 37): Caller mutation of the returned dict must not corrupt the taxonomy.
+- `def test_all_labels_merges_every_group()` (line 46)
+- `def test_group_for_label_finds_by_organ_name()` (line 58)
+- `def test_group_for_label_unknown_falls_back_to_other()` (line 67)
+- `def test_group_for_id_finds_by_id()` (line 73)
+- `def test_fill_other_group_only_claims_unassigned_ids()` (line 82)
+- `def test_fill_other_group_idempotent_for_already_claimed_other()` (line 100): Calling fill_other_group twice must not duplicate or overwrite.
+- `def test_anatomy_group_dataclass_default_organs()` (line 110)
+- `def test_segment_anatomy_base_default_taxonomy_seeded()` (line 116): SegmentAnatomyBase seeds contrast (135) and soft_tissue (133).
 
 ## tests/test_cli_smoke.py
 
@@ -508,7 +538,7 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 ## tests/test_convert_nrrd_4d_to_3d.py
 
 - **class TestConvertNRRD4DTo3D** (line 17): Test suite for converting 4D NRRD to 3D time series.
-  - `def test_convert_4d_to_3d(self, download_test_data, test_directories)` (line 20): Test conversion of 4D NRRD to 3D time series (replicates notebook cell 3).
+  - `def test_convert_4d_to_3d(self, download_test_data, test_directories)` (line 20): Test conversion of 4D NRRD to 3D time series.
   - `def test_slice_files_created(self, download_test_data, test_directories)` (line 46): Test that all expected slice files are present after conversion.
   - `def test_load_nrrd_4d(self, download_test_data)` (line 67): Test loading 4D NRRD file.
   - `def test_save_3d_images(self, download_test_data, test_directories)` (line 80): Test saving 3D images from 4D NRRD.
@@ -530,16 +560,22 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - **class TestSyntheticConversion** (line 425): Synthetic (no-disk-data) tests for ConvertVTKToUSD.
   - `def test_single_frame_prim_has_time_sample(self, tmp_path)` (line 438): Single-frame _convert_unified() must author one time sample, not a static prim.
   - `def test_static_merge_prim_names_use_data_basename(self, tmp_path)` (line 454): Static-merge prims must be named {data_basename}_{i}, not Mesh_{i}.
-  - `def test_mask_ids_basic_produces_per_label_prims(self, tmp_path)` (line 486): mask_ids must produce one USD prim per label; no unified /Mesh prim.
-  - `def test_structured_grid_extracts_surface(self, tmp_path)` (line 508): StructuredGrid input is surface-extracted when convert_to_surface is true.
-  - `def test_mask_ids_missing_label_filters_time_codes(self, tmp_path)` (line 524): Time codes for a label must be filtered to frames where it actually appears.
-  - `def test_mask_ids_missing_boundary_labels_falls_back(self, tmp_path)` (line 559): Mesh without boundary_labels array falls back to a 'default' prim.
+  - `def test_mask_ids_basic_produces_per_label_prims(self, tmp_path)` (line 486): mask_ids must produce one USD prim per label grouped under /Anatomy
+  - `def test_structured_grid_extracts_surface(self, tmp_path)` (line 512): StructuredGrid input is surface-extracted when convert_to_surface is true.
+  - `def test_mask_ids_missing_label_filters_time_codes(self, tmp_path)` (line 528): Time codes for a label must be filtered to frames where it actually appears.
+  - `def test_mask_ids_missing_boundary_labels_falls_back(self, tmp_path)` (line 563): Mesh without boundary_labels array falls back to a 'default' prim.
+  - `def test_mask_ids_groups_by_segmenter_type(self, tmp_path)` (line 578): When a segmenter is supplied, labels are grouped under their
 
 ## tests/test_download_heart_data.py
 
-- **class TestDownloadHeartData** (line 15): Test suite for downloading and converting Slicer-Heart-CT data.
-  - `def test_directories_created(self, test_directories)` (line 18): Test that directories are created successfully.
-  - `def test_data_downloaded(self, download_test_data, test_directories)` (line 28): Test that the TruncalValve 4D CT data file is downloaded.
+- **class TestDataDownloadTools** (line 16): Synthetic tests for dataset verification helpers.
+  - `def test_verify_slicer_heart_ct_data(self, tmp_path)` (line 19): Verify Slicer data by expected `TruncalValve_4DCT.seq.nrrd` filename.
+  - `def test_verify_kcl_heart_model_data(self, tmp_path)` (line 29): Verify KCL data by expected average mesh and input mesh filenames.
+  - `def test_verify_dirlab_4dct_data(self, tmp_path)` (line 41): Verify DirLab data by supported Case1 phase image layouts.
+  - `def test_verify_chop_valve_4d_data(self, tmp_path)` (line 52): Verify CHOP data by expected CT or valve time-series paths.
+- **class TestDownloadHeartData** (line 64): Test suite for downloading and converting Slicer-Heart-CT data.
+  - `def test_directories_created(self, test_directories)` (line 67): Test that directories are created successfully.
+  - `def test_data_downloaded(self, download_test_data, test_directories)` (line 91): Test that the TruncalValve 4D CT data file is downloaded.
 
 ## tests/test_experiments.py
 
@@ -663,22 +699,22 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 - **class TestSegmentChestTotalSegmentator** (line 21): Test suite for TotalSegmentator chest CT segmentation.
   - `def test_segmenter_initialization(self, segmenter_total_segmentator)` (line 24): Test that SegmentChestTotalSegmentator initializes correctly.
-  - `def test_segment_single_image(self, segmenter_total_segmentator, test_images, test_directories)` (line 61): Test segmentation on a single time point.
-  - `def test_segment_multiple_images(self, segmenter_total_segmentator, test_images, test_directories)` (line 119): Test segmentation on two time points.
-  - `def test_anatomy_group_masks(self, segmenter_total_segmentator, test_images)` (line 150): Test that anatomy group masks are created correctly.
-  - `def test_contrast_detection(self, segmenter_total_segmentator, test_images)` (line 194): Test contrast detection functionality.
-  - `def test_preprocessing(self, segmenter_total_segmentator, test_images)` (line 225): Test preprocessing functionality.
-  - `def test_postprocessing(self, segmenter_total_segmentator, test_images)` (line 249): Test postprocessing functionality.
+  - `def test_segment_single_image(self, segmenter_total_segmentator, test_images, test_directories)` (line 55): Test segmentation on a single time point.
+  - `def test_segment_multiple_images(self, segmenter_total_segmentator, test_images, test_directories)` (line 113): Test segmentation on two time points.
+  - `def test_anatomy_group_masks(self, segmenter_total_segmentator, test_images)` (line 144): Test that anatomy group masks are created correctly.
+  - `def test_contrast_detection(self, segmenter_total_segmentator, test_images)` (line 188): Test contrast detection functionality.
+  - `def test_preprocessing(self, segmenter_total_segmentator, test_images)` (line 219): Test preprocessing functionality.
+  - `def test_postprocessing(self, segmenter_total_segmentator, test_images)` (line 243): Test postprocessing functionality.
 
 ## tests/test_segment_heart_simpleware.py
 
 - **class TestSegmentHeartSimpleware** (line 32): Test suite for SegmentHeartSimpleware (Simpleware Medical ASCardio).
   - `def test_segmenter_initialization(self, segmenter_simpleware)` (line 35): Test that SegmentHeartSimpleware initializes correctly.
-  - `def test_set_simpleware_executable_path(self, segmenter_simpleware)` (line 61): Test setting custom Simpleware executable path.
-  - `def test_segment_single_image(self, segmenter_simpleware, test_images, test_directories)` (line 74): Test segmentation on a cardiac CT time point.
-  - `def test_anatomy_group_masks(self, segmenter_simpleware, test_images)` (line 129): Test that anatomy group masks are created (heart, vessels, etc.).
-  - `def test_contrast_detection(self, segmenter_simpleware, test_images)` (line 166): Test contrast mask is returned (base class behavior).
-  - `def test_postprocessing(self, segmenter_simpleware, test_images)` (line 182): Test that output labelmap matches input size and spacing.
+  - `def test_set_simpleware_executable_path(self, segmenter_simpleware)` (line 68): Test setting custom Simpleware executable path.
+  - `def test_segment_single_image(self, segmenter_simpleware, test_images, test_directories)` (line 81): Test segmentation on a cardiac CT time point.
+  - `def test_anatomy_group_masks(self, segmenter_simpleware, test_images)` (line 145): Test that anatomy group masks are created (heart, vessels, etc.).
+  - `def test_contrast_detection(self, segmenter_simpleware, test_images)` (line 182): Test contrast mask is returned (base class behavior).
+  - `def test_postprocessing(self, segmenter_simpleware, test_images)` (line 198): Test that output labelmap matches input size and spacing.
 
 ## tests/test_transform_tools.py
 
@@ -705,24 +741,18 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## tests/test_tutorials.py
 
-- `def test_testtools_results_output_dir_override(tmp_path)` (line 78): Store result artifacts in an explicit directory when requested.
-- `def test_tutorial_01_contour_png_mesh_uses_current_run_results()` (line 103): Select current in-memory contours instead of disk VTP outputs.
-- `def test_tutorial_01_reference_png_uses_workflow_fixed_image(tmp_path)` (line 119): Select the actual workflow reference image over cached slice images.
-- `def test_tutorial_01_overlay_uses_workflow_fixed_segmentation(tmp_path)` (line 134): Select the current fixed labelmap over cached slice labelmaps.
-- `def test_tutorial_01_overlay_falls_back_to_fixed_image_mask(tmp_path)` (line 149): Read fixed_image_mask.mha before stale slice labelmap files.
-- **class TestTutorial01HeartGatedCTToUSD** (line 176): End-to-end test for tutorial_01_heart_gated_ct_to_usd.py.
-  - `def test_run(self, test_directories)` (line 181)
-- **class TestTutorial02CTToVTK** (line 210): End-to-end test for tutorial_02_ct_to_vtk.py.
-  - `def test_run(self, test_directories)` (line 215)
-- **class TestTutorial03CreateStatisticalModel** (line 243): End-to-end test for tutorial_03_create_statistical_model.py.
-  - `def test_run(self, test_directories)` (line 248)
-- `def test_tutorial_04_extract_surface_uses_dataset_surface()` (line 281): Use the robust dataset_surface algorithm for VTK surface extraction.
-- **class TestTutorial04FitStatisticalModelToPatient** (line 296): End-to-end test for tutorial_04_fit_statistical_model_to_patient.py.
-  - `def test_run(self, test_directories)` (line 301)
-- **class TestTutorial05VTKToUSD** (line 356): End-to-end test for tutorial_05_vtk_to_usd.py.
-  - `def test_run(self, test_directories)` (line 361)
-- **class TestTutorial06ReconstructHighres4DCT** (line 406): End-to-end test for tutorial_06_reconstruct_highres_4d_ct.py.
-  - `def test_run(self, test_directories)` (line 411)
+- **class TestTutorial01HeartGatedCTToUSD** (line 79): End-to-end test for tutorial_01_heart_gated_ct_to_usd.py.
+  - `def test_run(self, test_directories)` (line 84)
+- **class TestTutorial02CTToVTK** (line 107): End-to-end test for tutorial_02_ct_to_vtk.py.
+  - `def test_run(self, test_directories)` (line 112)
+- **class TestTutorial03CreateStatisticalModel** (line 134): End-to-end test for tutorial_03_create_statistical_model.py.
+  - `def test_run(self, test_directories)` (line 139)
+- **class TestTutorial04FitStatisticalModelToPatient** (line 162): End-to-end test for tutorial_04_fit_statistical_model_to_patient.py.
+  - `def test_run(self, test_directories)` (line 167)
+- **class TestTutorial05VTKToUSD** (line 206): End-to-end test for tutorial_05_vtk_to_usd.py.
+  - `def test_run(self, test_directories)` (line 211)
+- **class TestTutorial06ReconstructHighres4DCT** (line 247): End-to-end test for tutorial_06_reconstruct_highres_4d_ct.py.
+  - `def test_run(self, test_directories)` (line 252)
 
 ## tests/test_usd_merge.py
 
@@ -752,61 +782,38 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## tests/test_vtk_to_usd_library.py
 
-- `def get_data_dir()` (line 24): Get the data directory path.
-- `def check_kcl_heart_data()` (line 31): Check if KCL Heart Model data is available.
-- `def get_or_create_average_surface(test_directories)` (line 38): Get or create average_surface.vtp from average_mesh.vtk.
-- `def kcl_average_surface(test_directories)` (line 65): Fixture providing the KCL average heart surface.
-- **class TestFromFilesValidation** (line 78): Synthetic tests for ConvertVTKToUSD.from_files().
-  - `def test_time_codes_length_mismatch_raises(self, tmp_path)` (line 81): from_files() must reject time_codes whose length != len(vtk_files).
-  - `def test_time_codes_non_monotone_raises(self, tmp_path)` (line 91): from_files() must reject time_codes that decrease between frames.
-  - `def test_time_codes_equal_consecutive_is_valid(self, tmp_path)` (line 101): Equal consecutive time codes are non-decreasing and must not raise.
-  - `def test_from_files_single_file_writes_static_mesh(self, tmp_path)` (line 113): A single-file converter writes a static mesh with no time range.
-  - `def test_from_files_static_merge_writes_separate_meshes(self, tmp_path)` (line 125): static_merge=True treats files as static objects, not time samples.
-- **class TestSyntheticConversion** (line 144): Synthetic ConvertVTKToUSD tests that do not require downloaded data.
-  - `def test_inspect_file_reports_public_summary(self, tmp_path)` (line 147): inspect_file() reports geometry, bounds, arrays, and cell types.
-  - `def test_inspect_file_reports_empty_mesh(self, tmp_path)` (line 167): inspect_file() reports empty meshes without raising.
-  - `def test_file_primvar_preservation(self, tmp_path)` (line 183): Point arrays in a VTP file are preserved as USD primvars.
-  - `def test_time_series_conversion(self, tmp_path)` (line 202): Multiple VTP files write point time samples and stage time metadata.
-- **class TestVTKToUSDConversion** (line 226): Test ConvertVTKToUSD on optional real VTK data.
-  - `def test_single_file_conversion(self, test_directories, kcl_average_surface)` (line 229): Test converting a single VTK file to USD.
-  - `def test_conversion_with_material(self, test_directories, kcl_average_surface)` (line 248): Test conversion with a custom solid color material.
-  - `def test_conversion_settings(self, test_directories, kcl_average_surface)` (line 276): Test that ConvertVTKToUSD applies correct default stage metadata.
-- **class TestIntegration** (line 293): Integration tests combining multiple features.
-  - `def test_end_to_end_conversion(self, test_directories, kcl_average_surface)` (line 296): Test complete conversion workflow with all features.
-- **class TestUnitScaling** (line 319): Verify that VTK mm coordinates are converted to USD meter coordinates.
-  - `def test_mm_to_m_point_scaling(self, tmp_path)` (line 322): Points written to USD must be 0.001x their original mm values.
-  - `def test_normals_remain_unit_length(self, tmp_path)` (line 342): Normal vectors must not be scaled.
-  - `def test_stage_meters_per_unit(self, tmp_path)` (line 362): Stage metersPerUnit metadata must be 1.0.
+- `def get_data_dir()` (line 27): Get the data directory path.
+- `def check_kcl_heart_data()` (line 34): Check if KCL Heart Model data is available.
+- `def get_or_create_average_surface(test_directories)` (line 41): Get or create average_surface.vtp from average_mesh.vtk.
+- `def kcl_average_surface(test_directories)` (line 68): Fixture providing the KCL average heart surface.
+- **class TestFromFilesValidation** (line 81): Synthetic tests for ConvertVTKToUSD.from_files().
+  - `def test_time_codes_length_mismatch_raises(self, tmp_path)` (line 84): from_files() must reject time_codes whose length != len(vtk_files).
+  - `def test_time_codes_non_monotone_raises(self, tmp_path)` (line 94): from_files() must reject time_codes that decrease between frames.
+  - `def test_time_codes_equal_consecutive_is_valid(self, tmp_path)` (line 104): Equal consecutive time codes are non-decreasing and must not raise.
+  - `def test_from_files_single_file_writes_static_mesh(self, tmp_path)` (line 116): A single-file converter writes a static mesh with no time range.
+  - `def test_openusd_screenshot_uses_vtk_loader(self, tmp_path)` (line 128): Render a tiny OpenUSD mesh through TestTools without USD imaging plugins.
+  - `def test_from_files_static_merge_writes_separate_meshes(self, tmp_path)` (line 168): static_merge=True treats files as static objects, not time samples.
+- **class TestSyntheticConversion** (line 187): Synthetic ConvertVTKToUSD tests that do not require downloaded data.
+  - `def test_inspect_file_reports_public_summary(self, tmp_path)` (line 190): inspect_file() reports geometry, bounds, arrays, and cell types.
+  - `def test_inspect_file_reports_empty_mesh(self, tmp_path)` (line 210): inspect_file() reports empty meshes without raising.
+  - `def test_file_primvar_preservation(self, tmp_path)` (line 226): Point arrays in a VTP file are preserved as USD primvars.
+  - `def test_time_series_conversion(self, tmp_path)` (line 245): Multiple VTP files write point time samples and stage time metadata.
+- **class TestVTKToUSDConversion** (line 269): Test ConvertVTKToUSD on optional real VTK data.
+  - `def test_single_file_conversion(self, test_directories, kcl_average_surface)` (line 272): Test converting a single VTK file to USD.
+  - `def test_conversion_with_material(self, test_directories, kcl_average_surface)` (line 291): Test conversion with a custom solid color material.
+  - `def test_conversion_settings(self, test_directories, kcl_average_surface)` (line 319): Test that ConvertVTKToUSD applies correct default stage metadata.
+- **class TestIntegration** (line 336): Integration tests combining multiple features.
+  - `def test_end_to_end_conversion(self, test_directories, kcl_average_surface)` (line 339): Test complete conversion workflow with all features.
+- **class TestUnitScaling** (line 362): Verify that VTK mm coordinates are converted to USD meter coordinates.
+  - `def test_mm_to_m_point_scaling(self, tmp_path)` (line 365): Points written to USD must be 0.001x their original mm values.
+  - `def test_normals_remain_unit_length(self, tmp_path)` (line 385): Normal vectors must not be scaled.
+  - `def test_stage_meters_per_unit(self, tmp_path)` (line 405): Stage metersPerUnit metadata must be 1.0.
 
 ## tests/test_workflow_fit_statistical_model_to_patient.py
 
 - `def test_auto_generate_mask_accumulates_multilabel_models(monkeypatch)` (line 16): Multi-model masks accumulate label IDs instead of overwriting prior labels.
 - `def test_transform_model_applies_staged_transform()` (line 61): Transform helper updates mesh points with image shape (Z, Y, X) = (3, 3, 3).
 - `def test_transform_model_preserves_unstructured_grid_topology()` (line 93): Transform helper preserves cells with image shape (Z, Y, X) = (3, 3, 3).
-
-## tutorials/tutorial_01_heart_gated_ct_to_usd.py
-
-- `def run_tutorial(data_dir, output_dir, *, registration_method='ants', log_level=logging.INFO)` (line 176): Run Tutorial 1: Heart-Gated CT to Animated USD.
-
-## tutorials/tutorial_02_ct_to_vtk.py
-
-- `def run_tutorial(data_dir, output_dir, *, log_level=logging.INFO)` (line 122): Run Tutorial 2: CT Segmentation to VTK Surfaces.
-
-## tutorials/tutorial_03_create_statistical_model.py
-
-- `def run_tutorial(data_dir, output_dir, *, pca_components=10, max_samples=20, log_level=logging.INFO)` (line 93): Run Tutorial 3: Create a PCA Statistical Shape Model.
-
-## tutorials/tutorial_04_fit_statistical_model_to_patient.py
-
-- `def run_tutorial(data_dir, output_dir, *, pca_json=None, log_level=logging.INFO)` (line 101): Run Tutorial 4: Fit Statistical Shape Model to Patient Data.
-
-## tutorials/tutorial_05_vtk_to_usd.py
-
-- `def run_tutorial(data_dir, output_dir, *, vtk_file=None, log_level=logging.INFO)` (line 80): Run Tutorial 5: VTK Surface Series to Animated USD.
-
-## tutorials/tutorial_06_reconstruct_highres_4d_ct.py
-
-- `def run_tutorial(data_dir, output_dir, *, case=1, max_frames=4, registration_method='ants', log_level=logging.INFO)` (line 97): Run Tutorial 6: Reconstruct High-Resolution 4D CT.
 
 ## utils/ai_agent_github_reviews.py
 

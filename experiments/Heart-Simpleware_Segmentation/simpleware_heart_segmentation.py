@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -105,7 +105,7 @@ if input_image is not None:
     axes[2].axis("off")
 
     plt.tight_layout()
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plt.show()
 
     print(f"Image intensity range: [{image_array.min():.1f}, {image_array.max():.1f}]")
@@ -131,15 +131,17 @@ else:
 # Display segmentation configuration
 print("\nSegmentation Configuration:")
 print(f"  Target spacing: {segmenter.target_spacing} mm")
-print(f"  Heart structures: {len(segmenter.heart_mask_ids)} labels")
-print(f"  Vessel structures: {len(segmenter.major_vessels_mask_ids)} labels")
+heart_labels = segmenter.taxonomy.labels_in_group("heart")
+vessel_labels = segmenter.taxonomy.labels_in_group("major_vessels")
+print(f"  Heart structures: {len(heart_labels)} labels")
+print(f"  Vessel structures: {len(vessel_labels)} labels")
 
 print("\nHeart Structure IDs:")
-for id, name in segmenter.heart_mask_ids.items():
+for id, name in heart_labels.items():
     print(f"  {id}: {name}")
 
 print("\nMajor Vessel IDs:")
-for id, name in segmenter.major_vessels_mask_ids.items():
+for id, name in vessel_labels.items():
     print(f"  {id}: {name}")
 
 # %% [markdown]
@@ -231,9 +233,9 @@ if result is not None:
 
     # Combine all mask dictionaries for label lookup
     all_labels = {
-        **segmenter.heart_mask_ids,
-        **segmenter.major_vessels_mask_ids,
-        **segmenter.contrast_mask_ids,
+        **segmenter.taxonomy.labels_in_group("heart"),
+        **segmenter.taxonomy.labels_in_group("major_vessels"),
+        **segmenter.taxonomy.labels_in_group("contrast"),
     }
 
     for label, count in zip(unique_labels, label_counts):
@@ -336,7 +338,7 @@ if result is not None and input_image is not None:
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "segmentation_visualization.png"), dpi=150)
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plt.show()
 
     print(
@@ -391,7 +393,7 @@ if result is not None:
 
     # Save screenshot
     screenshot_path = os.path.join(output_dir, "3d_visualization.png")
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plotter.show(screenshot=screenshot_path)
 
     print(f"3D visualization saved to: {screenshot_path}")

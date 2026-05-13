@@ -2,9 +2,9 @@
 # %%
 import os
 import shutil
-import urllib.request
 
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
+from physiomotion4d.data_download_tools import DataDownloadTools
 
 # %%
 data_dir = "."
@@ -16,17 +16,12 @@ if not os.path.exists(data_dir):
 if not os.path.exists(output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
-# %%
-input_image_url = "https://github.com/SlicerHeart/SlicerHeart/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
-input_image_filename = os.path.join(data_dir, "TruncalValve_4DCT.seq.nrrd")
-
-if not os.path.exists(input_image_filename):
-    urllib.request.urlretrieve(input_image_url, input_image_filename)
+input_image_filename = DataDownloadTools.DownloadSlicerHeartCTData(data_dir)
 
 # %%
 conv = ConvertNRRD4DTo3D()
-conv.load_nrrd_4d(f"{data_dir}/TruncalValve_4DCT.seq.nrrd")
-conv.save_3d_images(f"{output_dir}/slice")
+conv.load_nrrd_4d(str(input_image_filename))
+conv.save_3d_images(output_dir, "slice")
 
 # Save the mid-stroke slice as the fixed/reference image
 shutil.copyfile(f"{output_dir}/slice_007.mha", f"{output_dir}/slice_fixed.mha")

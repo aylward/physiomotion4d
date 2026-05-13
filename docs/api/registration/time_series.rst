@@ -2,6 +2,7 @@
 Time-Series Registration
 ========================
 
+.. module:: physiomotion4d.register_time_series_images
 .. currentmodule:: physiomotion4d
 
 ``RegisterTimeSeriesImages`` registers ordered 3D image phases to a reference

@@ -13,6 +13,7 @@ are used to track anatomical motion over time.
 
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TypeAlias, cast
 
 try:
@@ -28,10 +29,11 @@ import pyvista as pv
 import SimpleITK as sitk
 import vtk
 from numpy.typing import NDArray
-from pxr import Gf, Usd, UsdGeom
+from pxr import Gf, Sdf, Usd, UsdGeom
 
 from physiomotion4d.image_tools import ImageTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from physiomotion4d.vtk_to_usd import add_framing_camera
 
 FloatArray: TypeAlias = NDArray[np.float32] | NDArray[np.float64]
 
@@ -895,6 +897,17 @@ class TransformTools(PhysioMotion4DBase):
             size[2] // subsample_factor,
         ]
 
+        # Remove any existing file and evict any stale in-memory USD layer.
+        # USD caches layers globally by identifier, so a prior call in the
+        # same Python session can block CreateNew even after the file is gone.
+        output_path = Path(output_filename)
+        if output_path.exists():
+            output_path.unlink()
+        stale_layer = Sdf.Layer.Find(str(output_path))
+        if stale_layer is not None:
+            stale_layer.Clear()
+            del stale_layer
+
         # Create USD stage
         stage = Usd.Stage.CreateNew(output_filename)
 
@@ -929,6 +942,9 @@ class TransformTools(PhysioMotion4DBase):
                 f"Invalid visualization_type: {visualization_type}. "
                 "Must be 'arrows' or 'flowlines'."
             )
+
+        # Framing camera with tight near-clip for Omniverse Kit viewer ergonomics.
+        add_framing_camera(stage)
 
         # Save the stage
         stage.Save()

@@ -1,22 +1,27 @@
 # Experiment Tests Guide
 
-This guide explains how to use the automated test suite for PhysioMotion4D experiment notebooks.
+This guide explains how to use the automated test suite for PhysioMotion4D experiment scripts.
 
 ## Overview
 
-The `test_experiments.py` module provides automated testing for all Jupyter notebooks in the `experiments/` directory. Each subdirectory gets its own test that executes all notebooks in alphanumeric order.
+The `test_experiments.py` module provides automated testing for all percent-cell
+Python scripts in the `experiments/` directory. Each subdirectory gets its own
+test that executes every `*.py` script in alphanumeric order.
 
-⚠️ **WARNING:** These tests are **EXTREMELY LONG-RUNNING** and may take multiple hours to complete.
+**WARNING:** These tests are **extremely long-running** and may take multiple
+hours to complete.
 
-🔒 **PROTECTION:** Experiment tests are **opt-in only**. They will NOT run with standard pytest commands like `pytest tests/` or `pytest -v tests/`. You must explicitly pass the `--run-experiments` flag to run them.
+**PROTECTION:** Experiment tests are **opt-in only**. They will NOT run with
+standard pytest commands like `pytest tests/` or `pytest -v tests/`. You must
+explicitly pass the `--run-experiments` flag to run them.
 
 ## Quick Start
 
 ### List Available Experiments
 
 ```bash
-# See all notebooks that would be run (without executing)
-pytest tests/test_experiments.py::test_list_notebooks_in_subdir -v -s --run-experiments
+# See all scripts that would be run (without executing)
+pytest tests/test_experiments.py::test_list_scripts_in_subdir -v -s --run-experiments
 
 # Validate experiment directory structure
 pytest tests/test_experiments.py::test_experiment_structure -v --run-experiments
@@ -32,7 +37,8 @@ pytest tests/test_experiments.py -v --run-experiments
 pytest tests/test_experiments.py -v -m experiment --run-experiments
 ```
 
-⚠️ **IMPORTANT:** Experiment tests require the `--run-experiments` flag to run. Without this flag, they will be automatically skipped.
+**IMPORTANT:** Experiment tests require the `--run-experiments` flag to run.
+Without this flag, they are automatically skipped.
 
 ### Run Individual Experiments
 
@@ -61,41 +67,45 @@ pytest tests/test_experiments.py::test_experiment_heart_statistical_model_to_pat
 # Lung Gated CT to USD (~6 hours, requires GPU & data)
 pytest tests/test_experiments.py::test_experiment_lung_gated_ct_to_usd -v -s --run-experiments
 
-# DISABLED (notebooks not ready):
+# DISABLED (scripts not ready):
 # - test_experiment_displacement_field_to_usd
 # - test_experiment_lung_vessels_airways
 ```
 
-⚠️ **NOTE:** All experiment tests require the `--run-experiments` flag. Without it, they are automatically skipped.
+**NOTE:** All experiment tests require the `--run-experiments` flag. Without
+it, they are automatically skipped.
 
 ## Test Details
 
 ### Available Experiment Tests
 
-| Test Name                                            | Subdirectory                          | Expected Duration | Requirements   | Status         |
-| ---------------------------------------------------- | ------------------------------------- | ----------------- | -------------- | -------------- |
-| `test_experiment_colormap_vtk_to_usd`                | `Colormap-VTK_To_USD/`                | ~2 hours          | Basic          | ✅ Active       |
-| `test_experiment_convert_vtk_to_usd`                 | `Convert_VTK_To_USD/`                 | ~2 hours          | Data           | ✅ Active       |
-| ~~`test_experiment_displacement_field_to_usd`~~      | ~~`DisplacementField_To_USD/`~~       | ~~~2 hours~~      | ~~Basic~~      | 🚫 **Disabled** |
-| `test_experiment_reconstruct_4dct`                   | `Reconstruct4DCT/`                    | ~4 hours          | GPU            | ✅ Active       |
-| `test_experiment_heart_vtk_series_to_usd`            | `Heart-VTKSeries_To_USD/`             | ~3 hours          | Data           | ✅ Active       |
-| `test_experiment_heart_gated_ct_to_usd`              | `Heart-GatedCT_To_USD/`               | ~6 hours          | GPU + Data     | ✅ Active       |
-| `test_experiment_create_statistical_model`           | `Heart-Create_Statistical_Model/`     | ~3 hours          | Data           | ✅ Active       |
-| `test_experiment_heart_statistical_model_to_patient` | `Heart-Statistical_Model_To_Patient/` | ~4 hours          | GPU + Data     | ✅ Active       |
-| `test_experiment_lung_gated_ct_to_usd`               | `Lung-GatedCT_To_USD/`                | ~6 hours          | GPU + Data     | ✅ Active       |
-| ~~`test_experiment_lung_vessels_airways`~~           | ~~`Lung-VesselsAirways/`~~            | ~~~2 hours~~      | ~~GPU + Data~~ | 🚫 **Disabled** |
+| Test Name                                            | Subdirectory                          | Expected Duration | Requirements   | Status     |
+| ---------------------------------------------------- | ------------------------------------- | ----------------- | -------------- | ---------- |
+| `test_experiment_colormap_vtk_to_usd`                | `Colormap-VTK_To_USD/`                | ~2 hours          | Basic          | Active     |
+| `test_experiment_convert_vtk_to_usd`                 | `Convert_VTK_To_USD/`                 | ~2 hours          | Data           | Active     |
+| ~~`test_experiment_displacement_field_to_usd`~~      | ~~`DisplacementField_To_USD/`~~       | ~~~2 hours~~      | ~~Basic~~      | Disabled   |
+| `test_experiment_reconstruct_4dct`                   | `Reconstruct4DCT/`                    | ~4 hours          | GPU            | Active     |
+| `test_experiment_heart_vtk_series_to_usd`            | `Heart-VTKSeries_To_USD/`             | ~3 hours          | Data           | Active     |
+| `test_experiment_heart_gated_ct_to_usd`              | `Heart-GatedCT_To_USD/`               | ~6 hours          | GPU + Data     | Active     |
+| `test_experiment_create_statistical_model`           | `Heart-Create_Statistical_Model/`     | ~3 hours          | Data           | Active     |
+| `test_experiment_heart_statistical_model_to_patient` | `Heart-Statistical_Model_To_Patient/` | ~4 hours          | GPU + Data     | Active     |
+| `test_experiment_lung_gated_ct_to_usd`               | `Lung-GatedCT_To_USD/`                | ~6 hours          | GPU + Data     | Active     |
+| ~~`test_experiment_lung_vessels_airways`~~           | ~~`Lung-VesselsAirways/`~~            | ~~~2 hours~~      | ~~GPU + Data~~ | Disabled   |
 
-**Note:** Disabled tests are commented out in the code and will not run. They can be re-enabled when the notebooks are ready.
+**Note:** Disabled tests are commented out in the code and will not run. They
+can be re-enabled when the scripts are ready.
 
 ### Execution Order
 
-Within each subdirectory, notebooks are executed in **alphanumeric order**:
-- `0-download_and_convert_4d_to_3d.ipynb` (runs first)
-- `1-register_images.ipynb` (runs second)
-- `2-generate_segmentation.ipynb` (runs third)
+Within each subdirectory, scripts are executed in **alphanumeric order**
+(the runner uses `sorted(subdir.glob("*.py"))`):
+
+- `0-download_and_convert_4d_to_3d.py` (runs first)
+- `1-register_images.py` (runs second)
+- `2-generate_segmentation.py` (runs third)
 - etc.
 
-This ensures that notebooks with dependencies run in the correct sequence.
+This ensures that scripts with dependencies run in the correct sequence.
 
 ## Requirements
 
@@ -123,7 +133,7 @@ Some experiments require external data downloads:
 - Heart experiments: Slicer-Heart-CT dataset (~1.2GB)
 - Lung experiments: DirLab 4DCT dataset (varies by case)
 
-Data is typically downloaded automatically by the first notebook in each sequence.
+Data is typically downloaded automatically by the first script in each sequence.
 
 ## Test Markers
 
@@ -137,79 +147,92 @@ All experiment tests are marked with:
 
 ## Running as Test: PHYSIOMOTION_RUNNING_AS_TEST
 
-When you run experiment tests with `pytest ... --run-experiments`, the test runner sets the environment variable **`PHYSIOMOTION_RUNNING_AS_TEST=1`** before executing each notebook. Notebooks can read this to use **reduced parameters** (fewer iterations, fewer files, smaller resolution) so test runs complete in reasonable time.
+When you run experiment tests with `pytest ... --run-experiments`, the test
+runner sets the environment variable **`PHYSIOMOTION_RUNNING_AS_TEST=1`** before
+executing each script. Scripts can read this to use **reduced parameters**
+(fewer iterations, fewer files, smaller resolution) so test runs complete in
+reasonable time.
 
 ### How it works
 
-- **Test runner** ([test_experiments.py](test_experiments.py)): `execute_notebook()` passes `env` with `PHYSIOMOTION_RUNNING_AS_TEST=1` to the subprocess that runs `jupyter nbconvert --execute`, so the notebook kernel sees the variable.
-- **Notebooks**: In an early cell (e.g. after imports or with other config), compute a boolean and use it to choose quick vs full parameters.
+- **Test runner** ([test_experiments.py](test_experiments.py)): `execute_script()`
+  passes `env` with `PHYSIOMOTION_RUNNING_AS_TEST=1` to the subprocess that runs
+  the script as a standalone Python file, so the script process sees the variable.
+- **Scripts**: Early in the script (after imports or with other config),
+  compute a boolean and use it to choose quick vs full parameters.
 
-### Recommended check in notebooks
+### Recommended check in scripts
 
 Use either of these:
 
-**Option 1 – inline (no extra import):**
+**Option 1 - inline (stdlib only):**
 
 ```python
+import os
+
 running_as_test = os.environ.get("PHYSIOMOTION_RUNNING_AS_TEST", "").lower() in ("1", "true", "yes")
 ```
 
-**Option 2 – shared helper (recommended):**
+**Option 2 - shared helper (recommended):**
 
 ```python
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
-# Then use running_as_test() where you need it, e.g.:
-quick_run = running_as_test()
-max_iterations = 100 if running_as_test() else 2000
+# Then use TestTools.running_as_test() where you need it, e.g.:
+quick_run = TestTools.running_as_test()
+max_iterations = 100 if TestTools.running_as_test() else 2000
 ```
 
 ### Semantics
 
-- **Truthy values** (case-insensitive): `1`, `true`, `yes` → notebook should use fast/small parameters.
+- **Truthy values** (case-insensitive): `1`, `true`, `yes` -> script should use
+  fast/small parameters.
 - **Unset or falsy**: use full parameters (normal interactive or production run).
 
-Notebooks that support this will run quickly when executed as tests and at full fidelity when run manually.
+Scripts that support this will run quickly when executed as tests and at full
+fidelity when run manually.
 
 ## Usage Tips
 
 ### Run with Detailed Output
 
 ```bash
-# Show all output from notebooks (recommended)
+# Show all output from scripts (recommended)
 pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s
 ```
 
 The `-s` flag shows all stdout/stderr, including:
-- Notebook execution progress
-- Cell outputs
+- Script execution progress
+- Cell outputs (`# %%` percent-cell scripts are run as ordinary Python)
 - Error messages
 - Execution summaries
 
 ### Monitor Progress
 
-Each notebook execution prints:
+Each script execution prints:
 ```
 ================================================================================
-Executing notebook: 1-register_images.ipynb
-Path: experiments/Heart-GatedCT_To_USD/1-register_images.ipynb
+Executing script: 1-register_images.py
+Path: experiments/Heart-GatedCT_To_USD/1-register_images.py
 Timeout: 5400 seconds (90 minutes)
 ================================================================================
 
-... (notebook output) ...
+... (script output) ...
 
-✅ Successfully executed: 1-register_images.ipynb
+Successfully executed: 1-register_images.py
 ```
 
 ### Handle Failures
 
-If a notebook fails:
+If a script fails:
 1. Check the error output in the pytest summary
-2. Open the notebook file to see execution results
+2. Open the script to inspect the failing cell
 3. Fix the issue (code, data, environment)
 4. Re-run the specific test
 
-The notebooks are executed **in place** (with `--inplace` flag), so execution results are saved in the notebook file.
+The scripts are executed as ordinary Python (`python <script>.py`); cell
+boundaries from `# %%` markers are only meaningful inside cell-aware editors
+and do not affect test execution.
 
 ### Skip Tests by Marker
 
@@ -224,13 +247,15 @@ pytest tests/test_experiments.py -m "experiment and not requires_data" -v --run-
 pytest tests/test_experiments.py -m "experiment and not requires_gpu and not requires_data" -v --run-experiments
 ```
 
-**Note:** The `--run-experiments` flag is always required, regardless of marker filters.
+**Note:** The `--run-experiments` flag is always required, regardless of marker
+filters.
 
 ## CI/CD Exclusion
 
 **These tests are NEVER run in CI/CD workflows.**
 
-Experiment tests are protected by requiring the `--run-experiments` flag, which is never used in CI/CD. Even if someone accidentally runs:
+Experiment tests are protected by requiring the `--run-experiments` flag, which
+is never used in CI/CD. Even if someone accidentally runs:
 
 ```bash
 # These commands will NOT run experiment tests (they'll be skipped)
@@ -270,7 +295,7 @@ If a test times out:
 
 If you get OOM errors:
 1. Close other applications
-2. Reduce batch sizes in notebooks (if applicable)
+2. Reduce batch sizes in scripts (if applicable)
 3. Use smaller test datasets
 4. Consider running on a machine with more RAM
 
@@ -286,15 +311,15 @@ If GPU tests fail due to CUDA issues:
 
 If data downloads fail:
 1. Check internet connection
-2. Verify URLs in notebooks are still valid
+2. Verify URLs in scripts are still valid
 3. Manually download data and place in expected location
 4. Check disk space
 
-### Notebook Execution Errors
+### Script Execution Errors
 
-If individual cells fail:
-1. Open the notebook in JupyterLab
-2. Run cells manually to identify the issue
+If a script fails:
+1. Open the script in your editor (VS Code / Cursor with the Python extension)
+2. Run the cells in order to identify the issue
 3. Check for:
    - Missing dependencies
    - Incorrect paths
@@ -305,11 +330,11 @@ If individual cells fail:
 
 ### Customizing Timeouts
 
-Edit `test_experiments.py` to adjust per-notebook or per-test timeouts:
+Edit `test_experiments.py` to adjust per-script or per-test timeouts:
 
 ```python
-# Per-notebook timeout (default: 3600 seconds = 1 hour)
-run_experiment_notebooks('Heart-GatedCT_To_USD', timeout_per_notebook=7200)
+# Per-script timeout (default: 3600 seconds = 1 hour)
+run_experiment_scripts('Heart-GatedCT_To_USD', timeout_per_script=7200)
 
 # Per-test timeout decorator
 @pytest.mark.timeout(21600)  # 6 hours
@@ -322,7 +347,7 @@ def test_experiment_...():
 To add a new experiment directory:
 
 1. Create the subdirectory in `experiments/`
-2. Add notebooks (use numeric prefixes for ordering)
+2. Add `# %%` percent-cell Python scripts (use numeric prefixes for ordering)
 3. Add to `EXPERIMENT_SUBDIRS` list in `test_experiments.py`:
    ```python
    EXPERIMENT_SUBDIRS = [
@@ -337,13 +362,13 @@ To add a new experiment directory:
    @pytest.mark.slow
    @pytest.mark.timeout(7200)
    def test_experiment_your_new_experiment():
-       """Test YourNewExperiment notebooks."""
-       run_experiment_notebooks('YourNewExperiment', timeout_per_notebook=3600)
+       """Test YourNewExperiment scripts."""
+       run_experiment_scripts('YourNewExperiment', timeout_per_script=3600)
    ```
 
 ### Parallel Execution
 
-⚠️ **Use with caution** - Experiments use significant GPU/CPU resources.
+**Use with caution** - Experiments use significant GPU/CPU resources.
 
 You can run multiple experiment subdirectories in parallel using pytest-xdist:
 
@@ -356,11 +381,11 @@ pytest tests/test_experiments.py -v -n auto --run-experiments
 ```
 
 **IMPORTANT GUARANTEES:**
-- ✅ Notebooks **within** each subdirectory run **SEQUENTIALLY** in alphanumeric order
-- ✅ Different subdirectories **CAN** run in parallel (if resources allow)
-- ✅ Each test function is atomic - pytest-xdist won't split notebook execution
-- ✅ `@pytest.mark.xdist_group` markers prevent conflicts if needed
-- ✅ Execution stops on first failure within each subdirectory
+- Scripts **within** each subdirectory run **SEQUENTIALLY** in alphanumeric order
+- Different subdirectories **CAN** run in parallel (if resources allow)
+- Each test function is atomic - pytest-xdist won't split script execution
+- `@pytest.mark.xdist_group` markers prevent conflicts if needed
+- Execution stops on first failure within each subdirectory
 
 **Example:**
 ```bash
@@ -368,33 +393,38 @@ pytest tests/test_experiments.py -v -n auto --run-experiments
 # Worker 1: test_experiment_colormap_vtk_to_usd
 # Worker 2: test_experiment_heart_vtk_series_to_usd
 
-# But within Worker 1's test, notebooks run in strict order:
-# 1. colormap_vtk_to_usd.ipynb (must complete first)
-# ... (any subsequent notebooks in that directory)
+# But within Worker 1's test, scripts run in strict order:
+# 1. colormap_vtk_to_usd.py (must complete first)
+# ... (any subsequent scripts in that directory)
 ```
 
 ## FAQ
 
 **Q: How long will all experiments take?**
-A: Approximately 32 hours total on a high-end workstation (GPU, 64GB RAM). Note: DisplacementField_To_USD and Lung-VesselsAirways are currently disabled.
+A: Approximately 32 hours total on a high-end workstation (GPU, 64GB RAM). Note:
+DisplacementField_To_USD and Lung-VesselsAirways are currently disabled.
 
 **Q: Can I run these on CPU only?**
-A: Some experiments will work, but most require GPU and will be extremely slow or fail on CPU.
+A: Some experiments will work, but most require GPU and will be extremely slow
+or fail on CPU.
 
-**Q: Will these tests modify the notebooks?**
-A: Yes, notebooks are executed in-place. Execution results are saved in the notebook files.
+**Q: Will these tests modify the scripts?**
+A: No, scripts are executed as ordinary Python processes. The scripts may
+write outputs to disk (per their own logic) but the script files themselves are
+not modified.
 
-**Q: Should I commit notebook outputs?**
-A: Depends on your workflow. Consider using `nbstripout` to clean outputs before committing.
-
-**Q: What if I only want to test specific notebooks?**
-A: The test suite runs all notebooks in a subdirectory. To test individual notebooks, run them manually in JupyterLab.
+**Q: What if I only want to test specific scripts?**
+A: The test suite runs all scripts in a subdirectory. To test individual
+scripts, run them manually with `python path/to/script.py` or use VS
+Code/Cursor's "Run Cell" support for percent-cell scripts.
 
 **Q: Can I use these tests for regression testing?**
-A: Yes, but you'll need to add output validation. Currently, tests only check that notebooks execute without errors.
+A: Yes, but you'll need to add output validation. Currently, tests only check
+that scripts execute without errors.
 
 **Q: Are these tests deterministic?**
-A: Not always - some experiments use random seeds, AI models, or external data that may change.
+A: Not always - some experiments use random seeds, AI models, or external data
+that may change.
 
 ## Related Documentation
 
@@ -421,7 +451,7 @@ If you encounter issues:
 
 1. Check this guide and related documentation
 2. Review the test output carefully
-3. Try running the notebook manually in JupyterLab
+3. Try running the script manually with `python path/to/script.py`
 4. Check GitHub issues for similar problems
 5. Open a new issue with:
    - Test command used
@@ -431,4 +461,5 @@ If you encounter issues:
 
 ---
 
-**Remember:** These tests are for validation and regression testing. They are NOT part of CI/CD and must be run manually.
+**Remember:** These tests are for validation and regression testing. They are
+NOT part of CI/CD and must be run manually.

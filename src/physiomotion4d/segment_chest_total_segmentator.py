@@ -32,20 +32,13 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
     combines the 'total' task (main organs and structures) with the 'body' task
     (body outline) to ensure complete coverage.
 
-    The class maintains specific ID mappings for:
-    - Heart structures (heart, atrial appendage, heart envelope)
-    - Major vessels (aorta, vena cava, carotid arteries, etc.)
-    - Lung structures (lung lobes, trachea, esophagus)
-    - Bone structures (vertebrae, ribs, sternum, skull)
-    - Soft tissue organs (liver, kidneys, spleen, etc.)
+    Anatomy groups (heart, lung, bone, major_vessels, soft_tissue) are
+    populated into :attr:`SegmentAnatomyBase.taxonomy` so downstream
+    consumers (``ConvertVTKToUSD``, ``USDAnatomyTools``) see a single,
+    consistent group→organ mapping.
 
     Attributes:
-        target_spacing (float): Target spacing set to 1.5mm for TotalSegmentator
-        heart_mask_ids (dict): Dictionary mapping heart structure IDs to names
-        major_vessels_mask_ids (dict): Dictionary mapping vessel IDs to names
-        lung_mask_ids (dict): Dictionary mapping lung structure IDs to names
-        bone_mask_ids (dict): Dictionary mapping bone structure IDs to names
-        soft_tissue_mask_ids (dict): Dictionary mapping soft tissue IDs to names
+        target_spacing (float): Target spacing set to 1.5mm for TotalSegmentator.
 
     Example:
         >>> segmenter = SegmentChestTotalSegmentator()
@@ -57,9 +50,10 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
     def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the TotalSegmentator-based chest segmentation.
 
-        Sets up the TotalSegmentator-specific anatomical structure ID mappings
-        and processing parameters. The target spacing is set to 1.5mm which
-        provides a good balance between accuracy and processing speed.
+        Populates :attr:`SegmentAnatomyBase.taxonomy` with the
+        TotalSegmentator class index space, then calls
+        :meth:`SegmentAnatomyBase._finalize_other_group` so unclaimed ids end
+        up in the ``other`` group.
 
         Args:
             log_level: Logging level (default: logging.INFO)
@@ -68,133 +62,149 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
 
         self.target_spacing = 1.5
 
-        self.heart_mask_ids = {
-            51: "heart",
-            61: "atrial_appendage_left",
-            140: "heart_envelop",
-        }
+        # TotalSegmentator class indices, grouped by anatomy. Contrast (135)
+        # and the generic soft_tissue label (133) come from the base class.
+        for group_name, organs in (
+            (
+                "heart",
+                {
+                    51: "heart",
+                    61: "atrial_appendage_left",
+                    140: "heart_envelop",
+                },
+            ),
+            (
+                "major_vessels",
+                {
+                    52: "aorta",
+                    53: "pulmonary_vein",
+                    54: "brachiocephalic_trunk",
+                    55: "right_subclavian_artery",
+                    56: "left_subclavian_artery",
+                    57: "common_carotid_artery_right",
+                    58: "common_carotid_artery_left",
+                    59: "brachiocephalic_vein_left",
+                    60: "brachiocephalic_vein_right",
+                    62: "superior_vena_cava",
+                    63: "inferior_vena_cava",
+                },
+            ),
+            (
+                "lung",
+                {
+                    10: "lung_upper_lobe_left",
+                    11: "lung_lower_lobe_left",
+                    12: "lung_upper_lobe_right",
+                    13: "lung_middle_lobe_right",
+                    14: "lung_lower_lobe_right",
+                    120: "lung_arteries",
+                    121: "lung_veins",
+                    122: "lung_airways",
+                    123: "lung_airways_wall",
+                },
+            ),
+            (
+                "bone",
+                {
+                    26: "vertebra_S1",
+                    27: "vertebra_L5",
+                    28: "vertebra_L4",
+                    29: "vertebrae_L3",
+                    30: "vertebrae_L2",
+                    31: "vertebrae_L1",
+                    32: "vertebrae_T12",
+                    33: "vertebrae_T11",
+                    34: "vertebrae_T10",
+                    35: "vertebrae_T9",
+                    36: "vertebrae_T8",
+                    37: "vertebrae_T7",
+                    38: "vertebrae_T6",
+                    39: "vertebrae_T5",
+                    40: "vertebrae_T4",
+                    41: "vertebrae_T3",
+                    42: "vertebrae_T2",
+                    43: "vertebrae_T1",
+                    44: "vertebrae_C7",
+                    45: "vertebrae_C6",
+                    46: "vertebrae_C5",
+                    47: "vertebrae_C4",
+                    48: "vertebrae_C3",
+                    49: "vertebrae_C2",
+                    50: "vertebrae_C1",
+                    69: "humerus_left",
+                    70: "humerus_right",
+                    71: "scapula_left",
+                    72: "scapula_right",
+                    73: "clavicula_left",
+                    74: "clavicula_right",
+                    75: "femur_left",
+                    76: "femur_right",
+                    77: "hip_left",
+                    78: "hip_right",
+                    91: "skull",
+                    92: "rib_left_1",
+                    93: "rib_left_2",
+                    94: "rib_left_3",
+                    95: "rib_left_4",
+                    96: "rib_left_5",
+                    97: "rib_left_6",
+                    98: "rib_left_7",
+                    99: "rib_left_8",
+                    100: "rib_left_9",
+                    101: "rib_left_10",
+                    102: "rib_left_11",
+                    103: "rib_left_12",
+                    104: "rib_right_1",
+                    105: "rib_right_2",
+                    106: "rib_right_3",
+                    107: "rib_right_4",
+                    108: "rib_right_5",
+                    109: "rib_right_6",
+                    110: "rib_right_7",
+                    111: "rib_right_8",
+                    112: "rib_right_9",
+                    113: "rib_right_10",
+                    114: "rib_right_11",
+                    115: "rib_right_12",
+                    116: "sternum",
+                    117: "costal_cartilages",
+                },
+            ),
+            (
+                "soft_tissue",
+                {
+                    1: "spleen",
+                    2: "kidney_right",
+                    3: "kidney_left",
+                    4: "gallbladder",
+                    5: "liver",
+                    6: "stomach",
+                    7: "pancreas",
+                    8: "adrenal_gland_right",
+                    9: "adrenal_gland_left",
+                    17: "thyroid_gland",
+                    18: "small_bowel",
+                    19: "duodenum",
+                    20: "colon",
+                    21: "urinary_bladder",
+                    22: "prostate",
+                    25: "sacrum",
+                    80: "gluteus_maximus_left",
+                    81: "gluteus_maximus_right",
+                    82: "gluteus_medius_left",
+                    83: "gluteus_medius_right",
+                    84: "gluteus_minimus_left",
+                    85: "gluteus_minimus_right",
+                    90: "brain",
+                    15: "esophagus",
+                    16: "trachea",
+                },
+            ),
+        ):
+            for label_id, organ_name in organs.items():
+                self.taxonomy.add_organ(group_name, label_id, organ_name)
 
-        self.major_vessels_mask_ids = {
-            52: "aorta",
-            53: "pulmonary_vein",
-            54: "brachiocephalic_trunk",
-            55: "right_subclavian_artery",
-            56: "left_subclavian_artery",
-            57: "common_carotid_artery_right",
-            58: "common_carotid_artery_left",
-            59: "brachiocephalic_vein_left",
-            60: "brachiocephalic_vein_right",
-            62: "superior_vena_cava",
-            63: "inferior_vena_cava",
-            120: "lung_vessels",
-        }
-
-        self.lung_mask_ids = {
-            10: "lung_upper_lobe_left",
-            11: "lung_lower_lobe_left",
-            12: "lung_upper_lobe_right",
-            13: "lung_middle_lobe_right",
-            14: "lung_lower_lobe_right",
-        }
-
-        self.bone_mask_ids = {
-            26: "vertebra_S1",
-            27: "vertebra_L5",
-            28: "vertebra_L4",
-            29: "vertebrae_L3",
-            30: "vertebrae_L2",
-            31: "vertebrae_L1",
-            32: "vertebrae_T12",
-            33: "vertebrae_T11",
-            34: "vertebrae_T10",
-            35: "vertebrae_T9",
-            36: "vertebrae_T8",
-            37: "vertebrae_T7",
-            38: "vertebrae_T6",
-            39: "vertebrae_T5",
-            40: "vertebrae_T4",
-            41: "vertebrae_T3",
-            42: "vertebrae_T2",
-            43: "vertebrae_T1",
-            44: "vertebrae_C7",
-            45: "vertebrae_C6",
-            46: "vertebrae_C5",
-            47: "vertebrae_C4",
-            48: "vertebrae_C3",
-            49: "vertebrae_C2",
-            50: "vertebrae_C1",
-            69: "humerus_left",
-            70: "humerus_right",
-            71: "scapula_left",
-            72: "scapula_right",
-            73: "clavicula_left",
-            74: "clavicula_right",
-            75: "femur_left",
-            76: "femur_right",
-            77: "hip_left",
-            78: "hip_right",
-            91: "skull",
-            92: "rib_left_1",
-            93: "rib_left_2",
-            94: "rib_left_3",
-            95: "rib_left_4",
-            96: "rib_left_5",
-            97: "rib_left_6",
-            98: "rib_left_7",
-            99: "rib_left_8",
-            100: "rib_left_9",
-            101: "rib_left_10",
-            102: "rib_left_11",
-            103: "rib_left_12",
-            104: "rib_right_1",
-            105: "rib_right_2",
-            106: "rib_right_3",
-            107: "rib_right_4",
-            108: "rib_right_5",
-            109: "rib_right_6",
-            110: "rib_right_7",
-            111: "rib_right_8",
-            112: "rib_right_9",
-            113: "rib_right_10",
-            114: "rib_right_11",
-            115: "rib_right_12",
-            116: "sternum",
-            117: "costal_cartilages",
-        }
-
-        self.soft_tissue_mask_ids = {
-            1: "spleen",
-            2: "kidney_right",
-            3: "kidney_left",
-            4: "gallbladder",
-            5: "liver",
-            6: "stomach",
-            7: "pancreas",
-            8: "adrenal_gland_right",
-            9: "adrenal_gland_left",
-            17: "thyroid_gland",
-            18: "small_bowel",
-            19: "duodenum",
-            20: "colon",
-            21: "urinary_bladder",
-            22: "prostate",
-            25: "sacrum",
-            80: "gluteus_maximus_left",
-            81: "gluteus_maximus_right",
-            82: "gluteus_medius_left",
-            83: "gluteus_medius_right",
-            84: "gluteus_minimus_left",
-            85: "gluteus_minimus_right",
-            90: "brain",
-            15: "esophagus",
-            16: "trachea",
-            133: "soft_tissue",
-        }
-
-        # From Base Class
-        # self.contrast_mask_ids = { 135: "contrast" }
-
-        self.set_other_and_all_mask_ids()
+        self._finalize_other_group()
 
     def segmentation_method(self, preprocessed_image: itk.image) -> itk.image:
         """
@@ -252,22 +262,25 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             mask1 = labelmap_arr1 == 0
             mask2 = labelmap_arr2 > 0
             mask = mask1 & mask2
-            final_arr = np.where(
-                mask, list(self.soft_tissue_mask_ids.keys())[-1], labelmap_arr1
+            # The base class registers (133, "soft_tissue") as a generic
+            # placeholder; use that id to fill the body mask where
+            # TotalSegmentator's 'total' task didn't classify anything.
+            soft_tissue_id = next(
+                label_id
+                for label_id, name in self.taxonomy.labels_in_group(
+                    "soft_tissue"
+                ).items()
+                if name == "soft_tissue"
             )
+            final_arr = np.where(mask, soft_tissue_id, labelmap_arr1)
 
-            mask3 = labelmap_arr3 == 1
-            mask3_img = itk.image_from_array(mask3.astype(np.uint8))
-            mask3_img.CopyInformation(preprocessed_image)
-            imMath = itk.TubeTK.ImageMath.New(mask3_img)
-            imMath.Dilate(1, 1, 0)
-            imMath.Erode(1, 1, 0)
-            mask3_img = imMath.GetOutputUChar()
-            mask3 = itk.array_from_image(mask3_img)
-            final_arr = np.where(mask3, 120, final_arr)  # lung vessels
-            mask3 = labelmap_arr3 == 2
-            final_arr = np.where(mask3, 16, final_arr)  # trachea
-
+            # labelmap_arr3 contains: 1=arteries, 2=veins, 3=airways, 4=airways_wall
+            final_arr = np.where(labelmap_arr3 == 1, 120, final_arr)  # lung arteries
+            final_arr = np.where(labelmap_arr3 == 2, 121, final_arr)  # lung veins
+            final_arr = np.where(labelmap_arr3 == 3, 122, final_arr)  # lung airways
+            final_arr = np.where(
+                labelmap_arr3 == 4, 123, final_arr
+            )  # lung airways wall
             # To create an ITK image, we save the result and read it back with
             # ITK. This correctly handles the coordinate system and data
             # layout conversions.

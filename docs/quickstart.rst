@@ -15,25 +15,24 @@ This guide will help you get started with PhysioMotion4D quickly.
 Tutorials
 =========
 
-The ``tutorials/`` directory contains six end-to-end scripts, one per major
-workflow.  Each script is self-contained, includes its own ``argparse`` CLI, and
-can be imported as a module from the test suite.
+The ``tutorials/`` directory contains nine end-to-end scripts, one per major
+workflow. Each script is a ``# %%`` percent-cell Python script that exercises
+the workflow classes directly. Run as a regular file
+(``python tutorials/tutorial_01_...py``) or cell-by-cell in VS Code or Cursor.
 
 See :doc:`tutorials` for the NVIDIA-styled tutorial card index, dataset
-requirements, commands, and workflow details.
+requirements, script paths, and workflow details.
 
 After preparing the Slicer-Heart-CT data, run the first two tutorials:
 
 .. code-block:: bash
 
-   python tutorials/tutorial_01_heart_gated_ct_to_usd.py \
-       --data-dir ./data --output-dir ./output/tutorial_01 \
-       --registration-method ants
+   python tutorials/tutorial_01_heart_gated_ct_to_usd.py
 
-   python tutorials/tutorial_02_ct_to_vtk.py \
-       --data-dir ./data --output-dir ./output/tutorial_02
+   python tutorials/tutorial_02_ct_to_vtk.py
 
-Each script prints the paths of outputs and screenshots it created.
+Tutorial paths are defined near the top of each script. To use different paths,
+edit the script constants or use the installed ``physiomotion4d-*`` CLI commands.
 See ``tutorials/README.md`` for dataset download instructions and the
 recommended run order.
 
@@ -44,6 +43,9 @@ Recommended run order:
 3. Tutorial 3 after downloading KCL-Heart-Model.
 4. Tutorial 4 after Tutorial 3 because it can consume Tutorial 3 output.
 5. Tutorial 6 after downloading DirLab-4DCT.
+6. Tutorial 7 after downloading DirLab-4DCT.
+7. Tutorial 8 after Tutorial 7 because it consumes the fitted PCA meshes.
+8. Tutorial 9 after Tutorial 8 because it trains from propagated meshes.
 
 Prerequisites
 =============
@@ -66,7 +68,7 @@ CUDA-capable GPU are required for practical runtime.
 
 .. code-block:: bash
 
-   python -c "import pathlib, urllib.request; pathlib.Path('data/test').mkdir(parents=True, exist_ok=True); urllib.request.urlretrieve('https://github.com/SlicerHeart/SlicerHeart/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd', 'data/test/TruncalValve_4DCT.seq.nrrd')"
+   python -c "from physiomotion4d import DataDownloadTools; DataDownloadTools.DownloadSlicerHeartCTData('data/test')"
 
    physiomotion4d-heart-gated-ct data/test/TruncalValve_4DCT.seq.nrrd \
        --registration-method ants \
@@ -237,18 +239,15 @@ Download Sample Cardiac CT Data
 
 .. code-block:: python
 
-   import urllib.request
-   import os
+   from physiomotion4d import DataDownloadTools
 
-   # Create data directory
-   os.makedirs("sample_data", exist_ok=True)
-
-   # Download sample from Slicer-Heart-CT
-   url = "https://github.com/SlicerHeart/SlicerHeart/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
-   urllib.request.urlretrieve(url, "sample_data/TruncalValve_4DCT.seq.nrrd")
+   data_file = DataDownloadTools.DownloadSlicerHeartCTData("sample_data")
+   assert DataDownloadTools.VerifySlicerHeartCTData("sample_data")
 
 DirLab-4DCT data is manual-only; see ``data/README.md`` before running the
-high-resolution 4D CT reconstruction tutorial.
+high-resolution 4D CT reconstruction, lung-lobe PCA model, or PCA time-series
+propagation tutorials. Tutorial 9 also requires the PhysicsNeMo dependency
+installed with PhysioMotion4D.
 
 Visualizing Results
 ===================

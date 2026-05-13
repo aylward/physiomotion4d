@@ -2,6 +2,7 @@
 ICP (Iterative Closest Point)
 ====================================
 
+.. module:: physiomotion4d.register_models_icp
 .. currentmodule:: physiomotion4d
 
 Pure Python implementation of Iterative Closest Point registration.

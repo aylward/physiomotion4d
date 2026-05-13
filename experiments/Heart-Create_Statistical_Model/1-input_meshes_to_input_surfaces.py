@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pyvista as pv
 
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 _HERE = Path(__file__).parent
 
@@ -77,5 +77,5 @@ if len(vtk_files) > 0:
     plotter = pv.Plotter()
     plotter.add_mesh(first_surface, color="lightblue", show_edges=True)
     plotter.add_axes()
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plotter.show()

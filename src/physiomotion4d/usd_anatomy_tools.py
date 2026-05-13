@@ -1,220 +1,258 @@
 """
 This module contains the USDAnatomyTools class, which is used to enhance
 the anatomy meshes in a USD file.
+
+Extensibility
+-------------
+The default OmniSurface look for each anatomy group/organ lives in the
+module-level :data:`DEFAULT_RENDER_PARAMS` dict. A new segmenter that
+introduces a new group (e.g. ``"brain"``, ``"tumor"``) can register a
+matching look in one of three ways:
+
+1. **Globally**, before instantiating any ``USDAnatomyTools``::
+
+       from physiomotion4d.usd_anatomy_tools import DEFAULT_RENDER_PARAMS
+       DEFAULT_RENDER_PARAMS["brain"] = {"name": "Brain", ...}
+
+   Every subsequent ``USDAnatomyTools`` instance picks up the new entry.
+
+2. **Per-instance**, after construction::
+
+       tools = USDAnatomyTools(stage)
+       tools.render_params["brain"] = {"name": "Brain", ...}
+
+3. **By subclassing**, overriding ``__init__`` to populate
+   ``self.render_params`` with project-specific defaults.
+
+Group lookup falls back to ``render_params["other"]`` when a group has no
+registered entry, so any group present in the segmenter's
+:class:`physiomotion4d.AnatomyTaxonomy` will still render *something*.
 """
 
 import logging
 from typing import Any, Mapping
 
-from pxr import Sdf, Usd, UsdGeom, UsdShade
+from pxr import Sdf, UsdGeom, UsdShade
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
+# Default OmniSurface render parameters keyed by group name (matching
+# :class:`physiomotion4d.AnatomyTaxonomy.group_names`) and by organ-level
+# overrides (e.g. ``liver``, ``spleen``, ``kidney_left``). ``enhance_meshes``
+# consults an organ-level entry first, then falls back to the containing
+# group's entry, and finally to ``"other"``. Module-level so CLIs and tests
+# can enumerate the supported types without constructing a USD stage.
+DEFAULT_RENDER_PARAMS: dict[str, dict[str, Any]] = {
+    "heart": {
+        "name": "Heart",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.25,
+        "diffuse_reflection_color": (0.2, 0.01, 0.01),
+        "diffuse_reflection_roughness": 0.5,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.8, 0.4, 0.4),
+        "subsurface_scattering_color": (0.8, 0.4, 0.4),
+        "subsurface_weight": 0.1,
+        "subsurface_scale": 2.0,
+        "coat_weight": 0.0,
+    },
+    "lung": {
+        "name": "Lung",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.125,
+        "diffuse_reflection_color": (0.34, 0.0, 0.0),
+        "diffuse_reflection_roughness": 0.6,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.9, 0.7, 0.7),
+        "subsurface_scattering_color": (0.9, 0.7, 0.7),
+        "subsurface_weight": 0.1,
+        "subsurface_scale": 0.2,
+        "coat_weight": 0.0,
+    },
+    "bone": {
+        "name": "Bone",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.2,
+        "diffuse_reflection_color": (0.8, 0.8, 0.9),
+        "diffuse_reflection_roughness": 0.3,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.95, 0.9, 0.7),
+        "subsurface_scattering_color": (0.95, 0.9, 0.7),
+        "subsurface_weight": 0.03,
+        "subsurface_scale": 0.05,
+        "coat_weight": 0.0,
+    },
+    "major_vessels": {
+        "name": "Major_Vessels",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.35,
+        "diffuse_reflection_color": (0.2, 0.01, 0.01),
+        "diffuse_reflection_roughness": 0.3,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.7, 0.15, 0.18),
+        "subsurface_scattering_color": (0.7, 0.15, 0.18),
+        "subsurface_weight": 0.09,
+        "subsurface_scale": 0.22,
+        "coat_weight": 0.12,
+    },
+    "contrast": {
+        "name": "Contrast",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.25,
+        "diffuse_reflection_color": (0.2, 0.01, 0.01),
+        "diffuse_reflection_roughness": 0.5,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.9, 0.4, 0.4),
+        "subsurface_scattering_color": (0.9, 0.4, 0.4),
+        "subsurface_weight": 0.1,
+        "subsurface_scale": 2.0,
+        "coat_weight": 0.0,
+    },
+    "soft_tissue": {
+        "name": "Soft_Tissue",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.17,
+        "diffuse_reflection_color": (0.7, 0.5, 0.4),
+        "diffuse_reflection_roughness": 0.5,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.95, 0.9, 0.9),
+        "subsurface_scattering_color": (0.95, 0.9, 0.9),
+        "subsurface_weight": 0.08,
+        "subsurface_scale": 0.3,
+        "coat_weight": 0.12,
+    },
+    "other": {
+        "name": "Other",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.1,
+        "diffuse_reflection_color": (0.7, 0.5, 0.4),
+        "diffuse_reflection_roughness": 0.5,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.95, 0.5, 0.4),
+        "subsurface_scattering_color": (0.95, 0.5, 0.4),
+        "subsurface_weight": 0.1,
+        "subsurface_scale": 0.3,
+        "coat_weight": 0.12,
+    },
+    # Organ-level overrides. enhance_meshes consults these by organ
+    # name *before* falling back to the containing group's params, so
+    # liver/spleen/kidney get their dedicated look despite being in
+    # the soft_tissue group of the taxonomy.
+    "liver": {
+        "name": "Liver",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.1,
+        "diffuse_reflection_color": (0.16, 0.01, 0.01),
+        "diffuse_reflection_roughness": 0.4,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.01,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.7, 0.2, 0.15),
+        "subsurface_scattering_color": (0.7, 0.2, 0.15),
+        "subsurface_weight": 0.08,
+        "subsurface_scale": 0.15,
+        "coat_weight": 0.01,
+    },
+    "spleen": {
+        "name": "Spleen",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.1,
+        "diffuse_reflection_color": (0.45, 0.08, 0.15),
+        "diffuse_reflection_roughness": 0.4,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.6, 0.15, 0.22),
+        "subsurface_scattering_color": (0.6, 0.15, 0.22),
+        "subsurface_weight": 0.08,
+        "subsurface_scale": 0.15,
+        "coat_weight": 0.1,
+    },
+    "kidney_right": {
+        "name": "Kidney",
+        "enable_diffuse_transmission": True,
+        "diffuse_reflection_weight": 0.1,
+        "diffuse_reflection_color": (0.45, 0.13, 0.12),
+        "diffuse_reflection_roughness": 0.35,
+        "metalness": 0.0,
+        "specular_reflection_weight": 0.5,
+        "specular_reflection_roughness": 0.5,
+        "subsurface_transmission_color": (0.6, 0.18, 0.15),
+        "subsurface_scattering_color": (0.6, 0.18, 0.15),
+        "subsurface_weight": 0.085,
+        "subsurface_scale": 0.18,
+        "coat_weight": 0.1,
+    },
+}
+# kidney_left and kidney share the same look as kidney_right ("kidney" is a
+# convenience alias kept for the CLI and other generic callers).
+DEFAULT_RENDER_PARAMS["kidney_left"] = DEFAULT_RENDER_PARAMS["kidney_right"]
+DEFAULT_RENDER_PARAMS["kidney"] = DEFAULT_RENDER_PARAMS["kidney_right"]
+
 
 class USDAnatomyTools(PhysioMotion4DBase):
-    """
-    This class is used to enhance the appearance of anatomy meshes in a USD
-    file.
+    """Apply OmniSurface materials to anatomy mesh prims in a USD stage.
+
+    The instance attribute :attr:`render_params` is initialized from the
+    module-level :data:`DEFAULT_RENDER_PARAMS` (deep copy per instance, so
+    in-place edits stay local). See the module docstring for how to add new
+    groups/organs.
     """
 
     def __init__(self, stage: Any, log_level: int | str = logging.INFO) -> None:
         """Initialize USDAnatomyTools.
 
         Args:
-            stage: USD stage to work with
-            log_level: Logging level (default: logging.INFO)
+            stage: USD stage to work with. May be ``None`` when the instance
+                is only used for color look-ups (e.g. via
+                :meth:`get_anatomy_diffuse_color`).
+            log_level: Logging level (default: logging.INFO).
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
         self.stage = stage
-
-        self.heart_params = {
-            "name": "Heart",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.25,
-            "diffuse_reflection_color": (0.2, 0.01, 0.01),
-            "diffuse_reflection_roughness": 0.5,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.8, 0.4, 0.4),
-            "subsurface_scattering_color": (0.8, 0.4, 0.4),
-            "subsurface_weight": 0.1,
-            "subsurface_scale": 2.0,
-            "coat_weight": 0.0,
-        }
-        self.lung_params = {
-            "name": "Lung",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.125,
-            "diffuse_reflection_color": (0.34, 0.0, 0.0),
-            "diffuse_reflection_roughness": 0.6,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.9, 0.7, 0.7),
-            "subsurface_scattering_color": (0.9, 0.7, 0.7),
-            "subsurface_weight": 0.1,
-            "subsurface_scale": 0.2,
-            "coat_weight": 0.0,
-        }
-        self.bone_params = {
-            "name": "Bone",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.2,
-            "diffuse_reflection_color": (0.8, 0.8, 0.9),
-            "diffuse_reflection_roughness": 0.3,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.95, 0.9, 0.7),
-            "subsurface_scattering_color": (0.95, 0.9, 0.7),
-            "subsurface_weight": 0.03,
-            "subsurface_scale": 0.05,
-            "coat_weight": 0.0,
-        }
-        self.major_vessels_params = {
-            "name": "Major_Vessels",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.35,
-            "diffuse_reflection_color": (0.2, 0.01, 0.01),
-            "diffuse_reflection_roughness": 0.3,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.7, 0.15, 0.18),
-            "subsurface_scattering_color": (0.7, 0.15, 0.18),
-            "subsurface_weight": 0.09,
-            "subsurface_scale": 0.22,
-            "coat_weight": 0.12,
-        }
-        self.contrast_params = {
-            "name": "Contrast",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.25,
-            "diffuse_reflection_color": (0.2, 0.01, 0.01),
-            "diffuse_reflection_roughness": 0.5,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.9, 0.4, 0.4),
-            "subsurface_scattering_color": (0.9, 0.4, 0.4),
-            "subsurface_weight": 0.1,
-            "subsurface_scale": 2.0,
-            "coat_weight": 0.0,
-        }
-        self.soft_tissue_params = {
-            "name": "Soft_Tissue",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.17,
-            "diffuse_reflection_color": (0.7, 0.5, 0.4),
-            "diffuse_reflection_roughness": 0.5,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.95, 0.9, 0.9),
-            "subsurface_scattering_color": (0.95, 0.9, 0.9),
-            "subsurface_weight": 0.08,
-            "subsurface_scale": 0.3,
-            "coat_weight": 0.12,
-        }
-        self.other_params = {
-            "name": "Other",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.1,
-            "diffuse_reflection_color": (0.7, 0.5, 0.4),
-            "diffuse_reflection_roughness": 0.5,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.95, 0.5, 0.4),
-            "subsurface_scattering_color": (0.95, 0.5, 0.4),
-            "subsurface_weight": 0.1,
-            "subsurface_scale": 0.3,
-            "coat_weight": 0.12,
-        }
-        self.liver_params = {
-            "name": "Liver",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.1,
-            "diffuse_reflection_color": (0.16, 0.01, 0.01),
-            "diffuse_reflection_roughness": 0.4,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.01,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.7, 0.2, 0.15),
-            "subsurface_scattering_color": (0.7, 0.2, 0.15),
-            "subsurface_weight": 0.08,
-            "subsurface_scale": 0.15,
-            "coat_weight": 0.01,
-        }
-        self.spleen_params = {
-            "name": "Spleen",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.1,
-            "diffuse_reflection_color": (0.45, 0.08, 0.15),
-            "diffuse_reflection_roughness": 0.4,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.6, 0.15, 0.22),
-            "subsurface_scattering_color": (0.6, 0.15, 0.22),
-            "subsurface_weight": 0.08,
-            "subsurface_scale": 0.15,
-            "coat_weight": 0.1,
-        }
-        self.kidney_params = {
-            "name": "Kidney",
-            "enable_diffuse_transmission": True,
-            "diffuse_reflection_weight": 0.1,
-            "diffuse_reflection_color": (0.45, 0.13, 0.12),
-            "diffuse_reflection_roughness": 0.35,
-            "metalness": 0.0,
-            "specular_reflection_weight": 0.5,
-            "specular_reflection_roughness": 0.5,
-            "subsurface_transmission_color": (0.6, 0.18, 0.15),
-            "subsurface_scattering_color": (0.6, 0.18, 0.15),
-            "subsurface_weight": 0.085,
-            "subsurface_scale": 0.18,
-            "coat_weight": 0.1,
-        }
-
-        # Map anatomy type name (CLI/workflow) to params for apply_anatomy_material_to_mesh
-        self._anatomy_params_by_type: Mapping[str, Mapping[str, Any]] = {
-            "heart": self.heart_params,
-            "lung": self.lung_params,
-            "bone": self.bone_params,
-            "major_vessels": self.major_vessels_params,
-            "contrast": self.contrast_params,
-            "soft_tissue": self.soft_tissue_params,
-            "other": self.other_params,
-            "liver": self.liver_params,
-            "spleen": self.spleen_params,
-            "kidney": self.kidney_params,
+        # Per-instance copy so per-instance mutations don't leak into other
+        # USDAnatomyTools instances.
+        self.render_params: dict[str, dict[str, Any]] = {
+            key: dict(params) for key, params in DEFAULT_RENDER_PARAMS.items()
         }
 
     def get_anatomy_types(self) -> list[str]:
-        """Return list of supported anatomy type names for apply_anatomy_material_to_mesh."""
-        return list(self._anatomy_params_by_type.keys())
+        """Return list of registered render-param keys (groups + organ overrides)."""
+        return list(self.render_params.keys())
 
     def get_anatomy_diffuse_color(
         self, anatomy_type: str
     ) -> tuple[float, float, float]:
-        """Return the diffuse reflection RGB color for the given anatomy type.
+        """Return the diffuse reflection RGB color for the given group/organ.
 
         This accessor does not require a USD stage and may be called on an instance
         created with ``stage=None`` purely for color look-up purposes.
 
         Args:
-            anatomy_type: One of: heart, lung, bone, major_vessels, contrast,
-                soft_tissue, other, liver, spleen, kidney.
+            anatomy_type: A registered render-params key (e.g. ``"heart"``,
+                ``"lung"``, ``"liver"``).
 
         Returns:
             RGB tuple of floats in ``[0, 1]``.
 
         Raises:
-            ValueError: If *anatomy_type* is not supported.
+            ValueError: If *anatomy_type* is not registered.
         """
-        params = self._anatomy_params_by_type.get(anatomy_type.lower())
+        params = self.render_params.get(anatomy_type.lower())
         if params is None:
             raise ValueError(
                 f"Unknown anatomy_type '{anatomy_type}'. "
@@ -228,13 +266,13 @@ class USDAnatomyTools(PhysioMotion4DBase):
 
         Args:
             mesh_path: USD path to the mesh prim (e.g. "/World/Meshes/MyMesh").
-            anatomy_type: One of: heart, lung, bone, major_vessels, contrast,
-                soft_tissue, other, liver, spleen, kidney.
+            anatomy_type: A registered render-params key (group or organ
+                override). See :meth:`get_anatomy_types`.
 
         Raises:
-            ValueError: If mesh_path is invalid or anatomy_type is not supported.
+            ValueError: If mesh_path is invalid or anatomy_type is not registered.
         """
-        params = self._anatomy_params_by_type.get(anatomy_type.lower())
+        params = self.render_params.get(anatomy_type.lower())
         if params is None:
             raise ValueError(
                 f"Unknown anatomy_type '{anatomy_type}'. "
@@ -319,117 +357,46 @@ class USDAnatomyTools(PhysioMotion4DBase):
         binding_api.Bind(material)
 
     def enhance_meshes(self, segmentator: Any) -> None:
-        """Find and enhance all heart meshes"""
+        """Apply per-organ OmniSurface materials to every matching mesh prim.
 
-        heart_mask_ids = list(segmentator.heart_mask_ids.values())
-        major_vessels_mask_ids = list(segmentator.major_vessels_mask_ids.values())
-        lung_mask_ids = list(segmentator.lung_mask_ids.values())
-        bone_mask_ids = list(segmentator.bone_mask_ids.values())
-        contrast_mask_ids = list(segmentator.contrast_mask_ids.values())
-        soft_tissue_mask_ids = list(segmentator.soft_tissue_mask_ids.values())
-        other_mask_ids = list(segmentator.other_mask_ids.values())
+        Walks the segmenter's :class:`AnatomyTaxonomy` and applies a material
+        to each mesh prim whose leaf name matches an organ name in any group.
+        An organ-level entry in :attr:`render_params` (e.g. ``"liver"``,
+        ``"spleen"``, ``"kidney_left"``) takes precedence over the entry for
+        the containing group.
 
-        liver_mask_ids = ["liver"]
-        spleen_mask_ids = ["spleen"]
-        kidney_mask_ids = ["kidney_right", "kidney_left"]
+        Anatomy grouping is performed upstream by ConvertVTKToUSD, which
+        writes labeled prims under ``/World/{basename}/{type}/{label_name}``.
+        This method only needs to apply materials; it does not move prims.
 
-        # Safely remove items if they exist
-        for item in ["liver", "spleen", "kidney_right", "kidney_left"]:
-            if item in soft_tissue_mask_ids:
-                soft_tissue_mask_ids.remove(item)
+        Args:
+            segmentator: A :class:`SegmentAnatomyBase` instance whose
+                ``taxonomy`` attribute holds the group/organ structure.
+        """
+        taxonomy = segmentator.taxonomy
 
-        list_of_mask_ids = [
-            heart_mask_ids,
-            major_vessels_mask_ids,
-            lung_mask_ids,
-            bone_mask_ids,
-            contrast_mask_ids,
-            soft_tissue_mask_ids,
-            other_mask_ids,
-            liver_mask_ids,
-            spleen_mask_ids,
-            kidney_mask_ids,
-        ]
-        list_of_params = [
-            self.heart_params,
-            self.major_vessels_params,
-            self.lung_params,
-            self.bone_params,
-            self.contrast_params,
-            self.soft_tissue_params,
-            self.other_params,
-            self.liver_params,
-            self.spleen_params,
-            self.kidney_params,
-        ]
-
-        editor = Usd.NamespaceEditor(self.stage)
-        prims = []
-        for prim in self.stage.Traverse():
-            prims.append(prim)
-        for prim in prims:
-            prim_name = str(prim.GetPrimPath())
-            prim_name = prim_name.split("/")[-1]
-            prim_sub_name = "_".join(prim_name.split("_")[1:])
-
-            anatomy_params = None
-            anatomy_prim_found = False
-            for mask_ids, params in zip(list_of_mask_ids, list_of_params):
-                if prim_name in mask_ids or prim_sub_name in mask_ids:
-                    anatomy_params = params
-                    anatomy_prim_found = True
-                    break
-
-            if anatomy_prim_found:
-                assert anatomy_params is not None
-                mesh_prim = UsdGeom.Mesh(prim)
-                transform_prim = UsdGeom.Xform(prim)
-                if transform_prim and not mesh_prim:
-                    current_prim_path = str(prim.GetPrimPath())
-                    root_prim_path = "/".join(current_prim_path.split("/")[:-1])
-                    self.log_debug("Root prim path: %s", root_prim_path)
-                    anatomy_prim_path = "/".join([root_prim_path, "Anatomy"])
-                    self.log_debug("   Anatomy prim path: %s", anatomy_prim_path)
-                    if not self.stage.GetPrimAtPath(anatomy_prim_path):
-                        UsdGeom.Xform.Define(self.stage, anatomy_prim_path)
-                    anatomy_prim_path = "/".join(
-                        [root_prim_path, "Anatomy", f"Group_{anatomy_params['name']}"]
-                    )
-                    if not self.stage.GetPrimAtPath(anatomy_prim_path):
-                        UsdGeom.Xform.Define(self.stage, anatomy_prim_path)
-                    remaining_prim_path = prim.GetName()
-                    anatomy_prim_path = "/".join(
-                        [
-                            root_prim_path,
-                            "Anatomy",
-                            f"Group_{anatomy_params['name']}",
-                            remaining_prim_path,
-                        ]
-                    )
-                    anatomy_prim_path = Sdf.Path(anatomy_prim_path)
-                    self.log_debug("   Current prim path: %s", current_prim_path)
-                    self.log_debug("   Anatomy prim path: %s", anatomy_prim_path)
-                    editor.MovePrimAtPath(
-                        current_prim_path,
-                        anatomy_prim_path,
-                    )
-                    editor.ApplyEdits()
+        # Build organ_name -> render params dict in one pass. Organ-level
+        # overrides win over the containing group's params; if neither is
+        # registered, fall back to the "other" entry (always present in
+        # DEFAULT_RENDER_PARAMS, so the lookup is safe).
+        organ_params: dict[str, dict[str, Any]] = {}
+        default_params: dict[str, Any] = self.render_params["other"]
+        for group_name in taxonomy.group_names():
+            group_params = self.render_params.get(group_name, default_params)
+            for organ_name in taxonomy.labels_in_group(group_name).values():
+                organ_params[organ_name] = self.render_params.get(
+                    organ_name, group_params
+                )
 
         for prim in self.stage.Traverse():
-            prim_name = str(prim.GetPrimPath())
-            prim_name = prim_name.split("/")[-1]
+            mesh_prim = UsdGeom.Mesh(prim)
+            if not mesh_prim:
+                continue
+            prim_name = prim.GetName()
+            # ConvertVTKToUSD may prefix prim names with an index like
+            # "frame0_<organ>"; accept the suffix as a match too.
             prim_sub_name = "_".join(prim_name.split("_")[1:])
-
-            anatomy_params = None
-            anatomy_prim_found = False
-            for mask_ids, params in zip(list_of_mask_ids, list_of_params):
-                if prim_name in mask_ids or prim_sub_name in mask_ids:
-                    anatomy_params = params
-                    anatomy_prim_found = True
-                    break
-
-            if anatomy_prim_found:
-                assert anatomy_params is not None
-                mesh_prim = UsdGeom.Mesh(prim)
-                if mesh_prim:
-                    self.apply_anatomy_material_to_prim(prim, anatomy_params)
+            params = organ_params.get(prim_name) or organ_params.get(prim_sub_name)
+            if params is None:
+                continue
+            self.apply_anatomy_material_to_prim(prim, params)

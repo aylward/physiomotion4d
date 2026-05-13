@@ -2,6 +2,7 @@
 TotalSegmentator
 ================
 
+.. module:: physiomotion4d.segment_chest_total_segmentator
 .. currentmodule:: physiomotion4d
 
 ``SegmentChestTotalSegmentator`` groups a TotalSegmentator labelmap into the
@@ -39,10 +40,11 @@ Basic Usage
    itk.imwrite(vessels, "major_vessels_mask.nrrd")
    itk.imwrite(labelmap, "labelmap.nrrd")
 
-Returned Masks
-==============
+Returned Keys
+=============
 
-``segment()`` returns a dictionary with these keys:
+For this segmenter, ``segment()`` returns a dictionary with the following
+keys:
 
 * ``labelmap``
 * ``lung``
@@ -54,6 +56,11 @@ Returned Masks
 * ``contrast``
 
 The dictionary should be accessed by key. Do not unpack it positionally.
+The exact key set is determined by the segmenter's :class:`AnatomyTaxonomy`
+and may differ from other segmenters (see :doc:`base`). For
+:class:`SegmentChestTotalSegmentator` specifically, all seven groups plus
+``labelmap`` are always present; downstream code that targets a different
+segmenter should check membership.
 
 Operational Notes
 =================

@@ -24,6 +24,8 @@ Quick Links
    * :doc:`transform_tools` - Transform operations
    * :doc:`contour_tools` - Contour processing
    * :doc:`nrrd_conversion` - NRRD file utilities
+   * :doc:`test_tools` - Baseline / result comparison helpers
+   * :doc:`data_download` - Optional dataset download helpers
 
 Module Documentation
 ====================
@@ -35,6 +37,8 @@ Module Documentation
    transform_tools
    contour_tools
    nrrd_conversion
+   test_tools
+   data_download
 
 See Also
 ========

@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.11', '3.12']
 
     steps:
     - name: Checkout code
@@ -79,7 +79,9 @@ jobs:
           libxrender1 \
           libxext6 \
           libxrandr2 \
-          libxi6
+          libxi6 \
+          xvfb \
+          libosmesa6
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
@@ -99,13 +101,20 @@ jobs:
       run: |
         pip list
 
-    - name: Run unit tests (fast, no external data)
+    - name: Run unit tests (fast, no external data) - Ubuntu
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          pytest tests/ -v -m "not slow and not requires_data and not experiment" --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
+
+    - name: Run unit tests (fast, no external data) - Windows
+      if: matrix.os == 'windows-latest'
       run: |
         pytest tests/ -v -m "not slow and not requires_data and not experiment" --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
@@ -115,7 +124,7 @@ jobs:
 
     - name: Upload coverage artifacts
       uses: actions/upload-artifact@v4
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
       with:
         name: coverage-report-unit-tests
         path: htmlcov/
@@ -148,10 +157,10 @@ jobs:
         echo "Disk space after cleanup:"
         df -h
 
-    - name: Set up Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
         cache: 'pip'
         cache-dependency-path: pyproject.toml
 
@@ -185,7 +194,9 @@ jobs:
           libxrender1 \
           libxext6 \
           libxrandr2 \
-          libxi6
+          libxi6 \
+          xvfb \
+          libosmesa6
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
@@ -218,17 +229,20 @@ jobs:
 
     - name: Run USD conversion tests
       run: |
-        pytest tests/test_convert_vtk_to_usd_polymesh.py -v -m "not slow" --cov=physiomotion4d --cov-append --cov-report=xml
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          pytest tests/test_convert_vtk_to_usd_polymesh.py -v -m "not slow" --cov=physiomotion4d --cov-append --cov-report=xml
       continue-on-error: true
 
     - name: Run USD utility tests
       run: |
-        pytest tests/test_usd_merge.py tests/test_usd_time_preservation.py -v --cov=physiomotion4d --cov-append --cov-report=xml
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          pytest tests/test_usd_merge.py tests/test_usd_time_preservation.py -v --cov=physiomotion4d --cov-append --cov-report=xml
       continue-on-error: true
 
     - name: Run all integration tests
       run: |
-        pytest tests/ -v -m "not slow and not experiment and not requires_gpu"
+        xvfb-run -a --server-args="-screen 0 1024x768x24" \
+          pytest tests/ -v -m "not slow and not experiment and not requires_gpu"
       continue-on-error: true
 
     - name: Upload coverage to Codecov
@@ -345,10 +359,10 @@ jobs:
       with:
         lfs: true
 
-    - name: Set up Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
+        python-version: "3.11"
         cache: 'pip'
 
     - name: Install dev dependencies

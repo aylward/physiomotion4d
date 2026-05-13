@@ -157,13 +157,14 @@ class WorkflowConvertCTToVTK(PhysioMotion4DBase):
     def _get_label_info_for_group(self, group: str) -> tuple[list[str], list[int]]:
         """Return ``(label_names, label_ids)`` for *group* from the active segmenter.
 
-        Reads the segmenter's ``<group>_mask_ids`` dictionary.  Returns empty lists
-        if the attribute does not exist (e.g. simpleware_heart lacks lung/bone ids).
+        Reads the segmenter's :class:`AnatomyTaxonomy`. Returns empty lists if
+        the group is not present (e.g. simpleware_heart does not register
+        lung/bone).
         """
         assert self._segmenter is not None, (
             "_create_segmenter() must be called before _get_label_info_for_group()"
         )
-        mask_ids: dict[int, str] = getattr(self._segmenter, f"{group}_mask_ids", {})
+        mask_ids = self._segmenter.taxonomy.labels_in_group(group)
         return list(mask_ids.values()), list(mask_ids.keys())
 
     @staticmethod

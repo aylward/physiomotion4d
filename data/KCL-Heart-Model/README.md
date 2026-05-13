@@ -1,6 +1,6 @@
 # KCL Heart Model Dataset
 
-## ⚠️ Manual Download Required
+## Manual Download Required
 
 **This data is NOT automatically downloaded.** Users must manually download the dataset from Zenodo (see below).
 
@@ -33,7 +33,7 @@ This directory contains data from the King's College London (KCL) four-chamber h
 
 The KCL heart model data is publicly available through Zenodo:
 
-**🔗 [Virtual cohort of adult healthy four-chamber heart meshes from CT images](https://zenodo.org/records/4590294)**
+**[Virtual cohort of adult healthy four-chamber heart meshes from CT images](https://zenodo.org/records/4590294)**
 
 ### Dataset Details
 
@@ -52,7 +52,7 @@ If you use this dataset, please cite:
 
 This dataset is used in the PhysioMotion4D experiments for creating statistical shape models and patient-specific heart registrations.
 
-### 📓 Heart-Create_Statistical_Model Experiment
+### Heart-Create_Statistical_Model Experiment
 
 For a complete, step-by-step tutorial on creating a statistical heart shape model from this data, see:
 
@@ -63,7 +63,7 @@ This experiment demonstrates the complete workflow for:
 - Creating population-based shape models
 - Generating templates for patient-specific registration
 
-**⚠️ Start here first**: Complete the `Heart-Create_Statistical_Model` experiment before attempting the `Heart-Statistical_Model_To_Patient` experiment.
+**Start here first**: Complete the `Heart-Create_Statistical_Model` experiment before attempting the `Heart-Statistical_Model_To_Patient` experiment.
 
 ### Files in This Directory
 

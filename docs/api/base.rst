@@ -2,6 +2,7 @@
 Base Class
 ====================================
 
+.. module:: physiomotion4d.physiomotion4d_base
 .. currentmodule:: physiomotion4d
 
 ``PhysioMotion4DBase`` provides the shared logging behavior used by workflow,

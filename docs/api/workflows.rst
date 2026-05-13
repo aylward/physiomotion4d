@@ -2,6 +2,12 @@
 Workflow Classes
 ================
 
+.. module:: physiomotion4d.workflow_convert_heart_gated_ct_to_usd
+.. module:: physiomotion4d.workflow_convert_ct_to_vtk
+.. module:: physiomotion4d.workflow_convert_vtk_to_usd
+.. module:: physiomotion4d.workflow_create_statistical_model
+.. module:: physiomotion4d.workflow_fit_statistical_model_to_patient
+.. module:: physiomotion4d.workflow_reconstruct_highres_4d_ct
 .. currentmodule:: physiomotion4d
 
 Workflow classes are the highest-level Python API in PhysioMotion4D. They

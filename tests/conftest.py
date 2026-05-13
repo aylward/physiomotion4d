@@ -7,8 +7,6 @@ in the tests directory via pytest's automatic fixture discovery.
 """
 
 import os
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
@@ -18,6 +16,7 @@ import pytest
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
+from physiomotion4d.data_download_tools import DataDownloadTools
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
@@ -297,39 +296,40 @@ def _format_duration(seconds: float) -> str:
 def test_directories() -> dict[str, Path]:
     """Set up test directories for data and results."""
     data_dir = Path(__file__).parent.parent / "data" / "test"
+    slicer_heart_data_dir = data_dir / "slicer_heart"
+    slicer_heart_small_data_dir = data_dir / "slicer_heart_small"
     output_dir = Path(__file__).parent / "results"
     baselines_dir = Path(__file__).parent / "baselines"
 
     # Create directories if they don't exist
     data_dir.mkdir(parents=True, exist_ok=True)
+    slicer_heart_data_dir.mkdir(parents=True, exist_ok=True)
+    slicer_heart_small_data_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     baselines_dir.mkdir(parents=True, exist_ok=True)
 
-    return {"data": data_dir, "output": output_dir, "baselines": baselines_dir}
+    return {
+        "data": data_dir,
+        "slicer_heart_data": slicer_heart_data_dir,
+        "slicer_heart_small_data": slicer_heart_small_data_dir,
+        "output": output_dir,
+        "baselines": baselines_dir,
+    }
 
 
 @pytest.fixture(scope="session")
 def download_test_data(test_directories: dict[str, Path]) -> Path:
-    """Download TruncalValve 4D CT data."""
-    data_dir = test_directories["data"]
-    input_image_filename = data_dir / "TruncalValve_4DCT.seq.nrrd"
-
-    # Check if file already exists
-    if input_image_filename.exists():
-        print(f"\nData file already exists: {input_image_filename}")
-        return input_image_filename
-
-    # Try to download if not found locally
-    input_image_url = "https://github.com/SlicerHeart/SlicerHeart/releases/download/TestingData/TruncalValve_4DCT.seq.nrrd"
-    print(f"\nDownloading TruncalValve 4D CT data from {input_image_url}...")
+    """Download Slicer-Heart-CT data."""
+    data_dir = test_directories["slicer_heart_data"]
 
     try:
-        urllib.request.urlretrieve(input_image_url, str(input_image_filename))
-        print(f"Downloaded to {input_image_filename}")
-    except urllib.error.URLError as e:
+        input_image_filename = DataDownloadTools.DownloadSlicerHeartCTData(data_dir)
+        print(f"\nSlicer-Heart-CT data ready: {input_image_filename}")
+    except OSError as e:
         msg = (
             f"Could not download test data: {e}. "
-            f"Please manually place TruncalValve_4DCT.seq.nrrd in {data_dir}"
+            "Please manually place "
+            f"{DataDownloadTools.SLICER_HEART_CT_FILENAME} in {data_dir}"
         )
         if os.environ.get("CI"):
             pytest.fail(msg)
@@ -350,7 +350,8 @@ def test_images(
     test_directories: dict[str, Path],
 ) -> list[Any]:
     """Convert and resample 4D NRRD data; return pre-resampled time points."""
-    data_dir = test_directories["data"]
+    data_dir = test_directories["slicer_heart_data"]
+    small_data_dir = test_directories["slicer_heart_small_data"]
 
     # Convert 4D NRRD to 3D time series if not already done
     slice_000 = data_dir / "slice_000.mha"
@@ -359,16 +360,16 @@ def test_images(
         print("\nConverting 4D NRRD to 3D time series...")
         conv = ConvertNRRD4DTo3D()
         conv.load_nrrd_4d(str(download_test_data))
-        conv.save_3d_images(str(data_dir / "slice"))
+        conv.save_3d_images(data_dir, "slice")
     else:
         print("\n3D slice files already exist")
 
-    # Resample each slice_???.mha to 1.5x1.5x1.5 mm and save as slice_???_sml.mha
+    # Resample each slice_???.mha to 1.5x1.5x1.5 mm into slicer_heart_small.
     target_spacing = [1.5, 1.5, 1.5]
     for slice_file in sorted(data_dir.glob("slice_???.mha")):
-        sml_file = slice_file.with_name(slice_file.stem + "_sml.mha")
-        if not sml_file.exists():
-            print(f"\nResampling {slice_file.name} -> {sml_file.name} ...")
+        small_file = small_data_dir / slice_file.name
+        if not small_file.exists():
+            print(f"\nResampling {slice_file.name} -> {small_file.name} ...")
             img = itk.imread(str(slice_file))
             input_spacing = list(img.GetSpacing())
             input_size = list(itk.size(img))
@@ -384,10 +385,10 @@ def test_images(
             resampler.SetOutputOrigin(img.GetOrigin())
             resampler.SetOutputDirection(img.GetDirection())
             resampler.Update()
-            itk.imwrite(resampler.GetOutput(), str(sml_file), compression=True)
+            itk.imwrite(resampler.GetOutput(), str(small_file), compression=True)
     print("\nResampled slice files up to date")
 
-    slice_files = sorted(data_dir.glob("slice_???_sml.mha"))
+    slice_files = sorted(small_data_dir.glob("slice_???.mha"))
     if len(slice_files) < 3:
         pytest.skip("Resampled slice files not found.")
 
@@ -404,14 +405,14 @@ def test_labelmaps(
 ) -> list[dict[str, Any]]:
     """
     Segment each time point with TotalSegmentator and return result dicts.
-    Labelmaps are cached at data_dir / slice_???_sml_labelmap.mha.
+    Labelmaps are cached under slicer_heart_small_data.
     """
-    data_dir = test_directories["data"]
-    slice_files = sorted(data_dir.glob("slice_???_sml.mha"))
+    small_data_dir = test_directories["slicer_heart_small_data"]
+    slice_files = sorted(small_data_dir.glob("slice_???.mha"))
 
     results: list[dict[str, Any]] = []
     for img, slice_file in zip(test_images, slice_files):
-        labelmap_file = data_dir / f"{slice_file.stem}_labelmap.mha"
+        labelmap_file = slice_file.with_name(f"{slice_file.stem}_labelmap.mha")
         if not labelmap_file.exists():
             print(f"\nSegmenting {slice_file.name} ...")
             result = segmenter_total_segmentator.segment(
@@ -446,13 +447,12 @@ def test_transforms(
     """
     Perform ANTs registration and return results.
     Generates them if not already present, otherwise loads from disk.
-    Transforms are cached in data_dir alongside the slice files.
+    Transforms are cached under slicer_heart_small_data.
     """
-    data_dir = test_directories["data"]
-
+    small_data_dir = test_directories["slicer_heart_small_data"]
     frame_tag = "001_to_007"
-    inverse_transform_path = data_dir / f"ants_inverse_transform_{frame_tag}.hdf"
-    forward_transform_path = data_dir / f"ants_forward_transform_{frame_tag}.hdf"
+    inverse_transform_path = small_data_dir / f"ants_inverse_transform_{frame_tag}.hdf"
+    forward_transform_path = small_data_dir / f"ants_forward_transform_{frame_tag}.hdf"
 
     if inverse_transform_path.exists() and forward_transform_path.exists():
         print("\nLoading existing ANTs registration results...")

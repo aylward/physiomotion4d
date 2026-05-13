@@ -2,7 +2,7 @@
 
 This directory contains sample datasets used for experiments, testing, and development of the PhysioMotion4D library. Each subdirectory contains a specific medical imaging dataset.
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 data/
@@ -12,10 +12,10 @@ data/
 ├── CHOP-Valve4D/             # 4D valve models (MANUAL)
 ```
 
-## 📥 Data Download Methods
+## Data Download Methods
 
 ### Automatic Download (Only Slicer-Heart-CT)
-Only the **Slicer-Heart-CT** dataset can be automatically downloaded by running the appropriate notebook.
+Only the **Slicer-Heart-CT** dataset can be automatically downloaded by running the appropriate script.
 
 ### Manual Download (All Others)
 The following datasets must be **manually downloaded and preprocessed** by the user:
@@ -27,7 +27,7 @@ See individual dataset sections below for download instructions and preprocessin
 
 ---
 
-## 🫀 Slicer-Heart-CT ✅ AUTO-DOWNLOAD
+## Slicer-Heart-CT AUTO-DOWNLOAD
 
 ### Description
 4D cardiac CT dataset with temporal gating showing complete cardiac cycle motion. Pediatric cardiac CT with truncal valve visualization.
@@ -48,8 +48,10 @@ Data provided by Jolley Lab at CHOP (Children's Hospital of Philadelphia):
 
 **Automatic download** (recommended):
 ```python
-# The data will be automatically downloaded when running:
-# experiments/Heart-GatedCT_To_USD/0-download_and_convert_4d_to_3d.ipynb
+from physiomotion4d import DataDownloadTools
+
+DataDownloadTools.DownloadSlicerHeartCTData("data/Slicer-Heart-CT")
+assert DataDownloadTools.VerifySlicerHeartCTData("data/Slicer-Heart-CT")
 ```
 
 **Manual download** (alternative):
@@ -59,13 +61,28 @@ wget https://github.com/Slicer-Heart-CT/Slicer-Heart-CT/releases/download/Testin
 ```
 
 ### Usage
+- Primary dataset for tutorials
 - Primary dataset for `Heart-GatedCT_To_USD` experiments
 - Used in test suite (`tests/test_download_heart_data.py`)
 - Example data for cardiac motion visualization in Omniverse
 
+### Verification Helpers
+
+PhysioMotion4D exposes a small public utility for checking optional dataset
+layouts:
+
+```python
+from physiomotion4d import DataDownloadTools
+
+DataDownloadTools.VerifySlicerHeartCTData("data/Slicer-Heart-CT")
+DataDownloadTools.VerifyDirLab4DCTData("data/DirLab-4DCT")
+DataDownloadTools.VerifyKCLHeartModelData("data/KCL-Heart-Model")
+DataDownloadTools.VerifyCHOPValve4DData("data/CHOP-Valve4D")
+```
+
 ---
 
-## 🫁 DirLab-4DCT ⚠️ MANUAL DOWNLOAD
+## DirLab-4DCT MANUAL DOWNLOAD
 
 ### Description
 Benchmark dataset for 4D CT respiratory motion analysis. Contains 10 cases of lung CT scans at different respiratory phases with annotated landmark points for registration validation.
@@ -86,22 +103,22 @@ Data provided by the DIR-Lab at MD Anderson Cancer Center:
 
 ### Downloading the Data
 
-⚠️ **MANUAL DOWNLOAD REQUIRED**
+**MANUAL DOWNLOAD REQUIRED**
 
 Users must manually download and preprocess this dataset. Follow these steps:
 
 **Step 1: Manual Download**
 ```python
-# Using provided utilities in experiments notebooks
-# See: experiments/Lung-GatedCT_To_USD/0-register_dirlab_4dct.ipynb
-# The notebook includes download utilities but requires manual execution
+# Using provided utilities in experiment scripts.
+# See: experiments/Lung-GatedCT_To_USD/0-register_dirlab_4dct.py
+# The script includes download utilities but requires manual execution.
 ```
 
 **Step 2: User Preprocessing**
 Users are responsible for:
 - Downloading data from DIR-Lab website
 - Extracting and organizing files in the proper directory structure
-- Running preprocessing notebooks if needed
+- Running preprocessing scripts if needed
 
 ### Directory Structure
 ```
@@ -125,7 +142,7 @@ DirLab-4DCT/
 
 ---
 
-## 🧠 KCL-Heart-Model ⚠️ MANUAL DOWNLOAD
+## KCL-Heart-Model MANUAL DOWNLOAD
 
 ### Description
 Statistical shape model (SSM) of the human heart derived from cardiac imaging data. Includes principal component analysis (PCA) modes of shape variation.
@@ -158,7 +175,7 @@ Data from King's College London (KCL):
 
 ### Downloading the Data
 
-⚠️ **MANUAL DOWNLOAD REQUIRED**
+**MANUAL DOWNLOAD REQUIRED**
 
 Users must manually obtain and place this data:
 1. Obtain data from published research repositories or contact authors
@@ -177,7 +194,7 @@ Check the included PDFs (if available) for source information and proper citatio
 
 ---
 
-## 🫀 CHOP-Valve4D ⚠️ MANUAL DOWNLOAD
+## CHOP-Valve4D MANUAL DOWNLOAD
 
 ### Description
 Time-varying 4D valve reconstruction models showing valve motion over the cardiac cycle. These datasets represent dynamic valve geometries reconstructed from medical imaging data.
@@ -208,7 +225,7 @@ Data provided by Jolley Lab at CHOP (Children's Hospital of Philadelphia):
 
 ### Downloading the Data
 
-⚠️ **MANUAL DOWNLOAD REQUIRED**
+**MANUAL DOWNLOAD REQUIRED**
 
 **Availability**: This dataset will soon be publicly available for download from the **FEBio website** under the **Creative Commons Attribution (CC-BY) license**.
 
@@ -223,7 +240,7 @@ Data provided by Jolley Lab at CHOP (Children's Hospital of Philadelphia):
 4. Organize by valve type in subdirectories (e.g., `Alterra/`, `TPV25/`)
 
 ### Usage
-- Time-series VTK to USD conversion (`experiments/convert_vtk_to_usd_lib/valve4d_time_series.ipynb`)
+- Time-series VTK to USD conversion (`experiments/Convert_VTK_To_USD/`)
 - 4D valve motion visualization in NVIDIA Omniverse
 - Temporal cardiac mechanics analysis
 - Valve dynamics studies and surgical planning
@@ -234,7 +251,7 @@ Data provided by Jolley Lab at CHOP (Children's Hospital of Philadelphia):
 
 ---
 
-## 📝 Data Usage Guidelines
+## Data Usage Guidelines
 
 ### For Testing
 - Tests automatically use cached data when available
@@ -253,26 +270,27 @@ Data provided by Jolley Lab at CHOP (Children's Hospital of Philadelphia):
 
 ---
 
-## 🔒 Data Access and Licensing
+## Data Access and Licensing
 
-- **Slicer-Heart-CT** ✅: Public release from GitHub (auto-download available)
-- **DirLab-4DCT** ⚠️: Public benchmark dataset (manual download required, may require registration)
-- **KCL-Heart-Model** ⚠️: Requires manual download from research repositories
-- **CHOP-Valve4D** ⚠️: Soon available from FEBio website under CC-BY license (manual download)
+- **Slicer-Heart-CT** : Public release from GitHub (auto-download available)
+- **DirLab-4DCT** : Public benchmark dataset (manual download required, may require registration)
+- **KCL-Heart-Model** : Requires manual download from research repositories
+- **CHOP-Valve4D** : Soon available from FEBio website under CC-BY license (manual download)
 
-⚠️ **Important**: Always cite the original data sources in publications and respect any usage restrictions.
+**Important**: Always cite the original data sources in publications and respect any usage restrictions.
 
 ### Summary of Download Methods
+
 | Dataset         | Auto-Download | Manual Required | License         | Source              | Used in Tests            |
 | --------------- | ------------- | --------------- | --------------- | ------------------- | ------------------------ |
-| Slicer-Heart-CT | ✅ Yes         | No              | Public          | GitHub              | Yes                      |
-| DirLab-4DCT     | ❌ No          | Yes             | Public/Academic | DIR-Lab             | No                       |
-| KCL-Heart-Model | ❌ No          | Yes             | Check citation  | Zenodo/KCL          | Yes (skipped if missing) |
-| CHOP-Valve4D    | ❌ No          | Yes             | CC-BY           | FEBio (coming soon) | No                       |
+| Slicer-Heart-CT | Yes         | No              | Public          | GitHub              | Yes                      |
+| DirLab-4DCT     | No          | Yes             | Public/Academic | DIR-Lab             | No                       |
+| KCL-Heart-Model | No          | Yes             | Check citation  | Zenodo/KCL          | Yes (skipped if missing) |
+| CHOP-Valve4D    | No          | Yes             | CC-BY           | FEBio (coming soon) | No                       |
 
 ---
 
-## 📚 References
+## References
 
 ### Slicer-Heart-CT
 - Jolley Lab: https://www.linkedin.com/company/jolleylab
@@ -295,7 +313,7 @@ Data provided by Jolley Lab at CHOP (Children's Hospital of Philadelphia):
 
 ---
 
-## 💡 Tips
+## Tips
 
 1. **Storage**: Ensure adequate disk space (~10-20GB for all datasets)
 2. **Download Time**: Initial downloads can be slow; be patient

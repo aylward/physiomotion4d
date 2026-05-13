@@ -12,6 +12,7 @@ PhysioMotion4D image registration classes align moving 3D images to a fixed
 
    base
    ants
+   greedy
    icon
    time_series
 

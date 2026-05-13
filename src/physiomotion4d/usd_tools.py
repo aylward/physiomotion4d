@@ -14,12 +14,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
-from pxr import Gf, Usd, UsdGeom, UsdShade
+import pyvista as pvtk
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from physiomotion4d.vtk_to_usd import add_framing_camera
 
 
 class USDTools(PhysioMotion4DBase):
@@ -65,6 +68,152 @@ class USDTools(PhysioMotion4DBase):
             log_level: Logging level (default: logging.INFO)
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
+    def load_usd_as_vtk(
+        self,
+        usd_file: str | Path,
+        prim_path: str = "/World",
+        time_code: float | None = None,
+    ) -> pvtk.PolyData:
+        """Load USD mesh geometry as a PyVista ``PolyData``.
+
+        Evaluates mesh points at ``time_code``, applies each mesh prim's
+        local-to-world transform, and stores RGB colors in
+        ``point_data['openusd_rgb']``. Authored ``displayColor`` is used when
+        available; otherwise points are colored red. Coordinates are returned
+        in the USD stage coordinate system.
+
+        Args:
+            usd_file: Path to a USD file.
+            prim_path: Root prim path to traverse. Defaults to ``/World``.
+            time_code: Optional time code for animated meshes. ``None`` reads
+                default values and falls back to the first authored point time
+                sample.
+
+        Returns:
+            A merged PyVista ``PolyData`` containing all mesh prims under
+            ``prim_path``.
+
+        Raises:
+            FileNotFoundError: If ``usd_file`` does not exist.
+            ValueError: If the stage, prim path, or mesh geometry is invalid.
+        """
+        usd_path = Path(usd_file)
+        if not usd_path.exists():
+            raise FileNotFoundError(f"USD file not found: {usd_path}")
+
+        stage = Usd.Stage.Open(str(usd_path))
+        if stage is None:
+            raise ValueError(f"Could not open USD file: {usd_path}")
+
+        root_prim = stage.GetPrimAtPath(prim_path)
+        if not root_prim.IsValid():
+            raise ValueError(f"USD prim path not found: {prim_path}")
+
+        if time_code is None:
+            usd_time = Usd.TimeCode.Default()
+        else:
+            usd_time = Usd.TimeCode(time_code)
+        xform_cache = UsdGeom.XformCache(usd_time)
+
+        meshes: list[pvtk.PolyData] = []
+        for prim in Usd.PrimRange(root_prim):
+            if not prim.IsA(UsdGeom.Mesh):
+                continue
+
+            mesh = UsdGeom.Mesh(prim)
+            points_value = mesh.GetPointsAttr().Get(usd_time)
+            if points_value is None and time_code is None:
+                point_samples = mesh.GetPointsAttr().GetTimeSamples()
+                if point_samples:
+                    sample_time = Usd.TimeCode(point_samples[0])
+                    points_value = mesh.GetPointsAttr().Get(sample_time)
+            if points_value is None or len(points_value) == 0:
+                continue
+
+            face_counts = mesh.GetFaceVertexCountsAttr().Get(usd_time)
+            face_indices = mesh.GetFaceVertexIndicesAttr().Get(usd_time)
+            if face_counts is None or face_indices is None:
+                continue
+
+            world_matrix = xform_cache.GetLocalToWorldTransform(prim)
+            # Vectorize the local-to-world transform: USD's Gf.Matrix4d uses
+            # the convention `world_point = local_point_row_vec * M`, where
+            # the matrix is row-major and the translation row is the last
+            # row. Building a (N, 4) homogeneous-point block and multiplying
+            # once is dramatically faster than calling Transform() per point
+            # for large meshes.
+            mat_array = np.array(
+                [[float(world_matrix[i][j]) for j in range(4)] for i in range(4)],
+                dtype=np.float64,
+            )
+            local_points = np.asarray(points_value, dtype=np.float64)
+            homogeneous = np.empty((local_points.shape[0], 4), dtype=np.float64)
+            homogeneous[:, :3] = local_points
+            homogeneous[:, 3] = 1.0
+            points = (homogeneous @ mat_array)[:, :3].astype(np.float32)
+            if len(points) == 0:
+                continue
+
+            faces: list[int] = []
+            index_offset = 0
+            for count in face_counts:
+                count_int = int(count)
+                faces.append(count_int)
+                faces.extend(
+                    int(face_indices[index_offset + i]) for i in range(count_int)
+                )
+                index_offset += count_int
+            if not faces:
+                continue
+
+            pv_mesh = pvtk.PolyData(points, np.asarray(faces, dtype=np.int64))
+            rgb = self._usd_display_color(mesh, len(points), usd_time)
+            pv_mesh.point_data["openusd_rgb"] = rgb
+            meshes.append(pv_mesh)
+
+        if not meshes:
+            raise ValueError(f"No mesh geometry found in {usd_path} under {prim_path}")
+
+        if len(meshes) == 1:
+            return meshes[0]
+        # pvtk.merge is loosely typed (it can return several DataSet subclasses
+        # depending on inputs). All callers here pass PolyData with
+        # merge_points=False, so the result is always PolyData.
+        return cast(pvtk.PolyData, pvtk.merge(meshes, merge_points=False))
+
+    @staticmethod
+    def _usd_display_color(
+        mesh: UsdGeom.Mesh,
+        n_points: int,
+        time_code: Usd.TimeCode,
+    ) -> np.ndarray:
+        """Return point RGB colors from ``displayColor`` or the red fallback."""
+        fallback = np.tile(np.array([[255, 0, 0]], dtype=np.uint8), (n_points, 1))
+        primvar = UsdGeom.PrimvarsAPI(mesh).GetPrimvar("displayColor")
+        if not primvar:
+            return fallback
+
+        color_value = primvar.Get(time_code)
+        if color_value is None:
+            color_value = primvar.Get()
+        if color_value is None or len(color_value) == 0:
+            return fallback
+
+        colors = np.asarray(color_value, dtype=np.float32)
+        if colors.ndim != 2 or colors.shape[1] < 3:
+            return fallback
+
+        colors = colors[:, :3]
+        interpolation = primvar.GetInterpolation()
+        if interpolation in (UsdGeom.Tokens.constant, "constant"):
+            colors = np.tile(colors[0], (n_points, 1))
+        elif len(colors) == 1:
+            colors = np.tile(colors[0], (n_points, 1))
+        elif len(colors) != n_points:
+            return fallback
+
+        return np.asarray(np.clip(colors, 0.0, 1.0) * 255.0, dtype=np.uint8)
 
     def get_subtree_bounding_box(
         self, prim: UsdGeom.Xform
@@ -246,6 +395,9 @@ class USDTools(PhysioMotion4DBase):
             #                     prim.GetPrimPath(),
             #                 )
 
+        # Framing camera with tight near-clip for Omniverse Kit viewer ergonomics.
+        add_framing_camera(new_stage)
+
         self.log_info("Exporting stage...")
         new_stage.Export(new_stage_name)
 
@@ -285,6 +437,17 @@ class USDTools(PhysioMotion4DBase):
             ...     'complete_anatomy.usd', ['heart_dynamic.usd', 'lungs_static.usd', 'skeleton.usd']
             ... )
         """
+        # Remove any existing file and evict any stale in-memory USD layer.
+        # USD caches layers globally by identifier, so a prior call in the
+        # same Python session can block CreateNew even after the file is gone.
+        output_path = Path(output_filename)
+        if output_path.exists():
+            output_path.unlink()
+        stale_layer = Sdf.Layer.Find(str(output_path))
+        if stale_layer is not None:
+            stale_layer.Clear()
+            del stale_layer
+
         # Create new stage with meters as units (standard USD configuration)
         stage = Usd.Stage.CreateNew(output_filename)
         stage.SetMetadata("metersPerUnit", 1.0)
@@ -436,6 +599,9 @@ class USDTools(PhysioMotion4DBase):
                 frames_per_second,
             )
 
+        # Framing camera with tight near-clip for Omniverse Kit viewer ergonomics.
+        add_framing_camera(stage)
+
         # Save with USDA format
         # stage.GetRootLayer().Export(output_path, args=['--usdFormat', 'usda'])
         stage.Export(output_filename)
@@ -560,6 +726,9 @@ class USDTools(PhysioMotion4DBase):
             if frames_per_second is not None:
                 output_stage.SetFramesPerSecond(frames_per_second)
                 self.log_info("Set output FramesPerSecond: %s", frames_per_second)
+
+        # Framing camera with tight near-clip for Omniverse Kit viewer ergonomics.
+        add_framing_camera(output_stage)
 
         # Export the flattened layer with corrected metadata
         self.log_info("Exporting to %s", output_filename)
@@ -1266,11 +1435,8 @@ class USDTools(PhysioMotion4DBase):
         Returns:
             np.ndarray: Scalar value per vertex
         """
-        from typing import cast
-
-        # (mypy) numpy stubs often treat np.asarray(...) as Any, so cast explicitly.
-        counts_arr = cast(np.ndarray, np.asarray(face_vertex_counts, dtype=np.int32))
-        indices_arr = cast(np.ndarray, np.asarray(face_vertex_indices, dtype=np.int32))
+        counts_arr = np.asarray(face_vertex_counts, dtype=np.int32)
+        indices_arr = np.asarray(face_vertex_indices, dtype=np.int32)
 
         # Create face ID for each vertex reference
         face_ids = np.repeat(np.arange(len(counts_arr)), counts_arr)
@@ -1284,7 +1450,8 @@ class USDTools(PhysioMotion4DBase):
 
         # Average
         vertex_scalar = acc / np.maximum(cnt, 1)
-        return cast(np.ndarray, vertex_scalar.astype(np.float32))
+        result: np.ndarray = vertex_scalar.astype(np.float32)
+        return result
 
     def _ensure_vertex_color_material(
         self, stage: Usd.Stage, mesh_prim: Usd.Prim

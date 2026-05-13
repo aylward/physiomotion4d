@@ -12,6 +12,7 @@ import itk
 import numpy as np
 from itk import TubeTK as tube
 
+from physiomotion4d.anatomy_taxonomy import AnatomyTaxonomy
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
 
@@ -21,36 +22,43 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
 
     This class implements preprocessing, postprocessing, and mask creation
     methods that are shared across different anatomy segmentation
-    implementations. It defines anatomical structure mappings and provides
-    utilities for image preprocessing, intensity rescaling, and mask generation.
+    implementations. It owns an :class:`AnatomyTaxonomy` instance that
+    captures the group→organ structure (e.g. ``heart`` contains
+    ``atrial_appendage_left`` at id 61); subclasses populate it via
+    ``self.taxonomy.add_organ(...)`` and call
+    :meth:`_finalize_other_group` once they're done.
 
-    The class maintains dictionaries of anatomical structure IDs for different
-    organ systems (heart, lungs, bones, vessels, etc.) and provides methods
-    to create binary masks for specific anatomical groups.
+    Extensibility
+    -------------
+    Each segmenter is free to define its own group names — the taxonomy does
+    not hard-code a fixed set. A new subclass adds groups by calling
+    ``self.taxonomy.add_organ(group_name, label_id, organ_name)`` for each
+    organ; the group is created lazily on first use. To assign a custom
+    OmniSurface look to a new group, register it in
+    :data:`physiomotion4d.usd_anatomy_tools.DEFAULT_RENDER_PARAMS` (see that
+    module's docstring). Groups without a registered look fall back to the
+    ``"other"`` entry, so they still render.
 
     Attributes:
-        target_spacing (float): Target isotropic spacing for resampling (default 1.5mm)
-        rescale_intensity_range (bool): Whether to rescale intensity values
-        contrast_threshold (int): Threshold for contrast agent detection (default 700)
-        all_mask_ids (dict): Dictionary mapping all anatomical structure IDs to names
-        heart_mask_ids (dict): Dictionary of cardiac structure IDs
-        lung_mask_ids (dict): Dictionary of pulmonary structure IDs
-        bone_mask_ids (dict): Dictionary of skeletal structure IDs
-        major_vessels_mask_ids (dict): Dictionary of major vessel IDs
-        contrast_mask_ids (dict): Dictionary of contrast-enhanced region IDs
-        soft_tissue_mask_ids (dict): Dictionary of soft tissue structure IDs
-        other_mask_ids (dict): Dictionary of remaining structure IDs
+        target_spacing (float): Target isotropic spacing for resampling.
+        rescale_intensity_range (bool): Whether to rescale intensity values.
+        contrast_threshold (int): Threshold for contrast agent detection.
+        taxonomy (AnatomyTaxonomy): Group→organ mapping shared with
+            :class:`physiomotion4d.USDAnatomyTools`.
     """
 
     def __init__(self, log_level: int | str = logging.INFO):
         """Initialize the SegmentAnatomyBase class.
 
-        Sets up default parameters for image preprocessing and anatomical
-        structure ID mappings. Subclasses should call this constructor and
-        then override the mask ID dictionaries with their specific mappings.
+        Sets up default parameters for image preprocessing and seeds the
+        anatomy taxonomy with the two base-class default organs (contrast
+        and soft_tissue). Subclasses should:
+
+        1. Add their organ groups via ``self.taxonomy.add_organ(...)``.
+        2. Call :meth:`_finalize_other_group` to fill in unclaimed ids.
 
         Args:
-            log_level: Logging level (default: logging.INFO)
+            log_level: Logging level (default: logging.INFO).
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
@@ -63,50 +71,39 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
 
         self.contrast_threshold: int = 700
 
-        self.all_mask_ids: dict[int, str] = {}
-        self.heart_mask_ids: dict[int, str] = {}
-        self.major_vessels_mask_ids: dict[int, str] = {}
-        self.lung_mask_ids: dict[int, str] = {}
-        self.bone_mask_ids: dict[int, str] = {}
-        self.contrast_mask_ids: dict[int, str] = {135: "contrast"}
-        self.soft_tissue_mask_ids: dict[int, str] = {133: "soft_tissue"}
-        self.other_mask_ids: dict[int, str] = {}
+        # Single source of truth for the anatomy hierarchy. Subclasses
+        # populate this; USDAnatomyTools and ConvertVTKToUSD consume it.
+        self.taxonomy = AnatomyTaxonomy()
+        # Base-class default labels that downstream code relies on existing.
+        # Subclasses can override by adding the same id under a different
+        # group, or leave these in place.
+        self.taxonomy.add_organ("contrast", 135, "contrast")
+        self.taxonomy.add_organ("soft_tissue", 133, "soft_tissue")
 
-        # Subclasses should call this function to complete the mask ID setup
-        # self.set_other_and_all_mask_ids()
+    def _finalize_other_group(self) -> None:
+        """Fill the ``other`` group with any unclaimed ids in [1, 256).
 
-    def set_other_and_all_mask_ids(self) -> None:
-        """Set the other mask IDs and consolidate all mask ID dictionaries.
-
-        Creates the 'other' category for any anatomical structures not classified
-        into the specific organ systems, then combines all individual mask ID
-        dictionaries into the master all_mask_ids dictionary.
-
-        This method should be called after setting up the individual organ
-        system mask ID dictionaries in subclasses.
+        Subclasses call this at the end of ``__init__`` once they have
+        populated their specific groups. The consolidated all-labels view is
+        available via ``self.taxonomy.all_labels()``.
         """
-        self.other_mask_ids = {id: f"other_{id}" for id in range(1, 256)}
-        for id in self.contrast_mask_ids.keys():
-            self.other_mask_ids.pop(id)
-        for id in self.soft_tissue_mask_ids.keys():
-            self.other_mask_ids.pop(id)
-        for id in self.heart_mask_ids.keys():
-            self.other_mask_ids.pop(id)
-        for id in self.major_vessels_mask_ids.keys():
-            self.other_mask_ids.pop(id)
-        for id in self.lung_mask_ids.keys():
-            self.other_mask_ids.pop(id)
-        for id in self.bone_mask_ids.keys():
-            self.other_mask_ids.pop(id)
-        self.all_mask_ids = {
-            **self.contrast_mask_ids,
-            **self.soft_tissue_mask_ids,
-            **self.heart_mask_ids,
-            **self.major_vessels_mask_ids,
-            **self.lung_mask_ids,
-            **self.bone_mask_ids,
-            **self.other_mask_ids,
-        }
+        self.taxonomy.fill_other_group()
+
+    def label_to_type(self, label_name: str) -> str:
+        """Return the anatomy group ('heart', 'lung', etc.) for a label name.
+
+        Used by :class:`physiomotion4d.ConvertVTKToUSD` to group label-mode
+        mesh prims under per-type Xforms (e.g.
+        ``/World/{basename}/heart/{label_name}``). Delegates to the taxonomy.
+
+        Args:
+            label_name: Organ name (a value in the taxonomy's group organ dicts).
+
+        Returns:
+            The anatomy group name. Falls back to ``"other"`` for any label
+            the segmenter doesn't recognize.
+        """
+        return self.taxonomy.group_for_label(label_name)
 
     def set_target_spacing(self, target_spacing: float) -> None:
         """Set the target isotropic spacing for image resampling.
@@ -391,7 +388,7 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
 
         label_arr = itk.GetArrayFromImage(labelmap_image)
         if labelmap_ids is None:
-            labelmap_ids = list(self.all_mask_ids.keys())
+            labelmap_ids = list(self.taxonomy.all_labels().keys())
         label_arr = np.isin(label_arr, labelmap_ids)
         label_image = itk.GetImageFromArray(label_arr.astype(np.int16))
         label_image.CopyInformation(labelmap_image)
@@ -469,18 +466,23 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
             >>> contrast_labels = segmenter.segment_contrast_agent(preprocessed_image, base_labels)
         """
         thorasic_ids = (
-            list(self.heart_mask_ids.keys())
-            + list(self.lung_mask_ids.keys())
-            + list(self.major_vessels_mask_ids.keys())
+            list(self.taxonomy.labels_in_group("heart").keys())
+            + list(self.taxonomy.labels_in_group("lung").keys())
+            + list(self.taxonomy.labels_in_group("major_vessels").keys())
             + [0]
         )
+        contrast_ids = list(self.taxonomy.labels_in_group("contrast").keys())
+        if len(contrast_ids) == 0:
+            self.log_warning("No contrast-enhanced regions found in the labelmap")
+            return labelmap_image
+
         results_image = self.segment_connected_component(
             preprocessed_image,
             labelmap_image,
             lower_threshold=self.contrast_threshold,
             upper_threshold=4000,
             labelmap_ids=thorasic_ids,
-            mask_id=list(self.contrast_mask_ids.keys())[-1],
+            mask_id=contrast_ids[-1],
             use_mid_slice=True,
             hole_fill=3,
         )
@@ -501,77 +503,37 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
             labelmap_image (itk.image): The detailed segmentation labelmap
 
         Returns:
-            dict[str, itk.image]: Dictionary of binary masks with keys:
-                - "lung": Pulmonary structures (lungs, trachea, airways)
-                - "heart": Cardiac structures (heart chambers, valves)
-                - "major_vessels": Large blood vessels (aorta, vena cava)
-                - "bone": Skeletal structures (ribs, vertebrae, sternum)
-                - "soft_tissue": Soft tissue organs (liver, kidneys, etc.)
-                - "other": Remaining anatomical structures
-                - "contrast": Contrast-enhanced regions
+            dict[str, itk.image]: Dictionary of binary masks keyed by group
+                name. Exactly one entry per group registered in
+                :attr:`taxonomy` (plus ``"other"``). The returned key set
+                is segmenter-specific — callers that need a particular
+                group should check membership (``"lung" in masks``) rather
+                than assume a fixed schema.
 
         Example:
             >>> masks = segmenter.create_anatomy_group_masks(labelmap)
-            >>> lung_mask = masks['lung']
-            >>> heart_mask = masks['heart']
+            >>> if "lung" in masks:
+            ...     lung_mask = masks["lung"]
         """
         labelmap_arr = itk.GetArrayFromImage(labelmap_image)
         other_mask_arr = np.where(labelmap_arr > 0, 1, 0)
 
-        lung_mask_arr = np.isin(labelmap_arr, list(self.lung_mask_ids.keys())).astype(
-            np.uint8
-        )
-        other_mask_arr = np.where(lung_mask_arr > 0, 0, other_mask_arr)
+        masks: dict[str, itk.image] = {}
+        for group_name in self.taxonomy.group_names():
+            if group_name == AnatomyTaxonomy.OTHER_GROUP:
+                continue
+            group_ids = list(self.taxonomy.labels_in_group(group_name).keys())
+            group_mask_arr = np.isin(labelmap_arr, group_ids).astype(np.uint8)
+            other_mask_arr = np.where(group_mask_arr > 0, 0, other_mask_arr)
+            group_mask = itk.GetImageFromArray(group_mask_arr)
+            group_mask.CopyInformation(labelmap_image)
+            masks[group_name] = group_mask
 
-        heart_mask_arr = np.isin(labelmap_arr, list(self.heart_mask_ids.keys())).astype(
-            np.uint8
-        )
-        other_mask_arr = np.where(heart_mask_arr > 0, 0, other_mask_arr)
-
-        major_vessels_mask_arr = np.isin(
-            labelmap_arr, list(self.major_vessels_mask_ids.keys())
-        ).astype(np.uint8)
-        other_mask_arr = np.where(major_vessels_mask_arr > 0, 0, other_mask_arr)
-
-        bone_mask_arr = np.isin(labelmap_arr, list(self.bone_mask_ids.keys())).astype(
-            np.uint8
-        )
-        other_mask_arr = np.where(bone_mask_arr > 0, 0, other_mask_arr)
-
-        soft_tissue_mask_arr = np.isin(
-            labelmap_arr, list(self.soft_tissue_mask_ids.keys())
-        ).astype(np.uint8)
-        other_mask_arr = np.where(soft_tissue_mask_arr > 0, 0, other_mask_arr)
-
-        contrast_mask_arr = np.isin(
-            labelmap_arr, list(self.contrast_mask_ids.keys())
-        ).astype(np.uint8)
-        other_mask_arr = np.where(contrast_mask_arr > 0, 0, other_mask_arr)
-
-        lung_mask = itk.GetImageFromArray(lung_mask_arr)
-        lung_mask.CopyInformation(labelmap_image)
-        heart_mask = itk.GetImageFromArray(heart_mask_arr)
-        heart_mask.CopyInformation(labelmap_image)
-        major_vessels_mask = itk.GetImageFromArray(major_vessels_mask_arr)
-        major_vessels_mask.CopyInformation(labelmap_image)
-        bone_mask = itk.GetImageFromArray(bone_mask_arr)
-        bone_mask.CopyInformation(labelmap_image)
-        soft_tissue_mask = itk.GetImageFromArray(soft_tissue_mask_arr)
-        soft_tissue_mask.CopyInformation(labelmap_image)
-        contrast_mask = itk.GetImageFromArray(contrast_mask_arr)
-        contrast_mask.CopyInformation(labelmap_image)
         other_mask = itk.GetImageFromArray(other_mask_arr.astype(np.uint8))
         other_mask.CopyInformation(labelmap_image)
+        masks[AnatomyTaxonomy.OTHER_GROUP] = other_mask
 
-        return {
-            "lung": lung_mask,
-            "heart": heart_mask,
-            "major_vessels": major_vessels_mask,
-            "bone": bone_mask,
-            "soft_tissue": soft_tissue_mask,
-            "other": other_mask,
-            "contrast": contrast_mask,
-        }
+        return masks
 
     def segmentation_method(self, preprocessed_image: itk.image) -> itk.image:
         """
@@ -668,13 +630,4 @@ class SegmentAnatomyBase(PhysioMotion4DBase):
         )
         labelmap_image.CopyInformation(input_image)
 
-        return {
-            "labelmap": labelmap_image,
-            "lung": masks["lung"],
-            "heart": masks["heart"],
-            "major_vessels": masks["major_vessels"],
-            "bone": masks["bone"],
-            "soft_tissue": masks["soft_tissue"],
-            "other": masks["other"],
-            "contrast": masks["contrast"],
-        }
+        return {"labelmap": labelmap_image, **masks}

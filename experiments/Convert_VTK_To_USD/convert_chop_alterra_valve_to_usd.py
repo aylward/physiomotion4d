@@ -29,34 +29,36 @@
 import re
 from pathlib import Path
 
+from physiomotion4d import ConvertVTKToUSD
+
 # Use as a test
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 # Import USDTools for post-processing colormap
 from physiomotion4d.usd_tools import USDTools
-
-from physiomotion4d import ConvertVTKToUSD
 
 # %% [markdown]
 # ## 1. Discover and Organize Time-Series Files
 
 # %%
 # Set to True to use as a test.  Automatically done by
-#    running_as_test() helper function.
-quick_run = running_as_test()
-quick_run_step = 4
+#    TestTools.running_as_test() helper function.
+test_mode = TestTools.running_as_test()
+test_mode_step = 4
 
-# Define data directories (Alterra only)
-data_dir = Path.cwd().parent.parent / "data" / "CHOP-Valve4D"
+# Define data directories (Alterra only). Anchored to the script's location
+# so the experiment runs from any working directory.
+script_dir = Path(__file__).resolve().parent
+data_dir = script_dir.parent.parent / "data" / "CHOP-Valve4D"
 alterra_dir = data_dir / "Alterra"
 
-output_dir = Path.cwd() / "results" / "valve4d-alterra"
-if quick_run:
-    output_usd = output_dir / "alterra_quick.usd"
+output_dir = script_dir / "results" / "valve4d-alterra"
+if test_mode:
+    output_usd = output_dir / "alterra_test.usd"
 else:
     output_usd = output_dir / "alterra_full.usd"
 
-colormap_primvar_substrs = ["stress", "strain"]
+colormap_primvar_substrs = ["von_mises_stress"]
 colormap_name = "jet"  # matplotlib colormap name
 colormap_range_min = 25
 colormap_range_max = 200
@@ -79,6 +81,7 @@ for vtk_file in vtk_files:
     if match:
         time_step = int(match.group(1))
         alterra_series.append((time_step, vtk_file))
+        print(f"Found file: {time_step:04d}: {vtk_file.name}")
 
 # Sort by time step
 alterra_series.sort(key=lambda x: x[0])
@@ -129,50 +132,43 @@ for cell_type in mesh_info["cell_types"]:
     )
 
 # %% [markdown]
-# ## 3. Convert TPV25
+# ## 3. Convert Alterra
 
 # %%
 alterra_files = [file_path for _, file_path in alterra_series]
 alterra_times = [float(time_step) for time_step, _ in alterra_series]
 
-if quick_run:
-    alterra_files = alterra_files[::quick_run_step]
-    alterra_times = alterra_times[::quick_run_step]
+if test_mode:
+    alterra_files = alterra_files[::test_mode_step]
+    alterra_times = alterra_times[::test_mode_step]
 
 print(f"\nConverting to: {output_usd}")
 print(f"Number of time steps: {len(alterra_times)}")
 print("\nThis may take several minutes...\n")
 
 # topology validation and conversion happen inside from_files()
-stage = ConvertVTKToUSD.from_files(
-    data_basename="AlterraValve",
-    vtk_files=alterra_files,
-    extract_surface=True,
-    separate_by=separate_by,
-    times_per_second=times_per_second,
-    solid_color=solid_color,
-    time_codes=alterra_times,
-).convert(str(output_usd))
+stage = (
+    ConvertVTKToUSD.from_files(
+        data_basename="AlterraValve",
+        vtk_files=alterra_files,
+        extract_surface=True,
+        separate_by=separate_by,
+        times_per_second=times_per_second,
+        solid_color=solid_color,
+        time_codes=alterra_times,
+    )
+    .compute_von_mises_stress("stress")
+    .convert(str(output_usd))
+)
 
 # %%
 usd_tools = USDTools()
 # ConvertVTKToUSD places prims at /World/{basename}/{part_name}.
-# Discover the target prim dynamically so the path stays valid regardless
-# of how many connected components or cell types the VTK file produces.
+vessel_paths = usd_tools.list_mesh_paths_under(stage, parent_path="/World/AlterraValve")
 if separate_by == "connectivity":
-    mesh_paths = usd_tools.list_mesh_paths_under(
-        stage, parent_path="/World/AlterraValve"
-    )
-    candidates = [
-        p for p in mesh_paths if p.split("/")[-1].startswith("AlterraValve_object")
-    ]
-    vessel_path = candidates[-1] if candidates else "/World/AlterraValve/Mesh"
+    vessel_path = "/World/AlterraValve/AlterraValve_object3"
 elif separate_by == "cell_type":
-    mesh_paths = usd_tools.list_mesh_paths_under(
-        stage, parent_path="/World/AlterraValve"
-    )
-    triangle_paths = [p for p in mesh_paths if p.split("/")[-1].endswith("_Triangle")]
-    vessel_path = triangle_paths[0] if triangle_paths else "/World/AlterraValve/Mesh"
+    vessel_path = "/World/AlterraValve/AlterraValve_Triangle"
 else:
     vessel_path = "/World/AlterraValve/Mesh"
 
@@ -189,8 +185,8 @@ if color_primvar:
         str(output_usd),
         vessel_path,
         color_primvar,
-        intensity_range=(colormap_range_min, colormap_range_max),
         cmap=colormap_name,
+        intensity_range=(colormap_range_min, colormap_range_max),
         use_sigmoid_scale=True,
         bind_vertex_color_material=True,
     )

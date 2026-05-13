@@ -131,7 +131,7 @@ model from a population of anatomical meshes using the KCL Heart Model dataset a
 - Disease-specific shape analysis (pathology vs. normal)
 - Surgical planning with shape prediction
 
-**⚠️ Required first**: Complete this experiment BEFORE `Heart-Statistical_Model_To_Patient`
+**Required first**: Complete this experiment BEFORE `Heart-Statistical_Model_To_Patient`
 as it generates the PCA model files needed for patient-specific registration.
 
 **Output:** PCA model files (eigenvectors, eigenvalues, mean shape, template mask) for
@@ -211,11 +211,11 @@ pytest tests/test_experiments.py::test_list_scripts_in_subdir -v -s --run-experi
 pytest tests/test_experiments.py::test_experiment_structure -v --run-experiments
 ```
 
-🔒 **IMPORTANT:** Experiment tests require the `--run-experiments` flag. Without this flag, they are automatically skipped, even if you run `pytest tests/` or target the test file directly.
+**IMPORTANT:** Experiment tests require the `--run-experiments` flag. Without this flag, they are automatically skipped, even if you run `pytest tests/` or target the test file directly.
 
 ### Test Features
 
-- **Test-mode flag** - When run as tests (pytest with `--run-experiments`), the runner sets `PHYSIOMOTION_RUNNING_AS_TEST=1`. Scripts can read this (e.g. via `physiomotion4d.notebook_utils.running_as_test()`) and use reduced parameters so test runs stay fast. See [tests/EXPERIMENT_TESTS_GUIDE.md](../tests/EXPERIMENT_TESTS_GUIDE.md#running-as-test-physiomotion_running_as_test).
+- **Test-mode flag** - When run as tests (pytest with `--run-experiments`), the runner sets `PHYSIOMOTION_RUNNING_AS_TEST=1`. Scripts can read this (e.g. via `physiomotion4d.test_tools.TestTools.running_as_test()`) and use reduced parameters so test runs stay fast. See [tests/EXPERIMENT_TESTS_GUIDE.md](../tests/EXPERIMENT_TESTS_GUIDE.md#running-as-test-physiomotion_running_as_test).
 - **One test per subdirectory** - Each experiment subdirectory gets its own test function
 - **Alphanumeric ordering** - Scripts execute in alphanumeric order (e.g., `0-`, `1-`, `2-`)
 - **Long timeouts** - Each script has up to 1 hour execution time, tests have multi-hour timeouts
@@ -233,11 +233,11 @@ These tests require:
 
 ### Important Notes
 
-⚠️ **These tests are extremely long-running** - Plan for multiple hours of execution time
+**These tests are extremely long-running** - Plan for multiple hours of execution time
 
-⚠️ **Not part of CI/CD** - These tests are excluded from all automated workflows
+**Not part of CI/CD** - These tests are excluded from all automated workflows
 
-⚠️ **Resource intensive** - Requires GPU, significant memory, and disk space
+**Resource intensive** - Requires GPU, significant memory, and disk space
 
 ## Structure
 
@@ -262,16 +262,16 @@ Each subdirectory represents a different experimental domain:
 
 ## Important Notes
 
-⚠️ **These experiments are not production code** - They may contain:
+**These experiments are not production code** - They may contain:
 - Hardcoded paths and parameters
 - Incomplete error handling
 - Experimental APIs that have since changed
 - Code that doesn't follow the final library conventions
 - Dataset-specific assumptions and configurations
 
-⚠️ **Do not use these as usage examples** - These are research artifacts, not tutorials.
+**Do not use these as usage examples** - These are research artifacts, not tutorials.
 
-### ✅ For Production Use, Consult:
+### For Production Use, Consult:
 
 1. **CLI Commands** ⭐ **PRIMARY RESOURCE**
    - `physiomotion4d-heart-gated-ct` - Complete heart-gated CT workflow

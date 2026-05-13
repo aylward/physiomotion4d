@@ -2,16 +2,16 @@
 
 This directory contains comprehensive test suites for the PhysioMotion4D package, validating the complete medical imaging to Omniverse pipeline.
 
-## 📚 Documentation
+## Documentation
 
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing guide with setup, troubleshooting, and best practices
 - **[GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)** - CI/CD documentation and GitHub Actions workflow details
-- **[EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)** - Guide for running experiment notebook tests
+- **[EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)** - Guide for running experiment script tests
 - **[PARALLEL_EXECUTION_GUIDE.md](PARALLEL_EXECUTION_GUIDE.md)** - How parallel execution works with experiment tests
 - **[EXPERIMENT_FLAG_USAGE.md](EXPERIMENT_FLAG_USAGE.md)** - Details on the --run-experiments flag
 - **[TEST_FIXES_SUMMARY.md](TEST_FIXES_SUMMARY.md)** - Recent bug fixes and known issues
 
-## 🧪 Test Categories
+## Test Categories
 
 ### Data Pipeline Tests
 - **`test_download_heart_data.py`** - Automatic data download with fallback logic
@@ -34,17 +34,17 @@ This directory contains comprehensive test suites for the PhysioMotion4D package
 - **`test_usd_time_preservation.py`** - Time-varying data validation
 
 ### Experiment Tests (EXTREMELY SLOW - Manual Only)
-- **`test_experiments.py`** - End-to-end experiment notebook execution (hours to complete)
-  - 🔒 **Opt-in only** - Requires `--run-experiments` flag to run
-  - ⚠️ **NOT included in CI/CD** - Never runs in automated workflows
-  - ⚠️ **Automatically skipped** - Won't run with `pytest tests/` unless flag is set
-  - Runs all notebooks in `experiments/` subdirectories
+- **`test_experiments.py`** - End-to-end experiment script execution (hours to complete)
+  - **Opt-in only** - Requires `--run-experiments` flag to run
+  - **NOT included in CI/CD** - Never runs in automated workflows
+  - **Automatically skipped** - Won't run with `pytest tests/` unless flag is set
+  - Runs every `*.py` script in each `experiments/` subdirectory
   - Each subdirectory gets its own test
-  - Notebooks run in alphanumeric order
+  - Scripts run in alphanumeric order
   - Requires GPU, CUDA, and all dependencies installed
-  - 📖 **See [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md) for detailed usage instructions**
+  - See [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md) for detailed usage instructions
 
-## 📂 Directory Structure
+## Directory Structure
 
 ```
 tests/
@@ -56,7 +56,7 @@ tests/
 └── *.py                     # Test modules
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Git LFS (required for tests)
 
@@ -111,13 +111,13 @@ pytest tests/ --cov=src/physiomotion4d --cov-report=html
 pytest tests/test_usd_merge.py::TestUSDMerge::test_merge_usd_files_copy_method -v
 ```
 
-> 💡 **For detailed instructions**, see [TESTING_GUIDE.md](TESTING_GUIDE.md)
+**For detailed instructions**, see [TESTING_GUIDE.md](TESTING_GUIDE.md)
 
-## ⏱️ Test Timing Reports
+## Test Timing Reports
 
 All test runs automatically generate a comprehensive timing report at the end showing individual test durations, session time, and pass/fail/skip counts. The report separates regular tests from experiment tests and highlights the slowest tests.
 
-## ⚙️ Test Configuration
+## Test Configuration
 
 ### Global Settings
 - **Timeout**: 900 seconds (15 minutes) per test
@@ -150,30 +150,30 @@ test_segment_chest_total_segmentator ────→ test_contour_tools
 
 Fixtures in `conftest.py` automatically manage these dependencies.
 
-## 🔄 Continuous Integration
+## Continuous Integration
 
 Tests automatically run on pull requests via GitHub Actions. The CI workflow:
 
-- ✅ **Runs fast tests** - USD utilities, data conversion, basic validation
-- ❌ **Skips slow tests** - Registration and segmentation (too slow for CI)
-- ❌ **Automatically skips experiment tests** - Protected by `--run-experiments` flag requirement
-- ✅ **Caches test data** - Speeds up subsequent runs
-- ✅ **Generates coverage** - Reports uploaded to Codecov
+- **Runs fast tests** - USD utilities, data conversion, basic validation
+- **Skips slow tests** - Registration and segmentation (too slow for CI)
+- **Automatically skips experiment tests** - Protected by `--run-experiments` flag requirement
+- **Caches test data** - Speeds up subsequent runs
+- **Generates coverage** - Reports uploaded to Codecov
 
 **CI Configuration:**
 - Platforms: Ubuntu, Windows, macOS
-- Python versions: 3.10, 3.11, 3.12
+- Python versions: 3.11, 3.12
 - Target coverage: >70%
 - Protection: Experiment tests require `--run-experiments` flag (never used in CI/CD)
 
-> 📖 **For detailed CI/CD information**, see [GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)
+**For detailed CI/CD information**, see [GITHUB_WORKFLOWS.md](GITHUB_WORKFLOWS.md)
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
 **Problem: HTTP 404 when downloading data**
-- ✅ **Fixed!** Tests now check `data/Slicer-Heart-CT/` first
+- Tests now check `data/Slicer-Heart-CT/` first
 - Place `TruncalValve_4DCT.seq.nrrd` there to avoid download
 
 **Problem: Out of memory errors**
@@ -186,12 +186,12 @@ Tests automatically run on pull requests via GitHub Actions. The CI workflow:
 - Override with: `@pytest.mark.timeout(1800)` decorator or use `-o timeout=1800`
 
 **Problem: Fixture naming errors**
-- ✅ **Fixed!** Use correct fixture names from `conftest.py`
+- Use correct fixture names from `conftest.py`
 - Don't import from other test files
 
-> 🔍 **For complete troubleshooting guide**, see [TESTING_GUIDE.md](TESTING_GUIDE.md#troubleshooting)
+**For complete troubleshooting guide**, see [TESTING_GUIDE.md](TESTING_GUIDE.md#troubleshooting)
 
-## 📝 Adding New Tests
+## Adding New Tests
 
 When creating new tests:
 
@@ -202,9 +202,9 @@ When creating new tests:
 5. **Organize outputs**: Save results to `tests/results/<module_name>/`
 6. **Update docs**: Add test description to this README
 
-> 💡 **For best practices**, see [TESTING_GUIDE.md](TESTING_GUIDE.md#best-practices)
+**For best practices**, see [TESTING_GUIDE.md](TESTING_GUIDE.md#best-practices)
 
-## 📊 Test Data
+## Test Data
 
 ### Slicer-Heart-CT Dataset
 - **Source**: [Slicer-Heart-CT GitHub](https://github.com/Slicer-Heart-CT/Slicer-Heart-CT)
@@ -219,7 +219,7 @@ Tests automatically:
 3. Download from GitHub if needed
 4. Skip gracefully if unavailable
 
-## 📚 Additional Resources
+## Additional Resources
 
 - **Detailed Testing Guide**: [TESTING_GUIDE.md](TESTING_GUIDE.md)
 - **Experiment Tests Guide**: [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md)

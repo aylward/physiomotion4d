@@ -4,7 +4,7 @@ This document explains how the `--run-experiments` flag works and why it exists.
 
 ## Purpose
 
-The `--run-experiments` flag provides protection against accidentally running extremely long-running experiment notebook tests. These tests can take 20+ hours to complete and are resource-intensive.
+The `--run-experiments` flag provides protection against accidentally running extremely long-running experiment script tests. These tests can take 20+ hours to complete and are resource-intensive.
 
 ## How It Works
 
@@ -143,7 +143,7 @@ If you ever need to disable this protection (not recommended):
 
 ## Test-Mode Flag: PHYSIOMOTION_RUNNING_AS_TEST
 
-When experiment tests run (with `--run-experiments`), the test runner also sets **`PHYSIOMOTION_RUNNING_AS_TEST=1`** so that notebooks can use reduced parameters (e.g. fewer iterations, fewer files) and finish faster. Notebooks should read this variable and choose quick vs full parameters accordingly. See [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md#running-as-test-physiomotion_running_as_test) for the recommended check and the `physiomotion4d.notebook_utils.running_as_test()` helper.
+When experiment tests run (with `--run-experiments`), the test runner also sets **`PHYSIOMOTION_RUNNING_AS_TEST=1`** so that scripts can use reduced parameters (e.g. fewer iterations, fewer files) and finish faster. Scripts should read this variable and choose quick vs full parameters accordingly. See [EXPERIMENT_TESTS_GUIDE.md](EXPERIMENT_TESTS_GUIDE.md#running-as-test-physiomotion_running_as_test) for the recommended check and the `physiomotion4d.test_tools.TestTools.running_as_test()` helper.
 
 ## Related Documentation
 
@@ -153,10 +153,10 @@ When experiment tests run (with `--run-experiments`), the test runner also sets 
 
 ## Summary
 
-- ✅ Experiment tests are **opt-in only**
-- ✅ Requires explicit `--run-experiments` flag
-- ✅ Automatically skipped without the flag
-- ✅ Protected from accidental CI/CD execution
-- ✅ Clear, self-documenting behavior
+- Experiment tests are **opt-in only**
+- Requires explicit `--run-experiments` flag
+- Automatically skipped without the flag
+- Protected from accidental CI/CD execution
+- Clear, self-documenting behavior
 
 **Remember:** If you see experiment tests being skipped and want to run them, add `--run-experiments` to your pytest command!

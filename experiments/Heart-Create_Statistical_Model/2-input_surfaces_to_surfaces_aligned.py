@@ -23,7 +23,7 @@ import pandas as pd
 import pyvista as pv
 
 from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 from physiomotion4d.register_models_icp import RegisterModelsICP
 
 _HERE = Path(__file__).parent
@@ -169,7 +169,7 @@ for mesh_id in example_ids:
     plotter.show_axes()
 
     plotter.link_views()
-    if not running_as_test():
+    if not TestTools.running_as_test():
         plotter.show()
 
 # %% [markdown]
@@ -267,7 +267,7 @@ axes[1].grid(axis="y", alpha=0.3)
 
 plt.tight_layout()
 plt.savefig(output_dir / "registration_statistics.png", dpi=150, bbox_inches="tight")
-if not running_as_test():
+if not TestTools.running_as_test():
     plt.show()
 
 print(f"\nPlot saved to: {output_dir / 'registration_statistics.png'}")

@@ -1,32 +1,35 @@
 # Parallel Execution Guide for Experiment Tests
 
-This guide explains how parallel execution works with experiment tests and how notebook dependencies are enforced.
+This guide explains how parallel execution works with experiment tests and how
+script dependencies are enforced.
 
 ## Overview
 
-Experiment tests support parallel execution at the **subdirectory level** while maintaining **strict sequential execution** of notebooks within each subdirectory.
+Experiment tests support parallel execution at the **subdirectory level** while
+maintaining **strict sequential execution** of scripts within each
+subdirectory.
 
 ## Execution Model
 
 ### Sequential Within Subdirectories (Enforced)
 
-Within each experiment subdirectory, notebooks run in **strict alphanumeric order**:
+Within each experiment subdirectory, scripts run in **strict alphanumeric order**:
 
 ```python
-# Example: Heart-GatedCT_To_USD notebooks
-1. 0-download_and_convert_4d_to_3d.ipynb  ← Must complete first
-2. 1-register_images.ipynb                 ← Uses data from step 1
-3. 2-generate_segmentation.ipynb           ← Uses data from step 2
-4. 3-transform_dynamic_and_static_contours.ipynb  ← Uses data from step 3
-5. 4-merge_dynamic_and_static_usd.ipynb    ← Uses data from step 4
+# Example: Heart-GatedCT_To_USD scripts
+1. 0-download_and_convert_4d_to_3d.py            # Must complete first
+2. 1-register_images.py                          # Uses data from step 1
+3. 2-generate_segmentation.py                    # Uses data from step 2
+4. 3-transform_dynamic_and_static_contours.py    # Uses data from step 3
+5. 4-merge_dynamic_and_static_usd.py             # Uses data from step 4
 # ... and so on
 ```
 
 **Key guarantees:**
-- ✅ Notebooks execute in a Python `for` loop (inherently sequential)
-- ✅ Each notebook must complete before the next begins
-- ✅ **Execution stops on first failure** to prevent cascading errors
-- ✅ This behavior is enforced even when using `pytest -n` (multiple workers)
+- Scripts execute in a Python `for` loop (inherently sequential)
+- Each script must complete before the next begins
+- **Execution stops on first failure** to prevent cascading errors
+- This behavior is enforced even when using `pytest -n` (multiple workers)
 
 ### Parallel Across Subdirectories (Allowed)
 
@@ -50,22 +53,23 @@ Each test function is treated as an atomic unit by pytest-xdist:
 @pytest.mark.xdist_group(name='experiment_heart_gated_ct')
 def test_experiment_heart_gated_ct_to_usd():
     """Test function is atomic - xdist won't split it"""
-    run_experiment_notebooks('Heart-GatedCT_To_USD', ...)
+    run_experiment_scripts('Heart-GatedCT_To_USD', ...)
 ```
 
-pytest-xdist **cannot** and **will not** parallelize the code inside a test function. The entire function runs on a single worker.
+pytest-xdist **cannot** and **will not** parallelize the code inside a test
+function. The entire function runs on a single worker.
 
 ### 2. Sequential Loop Enforcement
 
-Inside `run_experiment_notebooks()`, notebooks run in a standard Python loop:
+Inside `run_experiment_scripts()`, scripts run in a standard Python loop:
 
 ```python
-for i, notebook in enumerate(notebooks, 1):
-    # Execute notebook i
-    result = execute_notebook(notebook, timeout=timeout_per_notebook)
-    
+for i, script in enumerate(scripts, 1):
+    # Execute script i
+    result = execute_script(script, timeout=timeout_per_script)
+
     if not result['success']:
-        # STOP on failure - don't execute remaining notebooks
+        # STOP on failure - don't execute remaining scripts
         break
 ```
 
@@ -85,21 +89,22 @@ def test_experiment_heart_gated_ct_to_usd():
     ...
 ```
 
-This ensures tests in the same group don't run in parallel (though currently each test has a unique group, allowing all to run in parallel).
+This ensures tests in the same group don't run in parallel (though currently
+each test has a unique group, allowing all to run in parallel).
 
 ### 4. Fail-Fast Behavior
 
-When a notebook fails, execution stops immediately:
+When a script fails, execution stops immediately:
 
 ```python
 if not result['success']:
-    print('⚠️ Stopping execution: notebook failed')
-    print('Remaining notebooks in this experiment will not run.')
-    break  # Stop the loop - don't run remaining notebooks
+    print('Stopping execution: script failed')
+    print('Remaining scripts in this experiment will not run.')
+    break  # Stop the loop - don't run remaining scripts
 ```
 
 This prevents:
-- Wasting time on dependent notebooks that will fail
+- Wasting time on dependent scripts that will fail
 - Cascading errors from missing dependencies
 - Confusing error messages from downstream failures
 
@@ -112,9 +117,9 @@ This prevents:
 pytest tests/test_experiments.py -v --run-experiments
 
 # Behavior:
-# - Colormap experiment runs (all notebooks in order)
-# - Then Reconstruct4DCT runs (all notebooks in order)
-# - Then Heart-VTKSeries runs (all notebooks in order)
+# - Colormap experiment runs (all scripts in order)
+# - Then Reconstruct4DCT runs (all scripts in order)
+# - Then Heart-VTKSeries runs (all scripts in order)
 # - ... and so on
 ```
 
@@ -125,8 +130,8 @@ pytest tests/test_experiments.py -v --run-experiments
 pytest tests/test_experiments.py -v -n 2 --run-experiments
 
 # Possible behavior:
-# Worker 1: Colormap experiment (notebooks sequential within)
-# Worker 2: Heart-VTKSeries experiment (notebooks sequential within)
+# Worker 1: Colormap experiment (scripts sequential within)
+# Worker 2: Heart-VTKSeries experiment (scripts sequential within)
 # When Worker 1 finishes, it picks up Reconstruct4DCT
 # When Worker 2 finishes, it picks up Heart-Statistical_Model_To_Patient
 # ... and so on
@@ -141,17 +146,17 @@ pytest tests/test_experiments.py -v -n auto --run-experiments
 # Behavior:
 # - Spawns one worker per CPU core
 # - Distributes test functions (subdirectories) across workers
-# - Within each worker, notebooks run sequentially
+# - Within each worker, scripts run sequentially
 ```
 
 ## Dependency Management
 
 ### Within-Subdirectory Dependencies
 
-Notebooks in the same subdirectory often have dependencies:
+Scripts in the same subdirectory often have dependencies:
 
-```
-0-download.ipynb → 1-process.ipynb → 2-analyze.ipynb → 3-visualize.ipynb
+```text
+0-download.py -> 1-process.py -> 2-analyze.py -> 3-visualize.py
 ```
 
 **Protected by:**
@@ -164,9 +169,9 @@ Notebooks in the same subdirectory often have dependencies:
 Different subdirectories should be independent:
 
 ```
-Colormap-VTK_To_USD/  ← Independent
-Heart-GatedCT_To_USD/ ← Independent
-Lung-GatedCT_To_USD/  ← Independent
+Colormap-VTK_To_USD/    # Independent
+Heart-GatedCT_To_USD/   # Independent
+Lung-GatedCT_To_USD/    # Independent
 ```
 
 **Best practices:**
@@ -208,16 +213,16 @@ Experiments generate large files:
 
 ## Troubleshooting
 
-### Notebooks Running Out of Order
+### Scripts Running Out of Order
 
-**Symptom:** Later notebooks fail due to missing dependencies
+**Symptom:** Later scripts fail due to missing dependencies
 
 **Diagnosis:**
-1. Check that notebooks have numeric prefixes (0-, 1-, 2-)
-2. Verify `sorted()` in `get_notebooks_in_subdir()` is working
+1. Check that scripts have numeric prefixes (0-, 1-, 2-)
+2. Verify `sorted()` in `get_scripts_in_subdir()` is working
 3. Check for parallel execution attempts (shouldn't happen)
 
-**Fix:** Notebooks are sorted alphanumerically. Use proper prefixes.
+**Fix:** Scripts are sorted alphanumerically. Use proper prefixes.
 
 ### Parallel Execution Causing Errors
 
@@ -240,12 +245,12 @@ Experiments generate large files:
 **Diagnosis:**
 1. Check resource limits (memory, GPU)
 2. Look for deadlocks or race conditions
-3. Verify notebooks don't have infinite loops
+3. Verify scripts don't have infinite loops
 
 **Fix:**
 - Reduce worker count (`-n 1` for serial)
 - Increase timeouts if needed
-- Fix problematic notebooks
+- Fix problematic scripts
 
 ## Verification
 
@@ -256,13 +261,13 @@ Experiments generate large files:
 pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --run-experiments
 
 # Look for output like:
-# --- Notebook 1/7 ---
-# Sequential execution: notebook 1 must complete before 2 starts
-# ... (notebook 1 output) ...
-# ✅ Successfully executed: 0-download_and_convert_4d_to_3d.ipynb
-# --- Notebook 2/7 ---
-# Sequential execution: notebook 2 must complete before 3 starts
-# ... (notebook 2 output) ...
+# --- Script 1/7 ---
+# Sequential execution: script 1 must complete before 2 starts
+# ... (script 1 output) ...
+# Successfully executed: 0-download_and_convert_4d_to_3d.py
+# --- Script 2/7 ---
+# Sequential execution: script 2 must complete before 3 starts
+# ... (script 2 output) ...
 ```
 
 ### Test Parallel Execution
@@ -279,28 +284,30 @@ pytest tests/test_experiments.py -v -n 2 --run-experiments
 ### Test Fail-Fast Behavior
 
 ```bash
-# Temporarily break a middle notebook
-# Run the test and verify remaining notebooks don't execute
+# Temporarily break a middle script
+# Run the test and verify remaining scripts don't execute
 pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --run-experiments
 
 # Should see:
-# ❌ Failed to execute: 2-generate_segmentation.ipynb
-# ⚠️ Stopping execution: 2-generate_segmentation.ipynb failed
-# Remaining notebooks in this experiment will not run.
+# Failed to execute: 2-generate_segmentation.py
+# Stopping execution: 2-generate_segmentation.py failed
+# Remaining scripts in this experiment will not run.
 ```
 
 ## Summary
 
 | Aspect | Behavior | Enforcement |
 |--------|----------|-------------|
-| Notebooks within subdirectory | **Sequential, strict order** | Python `for` loop, fail-fast |
+| Scripts within subdirectory | **Sequential, strict order** | Python `for` loop, fail-fast |
 | Subdirectories (test functions) | **Can run in parallel** | pytest-xdist distribution |
-| Notebook execution | **One at a time per test** | Standard function execution |
+| Script execution | **One at a time per test** | Standard function execution |
 | Failure handling | **Stop on first error** | `break` statement in loop |
 | Worker assignment | **One test per worker** | pytest-xdist scheduling |
-| Order enforcement | **Alphanumeric sorting** | `sorted(glob('*.ipynb'))` |
+| Order enforcement | **Alphanumeric sorting** | `sorted(glob('*.py'))` |
 
-**Bottom line:** Your notebooks within each subdirectory will ALWAYS run in order, even with `pytest -n`. The parallelism only occurs at the subdirectory/test level, not within a test.
+**Bottom line:** Your scripts within each subdirectory will ALWAYS run in
+order, even with `pytest -n`. The parallelism only occurs at the
+subdirectory/test level, not within a test.
 
 ## Related Documentation
 
@@ -310,4 +317,5 @@ pytest tests/test_experiments.py::test_experiment_heart_gated_ct_to_usd -v -s --
 
 ---
 
-**Key Takeaway:** Parallel execution is safe and won't break dependencies. Notebooks in each subdirectory run sequentially no matter what.
+**Key Takeaway:** Parallel execution is safe and won't break dependencies.
+Scripts in each subdirectory run sequentially no matter what.

@@ -2,15 +2,15 @@
 
 This directory contains the source files for PhysioMotion4D's documentation, which is built using [Sphinx](https://www.sphinx-doc.org/) and hosted on [ReadTheDocs](https://readthedocs.org/).
 
-## 🎉 Recently Updated!
+## Recently Updated!
 
 The documentation has been restructured with:
-- ✅ Modern table-of-contents sidebar with search
-- ✅ Separate pages for each module (33 new API files)
-- ✅ Navigation widgets (prev/next/up) on all pages
-- ✅ Comprehensive API reference organized by functionality
-- ✅ Enhanced search capabilities
-- ✅ Modern custom CSS styling
+- Modern table-of-contents sidebar with search
+- Separate pages for each module (33 new API files)
+- Navigation widgets (prev/next/up) on all pages
+- Comprehensive API reference organized by functionality
+- Enhanced search capabilities
+- Modern custom CSS styling
 
 ## Building Documentation Locally
 
@@ -66,7 +66,7 @@ docs/
 ├── quickstart.rst               # Quick start guide
 ├── examples.rst                 # Code examples
 │
-├── api/                         # 📚 API Reference (NEW STRUCTURE!)
+├── api/                         # API Reference (NEW STRUCTURE!)
 │   ├── index.rst               # Main API hub
 │   ├── base.rst                # Core base class
 │   ├── workflows.rst           # Workflow classes
@@ -84,13 +84,13 @@ docs/
 │   ├── usd/                    # USD generation (6 files)
 │   └── utilities/              # Utilities (5 files)
 │
-├── developer/                   # 👨‍💻 Developer guides
+├── developer/                   # ‍Developer guides
 │   ├── architecture.rst
 │   ├── extending.rst
 │   ├── workflows.rst
 │   └── core.rst
 │
-├── cli_scripts/                 # 🔧 CLI documentation
+├── cli_scripts/                 # CLI documentation
 ├── contributing.rst
 ├── testing.rst
 └── ...

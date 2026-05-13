@@ -2,7 +2,7 @@
 
 This experiment demonstrates how to create a Principal Component Analysis (PCA) statistical shape model of a heart from a population of meshes using the KCL Heart Model dataset.
 
-**⚠️ IMPORTANT:** Users should complete this experiment BEFORE attempting the `Heart-Statistical_Model_To_Patient` experiment, as it generates the PCA model data required for patient-specific registration.
+**IMPORTANT:** Users should complete this experiment BEFORE attempting the `Heart-Statistical_Model_To_Patient` experiment, as it generates the PCA model data required for patient-specific registration.
 
 ## Overview
 
@@ -17,11 +17,11 @@ This experiment uses the **King's College London (KCL) four-chamber heart model 
 
 The experiment requires the **KCL-Heart-Model** dataset located in `data/KCL-Heart-Model/`.
 
-### ⚠️ Manual Download Required
+### Manual Download Required
 
 The KCL dataset is NOT automatically downloaded. You must manually download it from:
 
-**🔗 [Virtual cohort of adult healthy four-chamber heart meshes from CT images](https://zenodo.org/records/4590294)**
+**[Virtual cohort of adult healthy four-chamber heart meshes from CT images](https://zenodo.org/records/4590294)**
 
 See `data/KCL-Heart-Model/README.md` for complete download and setup instructions.
 
@@ -33,33 +33,35 @@ See `data/KCL-Heart-Model/README.md` for complete download and setup instruction
 
 ## Pipeline Overview
 
-This experiment follows a fully automated multi-step process using Jupyter notebooks:
+This experiment follows a fully automated multi-step process. Each step is a
+`# %%` percent-cell Python script that can be run top-to-bottom with
+`python <script>.py` or stepped through cell-by-cell in VS Code / Cursor.
 
-### Automated Steps (All Jupyter Notebooks)
+### Automated Steps
 
-1. **`1-input_meshes_to_input_surfaces.ipynb`**
+1. **`1-input_meshes_to_input_surfaces.py`**
    - Converts volumetric tetrahedral meshes to surface representations
    - Extracts relevant anatomical surfaces for shape analysis
    - Prepares data for alignment
 
-2. **`2-input_surfaces_to_surfaces_aligned.ipynb`**
+2. **`2-input_surfaces_to_surfaces_aligned.py`**
    - Performs initial rigid alignment of surfaces using ICP
    - Centers and orients meshes for consistent positioning
    - Computes and saves the average surface from aligned meshes
    - Prepares aligned data for correspondence computation
 
-3. **`3-registration_based_correspondence.ipynb`**
+3. **`3-registration_based_correspondence.py`**
    - Establishes point correspondences across the population using ANTs SyN deformable registration
    - Uses mask-based distance map registration via `RegisterModelsDistanceMaps`
    - Performs diffeomorphic (smooth, invertible) deformation to the average surface
    - Critical step for meaningful PCA analysis
 
-4. **`4-surfaces_aligned_correspond_to_pca_inputs.ipynb`**
+4. **`4-surfaces_aligned_correspond_to_pca_inputs.py`**
    - Converts corresponded surfaces to PCA input format
    - Prepares data matrices for statistical analysis
    - Validates correspondence quality
 
-5. **`5-compute_pca_model.ipynb`**
+5. **`5-compute_pca_model.py`**
    - Computes PCA on the corresponded point sets using sklearn
    - Generates eigenvectors, eigenvalues, and explained variance
    - Exports complete PCA model to `pca_model.json`
@@ -97,19 +99,18 @@ Statistical shape modeling uses **sklearn's PCA implementation**:
 
 See `data/KCL-Heart-Model/README.md` for download instructions. Place downloaded mesh files in `data/KCL-Heart-Model/input_meshes/`.
 
-### 2. Run All Notebooks in Sequence
+### 2. Run All Scripts in Sequence
 
 ```bash
-# Open Jupyter Lab in the experiment directory
 cd experiments/Heart-Create_Statistical_Model/
-jupyter lab
 
-# Execute notebooks in order:
-# 1. 1-input_meshes_to_input_surfaces.ipynb     - Extract surfaces from volumetric meshes
-# 2. 2-input_surfaces_to_surfaces_aligned.ipynb - Rigid ICP alignment + compute average
-# 3. 3-registration_based_correspondence.ipynb  - ANTs SyN deformable correspondence
-# 4. 4-surfaces_aligned_correspond_to_pca_inputs.ipynb - Prepare PCA input matrices
-# 5. 5-compute_pca_model.ipynb                  - Compute PCA and export JSON model
+# Execute scripts in order (each can also be stepped through cell-by-cell
+# in VS Code or Cursor via the `# %%` cell markers):
+python 1-input_meshes_to_input_surfaces.py     # Extract surfaces from volumetric meshes
+python 2-input_surfaces_to_surfaces_aligned.py # Rigid ICP alignment + compute average
+python 3-registration_based_correspondence.py  # ANTs SyN deformable correspondence
+python 4-surfaces_aligned_correspond_to_pca_inputs.py  # Prepare PCA input matrices
+python 5-compute_pca_model.py                  # Compute PCA and export JSON model
 ```
 
 **Total Runtime:** Approximately 2-4 hours depending on hardware (20 heart meshes, ANTs registration is computationally intensive).
@@ -134,7 +135,7 @@ After completing this experiment, you will have generated files in `kcl-heart-mo
 - **`pca_inputs/`** - Point coordinate matrices ready for PCA computation
 
 ### Visualizations
-- Various visualization plots generated within notebooks showing:
+- Various visualization plots generated within the scripts showing:
   - Alignment quality
   - Deformation magnitude maps
   - PCA mode variations
@@ -162,8 +163,9 @@ registered_mesh = workflow.run_workflow()
 ## Requirements
 
 ### Software
-- Python 3.10+ with PhysioMotion4D installed
-- Jupyter Lab or Jupyter Notebook
+- Python 3.11+ with PhysioMotion4D installed
+- VS Code or Cursor with the Python extension for cell-by-cell execution
+  (optional; scripts also run end-to-end as plain Python)
 - ITK, VTK, PyVista (included with PhysioMotion4D)
 - ANTs (Advanced Normalization Tools) - installed automatically with PhysioMotion4D
 - scikit-learn for PCA computation

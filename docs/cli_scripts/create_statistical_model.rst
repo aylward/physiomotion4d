@@ -8,7 +8,7 @@ Overview
 The ``physiomotion4d-create-statistical-model`` command-line tool builds a PCA
 (Principal Component Analysis) statistical shape model from a sample of meshes
 aligned to a reference mesh. This mirrors the pipeline in the
-Heart-Create_Statistical_Model experiment notebooks.
+Heart-Create_Statistical_Model experiment scripts.
 
 The workflow:
 

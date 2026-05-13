@@ -22,7 +22,7 @@ import pyvista as pv
 
 from sklearn.decomposition import PCA  # SparsePCA, ...
 
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 _HERE = Path(__file__).parent
 
@@ -243,7 +243,7 @@ plotter.camera_position = "iso"
 # Link all three views so camera movements are synchronized
 plotter.link_views()
 
-if not running_as_test():
+if not TestTools.running_as_test():
     plotter.show()
 
 # %%
@@ -267,7 +267,7 @@ ax2.set_xticks(range(1, n_components + 1))
 ax2.grid(True, alpha=0.3)
 
 plt.tight_layout()
-if not running_as_test():
+if not TestTools.running_as_test():
     plt.show()
 
 print(

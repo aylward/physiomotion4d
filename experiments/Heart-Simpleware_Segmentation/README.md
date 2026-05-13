@@ -35,7 +35,7 @@ The `SegmentHeartSimpleware` class provides integration between PhysioMotion4D a
 
 ## Files
 
-- **`simpleware_heart_segmentation.ipynb`**: Main demonstration notebook
+- **`simpleware_heart_segmentation.py`**: Main demonstration script (percent-cell format)
 - **`README.md`**: This file
 - **`results/`**: Output directory (created automatically)
 
@@ -43,13 +43,16 @@ The `SegmentHeartSimpleware` class provides integration between PhysioMotion4D a
 
 ### Quick Start
 
-1. Open `simpleware_heart_segmentation.ipynb` in Jupyter
-2. Update the `input_image_path` in cell 3 to point to your cardiac CT image
-3. Run all cells sequentially
+1. Open `simpleware_heart_segmentation.py` in VS Code, Cursor, or any editor
+   with `# %%` cell support — or run it top-to-bottom with
+   `python simpleware_heart_segmentation.py`.
+2. Update the `input_image_path` near the top of the script to point to your
+   cardiac CT image.
+3. Run the cells sequentially or execute the file.
 
 ### Configuration
 
-Before running, configure these parameters in the notebook:
+Before running, configure these parameters in the script:
 
 ```python
 # Set input image path
@@ -61,7 +64,7 @@ custom_simpleware_path = "D:/CustomPath/Simpleware/ConsoleSimplewareMedical.exe"
 
 ### Expected Output
 
-The notebook generates:
+The script generates:
 
 1. **Segmentation files** (in `results/`):
    - `heart_labelmap_simpleware.nii.gz` - Complete labelmap with all structures
@@ -134,7 +137,7 @@ Times depend on image size, system performance, and Simpleware configuration.
 **Solution**:
 - Verify Simpleware installation
 - Ensure you're using `ConsoleSimplewareMedical.exe` (not `SimplewareMedical.exe`)
-- Update `custom_simpleware_path` in the notebook
+- Update `custom_simpleware_path` in the script
 - Check default path: `C:\Program Files\Synopsys\Simpleware Medical\X-2025.06\ConsoleSimplewareMedical.exe`; use `set_simpleware_executable_path()` if installed elsewhere
 
 ---
@@ -290,7 +293,7 @@ For issues with:
 ## Version History
 
 - **v0.2.0** (2026-02-06): Documentation and alignment with current implementation
-  - README reflects actual notebook name (`simpleware_heart_segmentation.ipynb`) and correct label IDs (heart 1–6, vessels 7–10)
+  - README reflects actual script name (`simpleware_heart_segmentation.py`) and correct label IDs (heart 1–6, vessels 7–10)
   - Workflow description updated for `--input-file` (NIfTI) and `--input-value` (output dir) invocation
   - Removed obsolete “placeholder output” limitation; integration works as expected
 - **v0.1.0** (2026-02-04): Initial implementation

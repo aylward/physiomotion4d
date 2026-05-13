@@ -2,6 +2,7 @@
 ICON Image Registration
 ================================
 
+.. module:: physiomotion4d.register_images_icon
 .. currentmodule:: physiomotion4d
 
 ``RegisterImagesICON`` performs deformable image registration using the

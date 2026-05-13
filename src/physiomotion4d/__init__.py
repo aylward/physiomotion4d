@@ -33,11 +33,13 @@ except ImportError:
         stacklevel=2,
     )
 
+from .anatomy_taxonomy import AnatomyGroup, AnatomyTaxonomy
 from .contour_tools import ContourTools
 
 # Data processing utilities
 from .convert_nrrd_4d_to_3d import ConvertNRRD4DTo3D
 from .convert_vtk_to_usd import ConvertVTKToUSD
+from .data_download_tools import DataDownloadTools
 
 # Utility classes
 from .image_tools import ImageTools
@@ -106,7 +108,11 @@ __all__ = [
     "USDTools",
     "ContourTools",
     "USDAnatomyTools",
+    "DataDownloadTools",
     # Data processing utilities
     "ConvertNRRD4DTo3D",
     "ConvertVTKToUSD",
+    # Anatomy taxonomy (shared between segmenters and USD renderer)
+    "AnatomyTaxonomy",
+    "AnatomyGroup",
 ]

@@ -29,33 +29,34 @@
 import re
 from pathlib import Path
 
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d import ConvertVTKToUSD
+from physiomotion4d.test_tools import TestTools
 
 # Import USDTools for post-processing colormap
 from physiomotion4d.usd_tools import USDTools
-
-from physiomotion4d import ConvertVTKToUSD
 
 # %% [markdown]
 # ## 1. Discover and Organize Time-Series Files
 
 # %%
 # Set to True to use as a test.  Automatically done by
-#    running_as_test() helper function.
-quick_run = running_as_test()
+#    TestTools.running_as_test() helper function.
+quick_run = TestTools.running_as_test()
 quick_run_step = 4
 
-# Define data directories (TPV25 only)
-data_dir = Path.cwd().parent.parent / "data" / "CHOP-Valve4D"
+# Define data directories (TPV25 only). Anchored to the script's location
+# so the experiment runs from any working directory.
+script_dir = Path(__file__).resolve().parent
+data_dir = script_dir.parent.parent / "data" / "CHOP-Valve4D"
 tpv25_dir = data_dir / "TPV25"
 
-output_dir = Path.cwd() / "results" / "valve4d-tpv25"
+output_dir = script_dir / "results" / "valve4d-tpv25"
 if quick_run:
     output_usd = output_dir / "tpv25_quick.usd"
 else:
     output_usd = output_dir / "tpv25_full.usd"
 
-colormap_primvar_substrs = ["stress", "strain"]
+colormap_primvar_substrs = ["von_mises_stress"]
 colormap_name = "jet"  # matplotlib colormap name
 colormap_range_min = 25
 colormap_range_max = 200
@@ -143,31 +144,28 @@ print(f"Number of time steps: {len(tpv25_times)}")
 print("\nThis may take several minutes...\n")
 
 # topology validation and conversion happen inside from_files()
-stage = ConvertVTKToUSD.from_files(
-    data_basename="TPV25Valve",
-    vtk_files=tpv25_files,
-    extract_surface=True,
-    separate_by=separate_by,
-    times_per_second=times_per_second,
-    solid_color=solid_color,
-    time_codes=tpv25_times,
-).convert(str(output_usd))
+stage = (
+    ConvertVTKToUSD.from_files(
+        data_basename="TPV25Valve",
+        vtk_files=tpv25_files,
+        extract_surface=True,
+        separate_by=separate_by,
+        times_per_second=times_per_second,
+        solid_color=solid_color,
+        time_codes=tpv25_times,
+    )
+    .compute_von_mises_stress("stress")
+    .convert(str(output_usd))
+)
 
 # %%
 usd_tools = USDTools()
 # ConvertVTKToUSD places prims at /World/{basename}/{part_name}.
-# Discover the target prim dynamically so the path stays valid regardless
-# of how many connected components or cell types the VTK file produces.
+vessel_paths = usd_tools.list_mesh_paths_under(stage, parent_path="/World/TPV25Valve")
 if separate_by == "connectivity":
-    mesh_paths = usd_tools.list_mesh_paths_under(stage, parent_path="/World/TPV25Valve")
-    candidates = [
-        p for p in mesh_paths if p.split("/")[-1].startswith("TPV25Valve_object")
-    ]
-    vessel_path = candidates[-1] if candidates else "/World/TPV25Valve/Mesh"
+    vessel_path = "/World/TPV25Valve/TPV25Valve_object4"
 elif separate_by == "cell_type":
-    mesh_paths = usd_tools.list_mesh_paths_under(stage, parent_path="/World/TPV25Valve")
-    triangle_paths = [p for p in mesh_paths if p.split("/")[-1].endswith("_Triangle")]
-    vessel_path = triangle_paths[0] if triangle_paths else "/World/TPV25Valve/Mesh"
+    vessel_path = "/World/TPV25Valve/TPV25Valve_Triangle"
 else:
     vessel_path = "/World/TPV25Valve/Mesh"
 
@@ -184,8 +182,8 @@ if color_primvar:
         str(output_usd),
         vessel_path,
         color_primvar,
-        intensity_range=(colormap_range_min, colormap_range_max),
         cmap=colormap_name,
+        intensity_range=(colormap_range_min, colormap_range_max),
         use_sigmoid_scale=True,
         bind_vertex_color_material=True,
     )

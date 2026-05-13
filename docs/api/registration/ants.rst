@@ -2,6 +2,7 @@
 ANTs Registration
 =================
 
+.. module:: physiomotion4d.register_images_ants
 .. currentmodule:: physiomotion4d
 
 ``RegisterImagesANTs`` provides optimization-based deformable image

@@ -1,9 +1,11 @@
 import logging
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Optional, Union
 
 import itk
 import nrrd
 import numpy as np
+
 
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 
@@ -65,6 +67,12 @@ class ConvertNRRD4DTo3D(PhysioMotion4DBase):
     def get_number_of_3d_images(self) -> int:
         return len(self.img_3d)
 
-    def save_3d_images(self, basename: str) -> None:
+    def save_3d_images(self, directory: Union[str, Path], basename: str) -> None:
+        dir_path = Path(directory)
+        dir_path.mkdir(parents=True, exist_ok=True)
         for i in range(self.get_number_of_3d_images()):
-            itk.imwrite(self.img_3d[i], f"{basename}_{i:03d}.mha", compression=True)
+            itk.imwrite(
+                self.img_3d[i],
+                str(dir_path / f"{basename}_{i:03d}.mha"),
+                compression=True,
+            )

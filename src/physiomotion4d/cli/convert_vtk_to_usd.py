@@ -11,18 +11,12 @@ import argparse
 import os
 import sys
 
-ANATOMY_TYPES = [
-    "heart",
-    "lung",
-    "bone",
-    "major_vessels",
-    "contrast",
-    "soft_tissue",
-    "other",
-    "liver",
-    "spleen",
-    "kidney",
-]
+from physiomotion4d.usd_anatomy_tools import DEFAULT_RENDER_PARAMS
+
+# Anatomy types accepted by --anatomy-type, sourced from the renderer's
+# registered defaults so that new groups/organs registered in
+# DEFAULT_RENDER_PARAMS automatically appear here without code changes.
+ANATOMY_TYPES = list(DEFAULT_RENDER_PARAMS.keys())
 
 
 def main() -> int:

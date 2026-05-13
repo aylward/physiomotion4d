@@ -56,21 +56,6 @@ Classes Used
 - USDAnatomyTools (usd_anatomy_tools.py):
     Applies clinical material colours to USD prims (used internally).
 
-CLI Equivalent
---------------
-The same main outputs (without screenshots) can be produced via the CLI::
-
-    physiomotion4d-heart-gated-ct \\
-        data/Slicer-Heart-CT/TruncalValve_4DCT.seq.nrrd \\
-        --contrast \\
-        --project-name cardiac_model \\
-        --registration-method ants \\
-        --registration-iterations 1 \\
-        --output-dir ./output/tutorial_01
-
-See ``src/physiomotion4d/cli/convert_heart_gated_ct_to_usd.py`` for full CLI
-documentation.
-
 Data Required
 -------------
 See data/README.md for download instructions and dataset licensing.
@@ -80,190 +65,104 @@ This script expects the data to already exist at
 download notebook or download the file manually before running this tutorial.
 """
 
+# %%
+# Imports
 from __future__ import annotations
 
-import argparse
 import logging
 from pathlib import Path
-from typing import Any, Optional
 
 import itk
 
-from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.test_tools import TestTools
 from physiomotion4d.workflow_convert_heart_gated_ct_to_usd import (
     WorkflowConvertHeartGatedCTToUSD,
 )
 
+# nnUNetv2 (used by TotalSegmentator inside WorkflowConvertHeartGatedCTToUSD)
+# spawns a multiprocessing.Pool. On Windows the spawn start method re-imports
+# this script in each child; without the __name__ == "__main__" guard around
+# the top-level work, that re-import fires workflow.process() again and
+# Python's spawn-cascade detector raises RuntimeError.
+if __name__ == "__main__":
+    # %%
+    # Data directory specification
+    REPO_ROOT = Path(__file__).resolve().parent.parent
+    TUTORIALS_DIR = Path(__file__).resolve().parent
+    DATA_DIR = REPO_ROOT / "data"
+    FULL_DATA_DIR = DATA_DIR / "Slicer-Heart-CT"
+    TEST_DATA_DIR = DATA_DIR / "test" / "slicer_heart_small"
+    OUTPUT_DIR = TUTORIALS_DIR / "output" / "tutorial_01"
+    REGISTRATION_METHOD = "ants"
+    LOG_LEVEL = logging.INFO
 
-class _CachedLabelmapSegmenter(SegmentChestTotalSegmentator):
-    """Segmenter that returns a cached labelmap for tutorial test data."""
+    # %%
+    # Data reading
+    test_mode = TestTools.running_as_test()
 
-    def __init__(self, labelmap: Any, log_level: int | str = logging.INFO):
-        super().__init__(log_level=log_level)
-        self._labelmap = labelmap
+    data_dir = TEST_DATA_DIR if test_mode else FULL_DATA_DIR
+    output_dir = OUTPUT_DIR
+    registration_method = REGISTRATION_METHOD
+    log_level = LOG_LEVEL
 
-    def segmentation_method(self, preprocessed_image: Any) -> Any:
-        return self._labelmap
-
-
-def _first_current_contour_mesh(
-    workflow: WorkflowConvertHeartGatedCTToUSD,
-) -> Optional[Any]:
-    """Return a contour mesh produced by the current workflow run.
-
-    Prefer transformed all-anatomy contours, because those are the meshes passed
-    into USD conversion for the current run. Fall back to reference contours only
-    if transformed contours are unavailable.
-    """
-    transformed_contours = getattr(workflow, "_transformed_contours", {})
-    if isinstance(transformed_contours, dict):
-        for mesh in transformed_contours.get("all", []):
-            if getattr(mesh, "n_points", 0) > 0:
-                return mesh
-
-    reference_contours = getattr(workflow, "_reference_contours", {})
-    if isinstance(reference_contours, dict):
-        mesh = reference_contours.get("all")
-        if mesh is not None and getattr(mesh, "n_points", 0) > 0:
-            return mesh
-
-    return None
-
-
-def _current_reference_image(
-    workflow: WorkflowConvertHeartGatedCTToUSD,
-    output_dir: Path,
-) -> Optional[Any]:
-    """Return the reference image used by the current workflow run."""
-    fixed_image = getattr(workflow, "_fixed_image", None)
-    if fixed_image is not None:
-        return fixed_image
-
-    fixed_image_file = output_dir / "fixed_image.mha"
-    if fixed_image_file.exists():
-        return itk.imread(str(fixed_image_file))
-
-    ref_frames = sorted(output_dir.glob("slice_???.mha"))
-    if ref_frames:
-        return itk.imread(str(ref_frames[0]))
-
-    return None
-
-
-def _current_reference_segmentation(
-    workflow: WorkflowConvertHeartGatedCTToUSD,
-    output_dir: Path,
-) -> Optional[Any]:
-    """Return the labelmap for the current workflow reference image."""
-    fixed_segmentation = getattr(workflow, "_fixed_segmentation", None)
-    if isinstance(fixed_segmentation, dict):
-        labelmap = fixed_segmentation.get("labelmap")
-        if labelmap is not None:
-            return labelmap
-
-    fixed_mask_file = output_dir / "fixed_image_mask.mha"
-    if fixed_mask_file.exists():
-        return itk.imread(str(fixed_mask_file))
-
-    label_files = sorted(output_dir.glob("slice_???_labelmap*.mha"))
-    if label_files:
-        return itk.imread(str(label_files[0]))
-
-    return None
-
-
-def run_tutorial(
-    data_dir: Path,
-    output_dir: Path,
-    *,
-    registration_method: str = "ants",
-    log_level: int = logging.INFO,
-) -> dict[str, Any]:
-    """Run Tutorial 1: Heart-Gated CT to Animated USD.
-
-    Args:
-        data_dir: Root of the ``data/`` directory (see data/README.md).
-        output_dir: Directory to write outputs and screenshots.
-        registration_method: ``'ants'`` (CPU-capable, default) or ``'icon'`` (GPU).
-        log_level: Python logging level.
-
-    Returns:
-        dict with keys:
-
-        - ``'usd_file'`` (str): path to the final painted USD.
-        - ``'screenshots'`` (list[Path]): paths to saved PNG screenshots.
-          PNGs are rendered from data produced by this invocation, not from
-          previously saved VTK/VTP files in ``output_dir``. Reference-frame
-          screenshots use the workflow's selected fixed image.
-    """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    test_frame_files = sorted(data_dir.glob("slice_???_sml.mha"))[:2]
-    cached_labelmap: Path | None = None
-    if test_frame_files:
-        input_filenames = [str(path) for path in test_frame_files]
-        reference_frame = int(len(test_frame_files) * 0.7)
-        fixed_frame = test_frame_files[reference_frame]
-        labelmap_path = fixed_frame.with_name(f"{fixed_frame.stem}_labelmap.mha")
-        if labelmap_path.exists():
-            cached_labelmap = labelmap_path
+    if test_mode:
+        number_of_registration_iterations = 1
     else:
-        input_filenames = []
+        number_of_registration_iterations = 10
 
-    nrrd_candidates = [
-        data_dir / "Slicer-Heart-CT" / "TruncalValve_4DCT.seq.nrrd",
-        data_dir / "TruncalValve_4DCT.seq.nrrd",
-    ]
-    if not input_filenames:
-        nrrd_file = next((path for path in nrrd_candidates if path.exists()), None)
-        if nrrd_file is not None:
-            input_filenames = [str(nrrd_file)]
-            cached_labelmap = data_dir / "slice_014_sml_labelmap.mha"
+    # %%
+    frame_files = sorted(data_dir.glob("slice_???.mha"))
+    if test_mode:
+        frame_files = frame_files[:2]
 
+    input_filenames = [str(path) for path in frame_files]
     if not input_filenames:
         raise FileNotFoundError(
             "Slicer-Heart-CT data not found. Checked:\n"
-            + "\n".join(f"  - {path}" for path in nrrd_candidates)
+            + f"  - {data_dir}"
             + "\n"
-            "See data/README.md for download instructions."
+            + "See data/README.md for download instructions."
         )
 
+    # %%
+    # Workflow initialization
     workflow = WorkflowConvertHeartGatedCTToUSD(
         input_filenames=input_filenames,
         contrast_enhanced=True,
         output_directory=str(output_dir),
         project_name="cardiac_model",
         registration_method=registration_method,
-        number_of_registration_iterations=1,
+        number_of_registration_iterations=number_of_registration_iterations,
         log_level=log_level,
+        save_registered_images=True,
+        save_registration_transforms=True,
+        save_labelmaps=True,
     )
-    if cached_labelmap is not None and cached_labelmap.exists():
-        workflow.segmenter = _CachedLabelmapSegmenter(
-            itk.imread(str(cached_labelmap)),
-            log_level=log_level,
-        )
 
+    # %%
+    # Workflow execution
     usd_file = output_dir / workflow.process()
 
-    # Screenshots
+    # %%
+    # Result saving
     tt = TestTools(
+        class_name="tutorial_01_heart_gated_ct_to_usd",
         results_dir=output_dir,
-        baselines_dir=output_dir / "baselines",
-        class_name="tutorial_01",
-        results_output_dir=output_dir,
         log_level=log_level,
     )
 
     screenshots: list[Path] = []
 
-    # Reference frame: use the workflow's selected fixed image for this run.
-    ref_image = _current_reference_image(workflow, output_dir)
-    if ref_image is not None:
+    test_image_num = int(0.7 * len(input_filenames))
+    test_image_path = output_dir / f"slice_{test_image_num:03d}_registered.mha"
+    if test_image_path.exists():
+        test_image = itk.imread(str(test_image_path))
         screenshots.append(
             tt.save_screenshot_image_slice(
-                ref_image,
-                "reference_frame_axial.png",
+                test_image,
+                f"slice_{test_image_num:03d}_registered_test.png",
                 axis=0,
                 slice_fraction=0.5,
                 colormap="gray",
@@ -272,66 +171,28 @@ def run_tutorial(
             )
         )
 
-        # Segmentation overlay: align with the selected fixed image.
-        overlay = _current_reference_segmentation(workflow, output_dir)
+        test_labelmap_path = output_dir / f"slice_{test_image_num:03d}_labelmap.mha"
+        if test_labelmap_path.exists():
+            test_labelmap = itk.imread(str(test_labelmap_path))
+            screenshots.append(
+                tt.save_screenshot_image_slice(
+                    test_image,
+                    f"slice_{test_image_num:03d}_labelmap_test.png",
+                    axis=0,
+                    slice_fraction=0.5,
+                    colormap="gray",
+                    vmin=-200,
+                    vmax=600,
+                    overlay_mask=test_labelmap,
+                )
+            )
+
+    if usd_file.exists():
         screenshots.append(
-            tt.save_screenshot_image_slice(
-                ref_image,
-                "segmentation_overlay.png",
-                axis=0,
-                slice_fraction=0.5,
-                colormap="gray",
-                vmin=-200,
-                vmax=600,
-                overlay_mask=overlay,
+            tt.save_screenshot_openusd(
+                usd_file,
+                "cardiac_model_test.png",
             )
         )
 
-    # 3-D contour view: render the current run's in-memory contours.
-    contour_mesh = _first_current_contour_mesh(workflow)
-    if contour_mesh is not None:
-        screenshots.append(
-            tt.save_screenshot_mesh(
-                contour_mesh,
-                "contours_3d.png",
-                camera_position="iso",
-                color="tomato",
-                opacity=0.85,
-            )
-        )
-
-    return {"usd_file": str(usd_file), "screenshots": screenshots}
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "--data-dir",
-        type=Path,
-        default=Path("data"),
-        help="Root data directory (default: ./data)",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("output") / "tutorial_01",
-        help="Output directory (default: ./output/tutorial_01)",
-    )
-    parser.add_argument(
-        "--registration-method",
-        default="ants",
-        choices=["ants", "icon"],
-        help="Registration method: ants (CPU) or icon (GPU). Default: ants",
-    )
-    args = parser.parse_args()
-
-    results = run_tutorial(
-        args.data_dir,
-        args.output_dir,
-        registration_method=args.registration_method,
-    )
-    print(f"USD file: {results['usd_file']}")
-    print(f"Screenshots: {[str(p) for p in results['screenshots']]}")
+    tutorial_results = {"usd_file": str(usd_file), "screenshots": screenshots}

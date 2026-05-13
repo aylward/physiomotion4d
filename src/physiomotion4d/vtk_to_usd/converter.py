@@ -3,11 +3,12 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from pxr import Usd, UsdGeom
+from pxr import Sdf, Usd, UsdGeom
 
 from .data_structures import ConversionSettings, MaterialData
 from .material_manager import MaterialManager
 from .usd_mesh_converter import UsdMeshConverter
+from .usd_utils import add_framing_camera
 from .vtk_reader import read_vtk_file
 
 
@@ -48,6 +49,13 @@ def convert_vtk_file(
     if output_path.exists():
         output_path.unlink()
 
+    # USD caches layers globally by identifier, so a prior call in the same
+    # Python session can block CreateNew even after the file is gone.
+    stale_layer = Sdf.Layer.Find(str(output_path))
+    if stale_layer is not None:
+        stale_layer.Clear()
+        del stale_layer
+
     mesh_data = read_vtk_file(input_path, extract_surface=extract_surface)
 
     stage = Usd.Stage.CreateNew(str(output_path))
@@ -74,6 +82,9 @@ def convert_vtk_file(
 
     mesh_converter = UsdMeshConverter(stage, conversion_settings, material_mgr)
     mesh_converter.create_mesh(mesh_data, f"{root_path}/{mesh_name}")
+
+    # Framing camera with tight near-clip for Omniverse Kit viewer ergonomics.
+    add_framing_camera(stage)
 
     stage.Save()
     return stage

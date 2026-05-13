@@ -30,7 +30,7 @@ from physiomotion4d import (
     RegisterModelsICPITK,
     TransformTools,
 )
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 # %% [markdown]
 # ## Define File Paths
@@ -204,5 +204,5 @@ plotter.add_mesh(
 plotter.add_title("ICP Shape Fitting")
 plotter.add_axes()
 
-if not running_as_test():
+if not TestTools.running_as_test():
     plotter.show()

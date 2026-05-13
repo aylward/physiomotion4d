@@ -6,7 +6,7 @@ to be present (see data/README.md).
 
 Screenshot comparison uses the existing ITK-based baseline infrastructure:
 
-1. The tutorial's ``run_tutorial()`` saves PNGs directly to its ``output_dir``.
+1. Each tutorial script saves PNGs directly to its ``OUTPUT_DIR``.
 2. ``TestTools.compare_result_to_baseline_image`` reads each PNG from that
    directory and compares it against a stored baseline with loose tolerances.
 
@@ -21,12 +21,10 @@ Create baselines on first run::
 
 from __future__ import annotations
 
+import runpy
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Any
 
-import itk
-import numpy as np
 import pytest
 
 from physiomotion4d.test_tools import TestTools
@@ -36,24 +34,13 @@ from physiomotion4d.test_tools import TestTools
 _PX_TOL = 10.0  # per-pixel absolute error (0-255 range)
 _MAX_PX = 2000  # maximum number of pixels allowed above _PX_TOL
 _TOT_TOL = float("inf")  # use the pixel-count criterion only
+_REPO_ROOT = Path(__file__).parent.parent
 
 
-class _FakeMesh:
-    """Minimal mesh double for tutorial screenshot selection tests."""
-
-    def __init__(self, n_points: int) -> None:
-        self.n_points = n_points
-
-
-class _FakeSurfaceExtractable:
-    """Minimal mesh double that records PyVista extraction options."""
-
-    def __init__(self) -> None:
-        self.algorithm: Optional[str] = None
-
-    def extract_surface(self, *, algorithm: str) -> "_FakeSurfaceExtractable":
-        self.algorithm = algorithm
-        return self
+@pytest.fixture(autouse=True)
+def _enable_tutorial_test_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run tutorials against repo data/test through TestTools mode switching."""
+    monkeypatch.setenv("PHYSIOMOTION_RUNNING_AS_TEST", "1")
 
 
 def _compare_screenshots(
@@ -62,7 +49,7 @@ def _compare_screenshots(
 ) -> None:
     """Read each PNG as itk.Image and compare against baseline."""
     if not screenshots:
-        pytest.fail("No screenshots produced by run_tutorial")
+        pytest.fail("No screenshots produced by tutorial script")
 
     for png_path in screenshots:
         if not png_path.exists():
@@ -75,99 +62,15 @@ def _compare_screenshots(
         ), f"Screenshot baseline mismatch: {png_path.name}"
 
 
-def test_testtools_results_output_dir_override(tmp_path: Path) -> None:
-    """Store result artifacts in an explicit directory when requested."""
-    results_root = tmp_path / "results"
-    output_dir = tmp_path / "tutorial_output"
-    baselines_root = tmp_path / "baselines"
-    tt = TestTools(
-        results_dir=results_root,
-        baselines_dir=baselines_root,
-        class_name="tutorial_example",
-        results_output_dir=output_dir,
+def _run_tutorial_script(script_name: str) -> dict[str, Any]:
+    """Run a tutorial script with no command-line arguments."""
+    namespace = runpy.run_path(
+        str(_REPO_ROOT / "tutorials" / script_name),
+        run_name="__main__",
     )
-
-    image = itk.image_from_array(np.zeros((2, 2, 2), dtype=np.uint8))
-    tt.write_result_image(image, "current.mha")
-
-    assert (output_dir / "current.mha").exists()
-    assert not (results_root / "tutorial_example" / "current.mha").exists()
-    assert (baselines_root / "tutorial_example").exists()
-
-
-# -----------------------------------------------------------------------------
-# Tutorial 1 - Heart-Gated CT to Animated USD
-# -----------------------------------------------------------------------------
-
-
-def test_tutorial_01_contour_png_mesh_uses_current_run_results() -> None:
-    """Select current in-memory contours instead of disk VTP outputs."""
-    from tutorials.tutorial_01_heart_gated_ct_to_usd import (
-        _first_current_contour_mesh,
-    )
-
-    transformed_mesh = _FakeMesh(4)
-    reference_mesh = _FakeMesh(8)
-    workflow: Any = SimpleNamespace(
-        _transformed_contours={"all": [transformed_mesh]},
-        _reference_contours={"all": reference_mesh},
-    )
-
-    assert _first_current_contour_mesh(workflow) is transformed_mesh
-
-
-def test_tutorial_01_reference_png_uses_workflow_fixed_image(
-    tmp_path: Path,
-) -> None:
-    """Select the actual workflow reference image over cached slice images."""
-    from tutorials.tutorial_01_heart_gated_ct_to_usd import (
-        _current_reference_image,
-    )
-
-    fixed_image = object()
-    workflow: Any = SimpleNamespace(_fixed_image=fixed_image)
-    (tmp_path / "slice_000.mha").touch()
-
-    assert _current_reference_image(workflow, tmp_path) is fixed_image
-
-
-def test_tutorial_01_overlay_uses_workflow_fixed_segmentation(
-    tmp_path: Path,
-) -> None:
-    """Select the current fixed labelmap over cached slice labelmaps."""
-    from tutorials.tutorial_01_heart_gated_ct_to_usd import (
-        _current_reference_segmentation,
-    )
-
-    labelmap = object()
-    workflow: Any = SimpleNamespace(_fixed_segmentation={"labelmap": labelmap})
-    (tmp_path / "slice_000_labelmap.mha").touch()
-
-    assert _current_reference_segmentation(workflow, tmp_path) is labelmap
-
-
-def test_tutorial_01_overlay_falls_back_to_fixed_image_mask(
-    tmp_path: Path,
-) -> None:
-    """Read fixed_image_mask.mha before stale slice labelmap files."""
-    from tutorials.tutorial_01_heart_gated_ct_to_usd import (
-        _current_reference_segmentation,
-    )
-
-    arr = np.array(
-        [[[1, 0], [0, 1]], [[0, 1], [1, 0]]],
-        dtype=np.uint8,
-    )
-    mask = itk.image_from_array(arr)
-    fixed_mask_path = tmp_path / "fixed_image_mask.mha"
-    itk.imwrite(mask, str(fixed_mask_path), compression=True)
-    (tmp_path / "slice_000_labelmap.mha").touch()
-
-    workflow: Any = SimpleNamespace()
-    selected = _current_reference_segmentation(workflow, tmp_path)
-
-    assert selected is not None
-    assert tuple(selected.GetLargestPossibleRegion().GetSize()) == (2, 2, 2)
+    results = namespace.get("tutorial_results")
+    assert isinstance(results, dict), f"{script_name} did not set tutorial_results"
+    return results
 
 
 @pytest.mark.tutorial
@@ -176,25 +79,19 @@ def test_tutorial_01_overlay_falls_back_to_fixed_image_mask(
 class TestTutorial01HeartGatedCTToUSD:
     """End-to-end test for tutorial_01_heart_gated_ct_to_usd.py."""
 
-    _class_name = "tutorial_01_heart_gated_ct_to_usd"
+    _class_name = "tutorial_01"
 
     def test_run(self, test_directories: dict[str, Path]) -> None:
-        from tutorials.tutorial_01_heart_gated_ct_to_usd import run_tutorial
-
-        out_dir = test_directories["output"] / self._class_name
-        results: dict[str, Any] = run_tutorial(
-            data_dir=test_directories["data"],
-            output_dir=out_dir,
-            registration_method="ants",
-        )
+        out_dir = _REPO_ROOT / "tutorials" / "output" / "tutorial_01"
+        results = _run_tutorial_script("tutorial_01_heart_gated_ct_to_usd.py")
         assert results["usd_file"], "USD file path should not be empty"
         assert Path(results["usd_file"]).exists(), "USD file should exist"
+        assert results["screenshots"], "Tutorial 1 should produce screenshots"
 
         tt = TestTools(
             class_name=self._class_name,
-            results_dir=test_directories["output"],
-            baselines_dir=test_directories["baselines"],
-            results_output_dir=out_dir,
+            results_dir=out_dir,
+            baselines_dir=test_directories["baselines"] / self._class_name,
         )
         _compare_screenshots(results["screenshots"], tt)
 
@@ -213,21 +110,15 @@ class TestTutorial02CTToVTK:
     _class_name = "tutorial_02_ct_to_vtk"
 
     def test_run(self, test_directories: dict[str, Path]) -> None:
-        from tutorials.tutorial_02_ct_to_vtk import run_tutorial
-
-        out_dir = test_directories["output"] / self._class_name
-        results: dict[str, Any] = run_tutorial(
-            data_dir=test_directories["data"],
-            output_dir=out_dir,
-        )
+        out_dir = _REPO_ROOT / "tutorials" / "output" / "tutorial_02"
+        results = _run_tutorial_script("tutorial_02_ct_to_vtk.py")
         assert results["surface_file"].exists(), "Combined VTP surface should exist"
         assert results["mesh_file"].exists(), "Combined VTU mesh should exist"
 
         tt = TestTools(
             class_name=self._class_name,
-            results_dir=test_directories["output"],
-            baselines_dir=test_directories["baselines"],
-            results_output_dir=out_dir,
+            results_dir=out_dir,
+            baselines_dir=test_directories["baselines"] / self._class_name,
         )
         _compare_screenshots(results["screenshots"], tt)
 
@@ -252,42 +143,17 @@ class TestTutorial03CreateStatisticalModel:
                 "KCL-Heart-Model not downloaded. See data/README.md for instructions."
             )
 
-        from tutorials.tutorial_03_create_statistical_model import run_tutorial
-
-        out_dir = test_directories["output"] / self._class_name
-        results: dict[str, Any] = run_tutorial(
-            data_dir=test_directories["data"],
-            output_dir=out_dir,
-            pca_components=5,
-            max_samples=10,
-        )
+        out_dir = _REPO_ROOT / "tutorials" / "output" / "tutorial_03"
+        results = _run_tutorial_script("tutorial_03_create_statistical_model.py")
         assert results["model_file"].exists(), "pca_model.json should exist"
         assert results["mean_surface_file"].exists(), "Mean surface VTP should exist"
 
         tt = TestTools(
             class_name=self._class_name,
-            results_dir=test_directories["output"],
-            baselines_dir=test_directories["baselines"],
-            results_output_dir=out_dir,
+            results_dir=out_dir,
+            baselines_dir=test_directories["baselines"] / self._class_name,
         )
         _compare_screenshots(results["screenshots"], tt)
-
-
-# -----------------------------------------------------------------------------
-# Tutorial 4 - Fit Statistical Model to Patient
-# -----------------------------------------------------------------------------
-
-
-def test_tutorial_04_extract_surface_uses_dataset_surface() -> None:
-    """Use the robust dataset_surface algorithm for VTK surface extraction."""
-    from tutorials.tutorial_04_fit_statistical_model_to_patient import (
-        _extract_surface,
-    )
-
-    mesh: Any = _FakeSurfaceExtractable()
-
-    assert _extract_surface(mesh) is mesh
-    assert mesh.algorithm == "dataset_surface"
 
 
 @pytest.mark.tutorial
@@ -306,41 +172,25 @@ class TestTutorial04FitStatisticalModelToPatient:
             )
 
         pca_json = (
-            test_directories["output"]
-            / "tutorial_03_create_statistical_model"
-            / "pca_model.json"
+            _REPO_ROOT / "tutorials" / "output" / "tutorial_03" / "pca_model.json"
         )
         if not pca_json.exists():
-            from tutorials.tutorial_03_create_statistical_model import (
-                run_tutorial as run_tutorial_03,
-            )
-
-            run_tutorial_03(
-                data_dir=test_directories["data"],
-                output_dir=pca_json.parent,
-                pca_components=5,
-                max_samples=10,
-            )
+            _run_tutorial_script("tutorial_03_create_statistical_model.py")
             assert pca_json.exists(), (
                 "Tutorial 3 bootstrap did not create the expected PCA model file: "
                 f"{pca_json}"
             )
 
-        from tutorials.tutorial_04_fit_statistical_model_to_patient import run_tutorial
-
-        out_dir = test_directories["output"] / self._class_name
-        results: dict[str, Any] = run_tutorial(
-            data_dir=test_directories["data"],
-            output_dir=out_dir,
-            pca_json=pca_json,
+        out_dir = _REPO_ROOT / "tutorials" / "output" / "tutorial_04"
+        results = _run_tutorial_script(
+            "tutorial_04_fit_statistical_model_to_patient.py"
         )
         assert results["registered_file"].exists(), "Registered VTP should exist"
 
         tt = TestTools(
             class_name=self._class_name,
-            results_dir=test_directories["output"],
-            baselines_dir=test_directories["baselines"],
-            results_output_dir=out_dir,
+            results_dir=out_dir,
+            baselines_dir=test_directories["baselines"] / self._class_name,
         )
         _compare_screenshots(results["screenshots"], tt)
 
@@ -361,9 +211,7 @@ class TestTutorial05VTKToUSD:
     def test_run(self, test_directories: dict[str, Path]) -> None:
         # Prefer Tutorial 2 output; fall back to any .vtp in data
         tutorial2_vtp = (
-            test_directories["output"]
-            / "tutorial_02_ct_to_vtk"
-            / "patient_surfaces.vtp"
+            _REPO_ROOT / "tutorials" / "output" / "tutorial_02" / "patient_surfaces.vtp"
         )
         vtk_file = tutorial2_vtp if tutorial2_vtp.exists() else None
         if vtk_file is None:
@@ -375,22 +223,15 @@ class TestTutorial05VTKToUSD:
                 )
             vtk_file = found[0]
 
-        from tutorials.tutorial_05_vtk_to_usd import run_tutorial
-
-        out_dir = test_directories["output"] / self._class_name
-        results: dict[str, Any] = run_tutorial(
-            data_dir=test_directories["data"],
-            output_dir=out_dir,
-            vtk_file=vtk_file,
-        )
+        out_dir = _REPO_ROOT / "tutorials" / "output" / "tutorial_05"
+        results = _run_tutorial_script("tutorial_05_vtk_to_usd.py")
         assert results["usd_file"], "USD file path should not be empty"
         assert Path(results["usd_file"]).exists(), "USD file should exist"
 
         tt = TestTools(
             class_name=self._class_name,
-            results_dir=test_directories["output"],
-            baselines_dir=test_directories["baselines"],
-            results_output_dir=out_dir,
+            results_dir=out_dir,
+            baselines_dir=test_directories["baselines"] / self._class_name,
         )
         _compare_screenshots(results["screenshots"], tt)
 
@@ -415,16 +256,8 @@ class TestTutorial06ReconstructHighres4DCT:
                 "DirLab-4DCT Case1 not downloaded. See data/README.md for instructions."
             )
 
-        from tutorials.tutorial_06_reconstruct_highres_4d_ct import run_tutorial
-
-        out_dir = test_directories["output"] / self._class_name
-        results: dict[str, Any] = run_tutorial(
-            data_dir=test_directories["data"],
-            output_dir=out_dir,
-            case=1,
-            max_frames=3,
-            registration_method="ants",
-        )
+        out_dir = _REPO_ROOT / "tutorials" / "output" / "tutorial_06"
+        results = _run_tutorial_script("tutorial_06_reconstruct_highres_4d_ct.py")
         assert results["reconstructed_files"], (
             "At least one reconstructed frame expected"
         )
@@ -433,8 +266,7 @@ class TestTutorial06ReconstructHighres4DCT:
 
         tt = TestTools(
             class_name=self._class_name,
-            results_dir=test_directories["output"],
-            baselines_dir=test_directories["baselines"],
-            results_output_dir=out_dir,
+            results_dir=out_dir,
+            baselines_dir=test_directories["baselines"] / self._class_name,
         )
         _compare_screenshots(results["screenshots"], tt)

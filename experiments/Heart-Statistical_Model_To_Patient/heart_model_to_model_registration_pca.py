@@ -33,7 +33,7 @@ from physiomotion4d import (
     RegisterModelsPCA,
     TransformTools,
 )
-from physiomotion4d.notebook_utils import running_as_test
+from physiomotion4d.test_tools import TestTools
 
 # %% [markdown]
 # ## Define File Paths
@@ -166,7 +166,7 @@ print(f"  Template surface: {template_model_surface.n_points} points")
 icp_registrar = RegisterModelsICP(fixed_model=patient_surface)
 
 # Use fewer iterations when run as test (pytest) for faster execution
-max_iterations_icp = 100 if running_as_test() else 2000
+max_iterations_icp = 100 if TestTools.running_as_test() else 2000
 icp_result = icp_registrar.register(
     transform_type="Affine",
     moving_model=template_model_surface,
@@ -329,7 +329,7 @@ plotter.add_title("PCA Shape Fitting")
 plotter.add_axes()
 
 plotter.link_views()
-if not running_as_test():
+if not TestTools.running_as_test():
     plotter.show()
 
 # %% [markdown]
@@ -389,7 +389,7 @@ plotter.add_mesh(
 )
 plotter.add_title("PCA Signed Displacement on Registered Model")
 plotter.add_axes()
-if not running_as_test():
+if not TestTools.running_as_test():
     plotter.show()
 
 # Save the mesh with displacement data

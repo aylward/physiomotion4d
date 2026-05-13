@@ -263,7 +263,7 @@ def create_primvar(
     Args:
         geom: USD geometry prim (Mesh, Points, etc.)
         array: GenericArray containing data
-        array_name_prefix: Prefix for primvar name (e.g., "vtk_point_")
+        array_name_prefix: Prefix for primvar name (e.g., ``"vtk_point_"``)
         time_code: Optional time code for time-varying data
 
     Returns:
@@ -366,44 +366,55 @@ def create_primvar(
     return primvar
 
 
-def triangulate_face(face_counts: NDArray, face_indices: NDArray) -> tuple:
-    """Triangulate polygonal faces.
-
-    Converts quads and polygons to triangles using simple fan triangulation.
+def triangulate_face(
+    face_counts: NDArray, face_indices: NDArray
+) -> tuple[NDArray, NDArray, NDArray]:
+    """Triangulate polygonal faces using fan triangulation.
 
     Args:
-        face_counts: Array of vertex counts per face
-        face_indices: Array of vertex indices
+        face_counts: Array of vertex counts per source face (length F).
+        face_indices: Flat array of vertex indices.
 
     Returns:
-        tuple: (triangulated_counts, triangulated_indices)
+        ``(tri_counts, tri_indices, source_face_index_per_triangle)``:
+        - ``tri_counts``: int32 array, all entries equal to 3.
+        - ``tri_indices``: int32 flat array of triangle vertex indices.
+        - ``source_face_index_per_triangle``: int32 array mapping each output
+          triangle back to its source face in ``face_counts``. Length matches
+          ``tri_counts``. Use this to expand uniform (per-face) primvar data
+          to match the triangulated face count: ``new_data = old_data[mapping]``.
     """
     tri_counts: list[int] = []
     tri_indices: list[int] = []
+    source_face_index: list[int] = []
 
     idx = 0
-    for count in face_counts:
+    for face_idx, count in enumerate(face_counts):
         if count == 3:
-            # Already a triangle
             tri_counts.append(3)
             tri_indices.extend(face_indices[idx : idx + 3])
+            source_face_index.append(face_idx)
         elif count == 4:
-            # Quad -> 2 triangles
             v0, v1, v2, v3 = face_indices[idx : idx + 4]
             tri_counts.extend([3, 3])
             tri_indices.extend([v0, v1, v2, v0, v2, v3])
+            source_face_index.extend([face_idx, face_idx])
         else:
-            # Polygon -> fan triangulation
             v0 = face_indices[idx]
             for i in range(1, count - 1):
                 tri_counts.append(3)
                 tri_indices.extend(
                     [v0, face_indices[idx + i], face_indices[idx + i + 1]]
                 )
+                source_face_index.append(face_idx)
 
         idx += count
 
-    return np.array(tri_counts, dtype=np.int32), np.array(tri_indices, dtype=np.int32)
+    return (
+        np.array(tri_counts, dtype=np.int32),
+        np.array(tri_indices, dtype=np.int32),
+        np.array(source_face_index, dtype=np.int32),
+    )
 
 
 def compute_mesh_extent(points: Vt.Vec3fArray) -> Vt.Vec3fArray:
@@ -416,3 +427,109 @@ def compute_mesh_extent(points: Vt.Vec3fArray) -> Vt.Vec3fArray:
         Vt.Vec3fArray: Extent as [min_point, max_point]
     """
     return UsdGeom.Mesh.ComputeExtent(points)
+
+
+def add_framing_camera(
+    stage: Usd.Stage,
+    *,
+    parent_path: str = "/World",
+    name: str = "Camera",
+    bounds_min: tuple[float, float, float] | None = None,
+    bounds_max: tuple[float, float, float] | None = None,
+    focal_length_mm: float = 50.0,
+    horizontal_aperture_mm: float = 36.0,
+    distance_factor: float = 3.0,
+) -> UsdGeom.Camera | None:
+    """Define a USD camera that frames stage geometry with tight clipping planes.
+
+    Adds a ``UsdGeom.Camera`` prim at ``{parent_path}/{name}`` positioned along
+    +Z to view the supplied (or stage-computed) bounding box. Sets a tight
+    ``clippingRange`` so users can zoom close in Omniverse Kit and other USD
+    viewers without geometry vanishing at the near plane.
+
+    Bounds must be expressed in stage coordinates (post axis-swap and unit
+    scaling). For time-varying stages, bounds are sampled at the start time
+    code.
+
+    Args:
+        stage: The USD stage. Must already contain geometry when bounds are not
+            supplied; world bounds are then computed from the stage.
+        parent_path: Parent prim path. Defaults to ``"/World"``.
+        name: Camera prim name. Defaults to ``"Camera"``.
+        bounds_min: Optional min corner ``(x, y, z)`` in stage coordinates.
+        bounds_max: Optional max corner ``(x, y, z)`` in stage coordinates.
+        focal_length_mm: Camera focal length. USD camera lens parameters are
+            always in millimeters regardless of ``metersPerUnit``.
+        horizontal_aperture_mm: Camera horizontal aperture in millimeters.
+        distance_factor: Camera distance from bbox center as a multiple of the
+            bounding-box diagonal. ``3.0`` gives generous framing.
+
+    Returns:
+        The created Camera prim, or ``None`` if no valid bounds could be found.
+    """
+    if bounds_min is None or bounds_max is None:
+        if stage.HasAuthoredTimeCodeRange():
+            time_code = Usd.TimeCode(stage.GetStartTimeCode())
+        else:
+            time_code = Usd.TimeCode.Default()
+        bbox_cache = UsdGeom.BBoxCache(
+            time_code, includedPurposes=[UsdGeom.Tokens.default_]
+        )
+        world_bbox = bbox_cache.ComputeWorldBound(stage.GetPseudoRoot())
+        bbox_range = world_bbox.ComputeAlignedRange()
+        if bbox_range.IsEmpty():
+            return None
+        bounds_min = tuple(bbox_range.GetMin())
+        bounds_max = tuple(bbox_range.GetMax())
+
+    bmin = np.asarray(bounds_min, dtype=np.float64)
+    bmax = np.asarray(bounds_max, dtype=np.float64)
+    center = 0.5 * (bmin + bmax)
+    size = bmax - bmin
+    diagonal = float(np.linalg.norm(size))
+    if diagonal <= 0.0:
+        return None
+
+    distance = diagonal * distance_factor
+
+    camera_path = f"{parent_path.rstrip('/')}/{name}"
+    camera = UsdGeom.Camera.Define(stage, camera_path)
+
+    # Compute an eye point offset along an axis perpendicular to the stage up
+    # axis, then build a full look-at transform so the camera both moves and
+    # rotates to point at the bbox center. A pure translation only frames the
+    # geometry on a Y-up stage (where the default -Z look direction lines up);
+    # on a Z-up stage it would leave the camera staring horizontally past the
+    # geometry, so we author orientation as well via a single TransformOp.
+    up_axis = UsdGeom.GetStageUpAxis(stage)
+    if up_axis == UsdGeom.Tokens.z:
+        eye = center + np.array([0.0, -distance, 0.0])
+        up_world = Gf.Vec3d(0.0, 0.0, 1.0)
+    else:
+        eye = center + np.array([0.0, 0.0, distance])
+        up_world = Gf.Vec3d(0.0, 1.0, 0.0)
+
+    view = Gf.Matrix4d()
+    view.SetLookAt(
+        Gf.Vec3d(float(eye[0]), float(eye[1]), float(eye[2])),
+        Gf.Vec3d(float(center[0]), float(center[1]), float(center[2])),
+        up_world,
+    )
+    camera_to_world = view.GetInverse()
+
+    # Idempotent: clear any prior xformOpOrder (e.g. a translate op carried in
+    # from a merged source USD that already had a /World/Camera) and author a
+    # single transform op describing the look-at placement.
+    xformable = UsdGeom.Xformable(camera.GetPrim())
+    xformable.ClearXformOpOrder()
+    camera.AddTransformOp().Set(camera_to_world)
+
+    near = max(diagonal * 0.001, 1e-6)
+    far = max(diagonal * 1000.0, distance * 10.0)
+    camera.CreateClippingRangeAttr().Set(Gf.Vec2f(float(near), float(far)))
+
+    camera.CreateFocalLengthAttr().Set(float(focal_length_mm))
+    camera.CreateHorizontalApertureAttr().Set(float(horizontal_aperture_mm))
+    camera.CreateFocusDistanceAttr().Set(float(distance))
+
+    return camera

@@ -2,6 +2,7 @@
 PCA-Based Registration
 ====================================
 
+.. module:: physiomotion4d.register_models_pca
 .. currentmodule:: physiomotion4d
 
 Shape-based registration using principal component analysis.

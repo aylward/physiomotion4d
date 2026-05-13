@@ -30,32 +30,26 @@ class TestSegmentChestTotalSegmentator:
             "Target spacing not set correctly"
         )
 
-        # Check that anatomical structure ID mappings are defined
-        assert len(segmenter_total_segmentator.heart_mask_ids) > 0, (
-            "Heart mask IDs not defined"
-        )
-        assert len(segmenter_total_segmentator.major_vessels_mask_ids) > 0, (
+        # Check that anatomical structure ID mappings are defined via the
+        # shared taxonomy.
+        taxonomy = segmenter_total_segmentator.taxonomy
+        assert len(taxonomy.labels_in_group("heart")) > 0, "Heart mask IDs not defined"
+        assert len(taxonomy.labels_in_group("major_vessels")) > 0, (
             "Major vessels mask IDs not defined"
         )
-        assert len(segmenter_total_segmentator.lung_mask_ids) > 0, (
-            "Lung mask IDs not defined"
-        )
-        assert len(segmenter_total_segmentator.bone_mask_ids) > 0, (
-            "Bone mask IDs not defined"
-        )
-        assert len(segmenter_total_segmentator.soft_tissue_mask_ids) > 0, (
+        assert len(taxonomy.labels_in_group("lung")) > 0, "Lung mask IDs not defined"
+        assert len(taxonomy.labels_in_group("bone")) > 0, "Bone mask IDs not defined"
+        assert len(taxonomy.labels_in_group("soft_tissue")) > 0, (
             "Soft tissue mask IDs not defined"
         )
 
         print("\nSegmenter initialized with correct parameters")
-        print(f"  Heart structures: {len(segmenter_total_segmentator.heart_mask_ids)}")
+        print(f"  Heart structures: {len(taxonomy.labels_in_group('heart'))}")
+        print(f"  Major vessels: {len(taxonomy.labels_in_group('major_vessels'))}")
+        print(f"  Lung structures: {len(taxonomy.labels_in_group('lung'))}")
+        print(f"  Bone structures: {len(taxonomy.labels_in_group('bone'))}")
         print(
-            f"  Major vessels: {len(segmenter_total_segmentator.major_vessels_mask_ids)}"
-        )
-        print(f"  Lung structures: {len(segmenter_total_segmentator.lung_mask_ids)}")
-        print(f"  Bone structures: {len(segmenter_total_segmentator.bone_mask_ids)}")
-        print(
-            f"  Soft tissue structures: {len(segmenter_total_segmentator.soft_tissue_mask_ids)}"
+            f"  Soft tissue structures: {len(taxonomy.labels_in_group('soft_tissue'))}"
         )
 
     def test_segment_single_image(

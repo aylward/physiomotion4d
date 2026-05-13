@@ -18,7 +18,7 @@ The integration enables PhysioMotion4D to leverage Simpleware Medical's ASCardio
 
 ## Current Status
 
-**✅ FUNCTIONAL**: This integration works as expected.
+**FUNCTIONAL**: This integration works as expected.
 
 ### How It Works
 

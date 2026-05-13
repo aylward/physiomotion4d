@@ -7,7 +7,7 @@ as demonstrated in the Heart-GatedCT experiment notebooks.
 
 import logging
 import os
-from typing import Optional
+from typing import Optional, cast
 
 import itk
 import numpy as np
@@ -43,6 +43,9 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         number_of_registration_iterations: Optional[int] = 1,
         registration_method: str = "icon",
         log_level: int | str = logging.INFO,
+        save_registered_images: bool = True,
+        save_registration_transforms: bool = True,
+        save_labelmaps: bool = True,
     ):
         """
         Initialize the Heart-gated CT to USD workflow.
@@ -57,6 +60,12 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             number_of_registration_iterations (Optional[int]): Number of registration iterations
             registration_method (str): Registration method to use: 'ants' or 'icon' (default: 'icon')
             log_level: Logging level (default: logging.INFO)
+            save_registered_images: Write registered image intermediates to
+                output_directory when True
+            save_registration_transforms: Write registration transforms to
+                output_directory when True
+            save_labelmaps: Write segmentation labelmaps and registration masks to
+                output_directory when True
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
@@ -66,6 +75,9 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         self.project_name = project_name
         self.reference_image_filename = reference_image_filename
         self.number_of_registration_iterations = number_of_registration_iterations
+        self.save_registered_images = save_registered_images
+        self.save_registration_transforms = save_registration_transforms
+        self.save_labelmaps = save_labelmaps
 
         # Validate registration method
         if registration_method not in ["ants", "icon"]:
@@ -123,8 +135,44 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         self._time_series_images: list[itk.Image] = []
         self._fixed_image: Optional[itk.Image] = None
         self._fixed_segmentation: Optional[dict[str, itk.Image]] = None
-        self._time_series_transforms: list[itk.Transform] = []
+        self._time_series_transforms: list[dict[str, dict[str, itk.Transform]]] = []
         self._reference_contours: dict[str, pv.PolyData] = {}
+
+    def _output_path(self, filename: str) -> str:
+        """Return an output path inside the workflow output directory."""
+        return os.path.join(self.output_directory, filename)
+
+    def _write_image_if_enabled(
+        self,
+        image: itk.Image,
+        filename: str,
+        enabled: bool,
+    ) -> None:
+        """Write an image artifact when its save option is enabled."""
+        if enabled:
+            itk.imwrite(image, self._output_path(filename), compression=True)
+
+    def _write_transform_if_enabled(
+        self,
+        transform: itk.Transform,
+        filename: str,
+    ) -> None:
+        """Write a transform artifact when transform saving is enabled."""
+        if self.save_registration_transforms:
+            itk.transformwrite(
+                transform,
+                self._output_path(filename),
+                compression=True,
+            )
+
+    def _write_registered_image_if_enabled(self, filename: str) -> None:
+        """Write the current registered moving image when image saving is enabled."""
+        if self.save_registered_images:
+            itk.imwrite(
+                self.registrar.get_registered_image(),
+                self._output_path(filename),
+                compression=True,
+            )
 
     def process(self) -> str:
         """
@@ -160,9 +208,8 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         if len(self.input_filenames) == 1:
             self.converter.load_nrrd_4d(self.input_filenames[0])
             self.converter.save_3d_images(
-                os.path.join(
-                    self.output_directory, os.path.basename(self.input_filenames[0])
-                )
+                self.output_directory,
+                os.path.basename(self.input_filenames[0]),
             )
         else:
             self.log_info("Loading %d 3D NRRD files", len(self.input_filenames))
@@ -185,10 +232,10 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             # Use 70% frame as reference if none specified.
             reference_frame = int(self._num_time_points * 0.7)
             self._fixed_image = self._time_series_images[reference_frame]
-            itk.imwrite(
+            self._write_image_if_enabled(
                 self._fixed_image,
-                os.path.join(self.output_directory, "fixed_image.mha"),
-                compression=True,
+                "fixed_image.mha",
+                self.save_registered_images,
             )
 
         self.log_info("Loaded %d time points", self._num_time_points)
@@ -213,10 +260,10 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         bone_mask = self._fixed_segmentation["bone"]
         other_mask = self._fixed_segmentation["other"]
         contrast_mask = self._fixed_segmentation["contrast"]
-        itk.imwrite(
+        self._write_image_if_enabled(
             labelmap_mask,
-            os.path.join(self.output_directory, "fixed_image_mask.mha"),
-            compression=True,
+            "fixed_image_mask.mha",
+            self.save_labelmaps,
         )
 
         # Create masks for different anatomy types
@@ -254,46 +301,59 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
             # Register without mask first
             self.registrar.set_fixed_mask(None)
             result_all = self.registrar.register(moving_image)
-            inverse_transform_all = result_all["inverse_transform"]
-            forward_transform_all = result_all["forward_transform"]
-            itk.transformwrite(
+            inverse_transform_all = cast(itk.Transform, result_all["inverse_transform"])
+            forward_transform_all = cast(itk.Transform, result_all["forward_transform"])
+            self._write_transform_if_enabled(
                 inverse_transform_all,
-                os.path.join(self.output_directory, f"slice_{i:03d}_all_AB.hdf"),
-                compression=True,
+                f"slice_{i:03d}_all_AB.hdf",
             )
-            itk.transformwrite(
+            self._write_transform_if_enabled(
                 forward_transform_all,
-                os.path.join(self.output_directory, f"slice_{i:03d}_all_BA.hdf"),
-                compression=True,
+                f"slice_{i:03d}_all_BA.hdf",
             )
+            self._write_registered_image_if_enabled(f"slice_{i:03d}_registered.mha")
 
-            # Estimate the moving dynamic mask by the inverse transform of the fixed dynamic mask
+            # Estimate the moving dynamic mask from the fixed dynamic mask.
             moving_dynamic_mask = TransformTools().transform_image(
                 fixed_dynamic_mask, inverse_transform_all, moving_image, "nearest"
             )
-            itk.imwrite(
+            self._write_image_if_enabled(
                 moving_dynamic_mask,
-                os.path.join(self.output_directory, f"slice_{i:03d}_dynamic_mask.mha"),
-                compression=True,
+                f"slice_{i:03d}_dynamic_mask.mha",
+                self.save_labelmaps,
             )
             self.registrar.set_fixed_mask(fixed_dynamic_mask)
             result_dynamic = self.registrar.register(moving_image, moving_dynamic_mask)
-            inverse_transform_dynamic = result_dynamic["inverse_transform"]
-            forward_transform_dynamic = result_dynamic["forward_transform"]
+            inverse_transform_dynamic = cast(
+                itk.Transform, result_dynamic["inverse_transform"]
+            )
+            forward_transform_dynamic = cast(
+                itk.Transform, result_dynamic["forward_transform"]
+            )
+            self._write_registered_image_if_enabled(
+                f"slice_{i:03d}_dynamic_registered.mha"
+            )
 
-            # Estimate the moving static mask by the inverse transform of the fixed static mask
+            # Estimate the moving static mask from the fixed static mask.
             moving_static_mask = TransformTools().transform_image(
                 fixed_static_mask, inverse_transform_all, moving_image, "nearest"
             )
-            itk.imwrite(
+            self._write_image_if_enabled(
                 moving_static_mask,
-                os.path.join(self.output_directory, f"slice_{i:03d}_static_mask.mha"),
-                compression=True,
+                f"slice_{i:03d}_static_mask.mha",
+                self.save_labelmaps,
             )
             self.registrar.set_fixed_mask(fixed_static_mask)
             result_static = self.registrar.register(moving_image, moving_static_mask)
-            inverse_transform_static = result_static["inverse_transform"]
-            forward_transform_static = result_static["forward_transform"]
+            inverse_transform_static = cast(
+                itk.Transform, result_static["inverse_transform"]
+            )
+            forward_transform_static = cast(
+                itk.Transform, result_static["forward_transform"]
+            )
+            self._write_registered_image_if_enabled(
+                f"slice_{i:03d}_static_registered.mha"
+            )
 
             # Store transforms
             transforms = {
@@ -310,25 +370,21 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
                     "forward_transform": forward_transform_all,
                 },
             }
-            itk.transformwrite(
+            self._write_transform_if_enabled(
                 inverse_transform_dynamic,
-                os.path.join(self.output_directory, f"slice_{i:03d}_dynamic_AB.hdf"),
-                compression=True,
+                f"slice_{i:03d}_dynamic_AB.hdf",
             )
-            itk.transformwrite(
+            self._write_transform_if_enabled(
                 forward_transform_dynamic,
-                os.path.join(self.output_directory, f"slice_{i:03d}_dynamic_BA.hdf"),
-                compression=True,
+                f"slice_{i:03d}_dynamic_BA.hdf",
             )
-            itk.transformwrite(
+            self._write_transform_if_enabled(
                 inverse_transform_static,
-                os.path.join(self.output_directory, f"slice_{i:03d}_static_AB.hdf"),
-                compression=True,
+                f"slice_{i:03d}_static_AB.hdf",
             )
-            itk.transformwrite(
+            self._write_transform_if_enabled(
                 forward_transform_static,
-                os.path.join(self.output_directory, f"slice_{i:03d}_static_BA.hdf"),
-                compression=True,
+                f"slice_{i:03d}_static_BA.hdf",
             )
             self._time_series_transforms.append(transforms)
 
@@ -425,11 +481,14 @@ class WorkflowConvertHeartGatedCTToUSD(PhysioMotion4DBase):
         for anatomy_type in ["all", "dynamic", "static"]:
             self.log_info("Creating %s anatomy USD...", anatomy_type)
 
-            # Convert VTK contours to USD
+            # Convert VTK contours to USD. Forwarding the segmenter so labels
+            # land under /World/{project}/{type}/{label_name} (and materials
+            # under /World/Looks/{type}/{label_name}_material).
             converter = ConvertVTKToUSD(
                 self.project_name,
                 self._transformed_contours[anatomy_type],
-                self.segmenter.all_mask_ids,
+                self.segmenter.taxonomy.all_labels(),
+                segmenter=self.segmenter,
                 log_level=self.log_level,
             )
             usd_file = os.path.join(

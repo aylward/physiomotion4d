@@ -40,11 +40,13 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
     - Major vessels (aorta, pulmonary artery)
 
     Attributes:
-        target_spacing (float): Target spacing set to 1.0mm for Simpleware
-        heart_mask_ids (dict): Dictionary mapping heart structure IDs to names
-        major_vessels_mask_ids (dict): Dictionary mapping vessel IDs to names
-        simpleware_exe_path (str): Path to Simpleware Medical executable
-        simpleware_script_path (str): Path to Simpleware Python script
+        target_spacing (float): Target spacing set to 1.0mm for Simpleware.
+        simpleware_exe_path (str): Path to Simpleware Medical executable.
+        simpleware_script_path (str): Path to Simpleware Python script.
+
+    The heart and major-vessel labels populated by this class are accessed
+    through the inherited :attr:`SegmentAnatomyBase.taxonomy`
+    (``taxonomy.labels_in_group("heart")`` etc.).
 
     Example:
         >>> segmenter = SegmentHeartSimpleware()
@@ -69,41 +71,39 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
 
         self.target_spacing = 1.0
 
-        # Heart structure IDs for Simpleware Medical ASCardio output
-        # These IDs should match the output from the ASCardio module
-        self.heart_mask_ids = {
-            1: "left_ventricle",
-            2: "right_ventricle",
-            3: "left_atrium",
-            4: "right_atrium",
-            5: "myocardium",
-            6: "heart",
-        }
-
-        # Major vessel IDs for Simpleware Medical ASCardio output
-        self.major_vessels_mask_ids = {
-            7: "aorta",
-            8: "pulmonary_artery",
-            9: "right_coronary_artery",
-            10: "left_coronary_artery",
-        }
-
-        # Lung structures are not segmented by ASCardio
-        self.lung_mask_ids = {}
-
-        # Bone structures are not segmented by ASCardio
-        self.bone_mask_ids = {}
-
-        # Soft tissue structures are not segmented by ASCardio
-        # (will be filled in by base class 'other' category)
-        self.soft_tissue_mask_ids = {}
-
-        # From Base Class
-        # self.contrast_mask_ids = {135: "contrast"}
+        # Heart and major-vessel labels from Simpleware Medical ASCardio.
+        # Lung / bone / soft_tissue are not segmented by ASCardio; they will
+        # be folded into the 'other' group by _finalize_other_group().
+        # Contrast (135) and soft_tissue (133) defaults are inherited from
+        # SegmentAnatomyBase.
+        for group_name, organs in (
+            (
+                "heart",
+                {
+                    1: "left_ventricle",
+                    2: "right_ventricle",
+                    3: "left_atrium",
+                    4: "right_atrium",
+                    5: "myocardium",
+                    6: "heart",
+                },
+            ),
+            (
+                "major_vessels",
+                {
+                    7: "aorta",
+                    8: "pulmonary_artery",
+                    9: "right_coronary_artery",
+                    10: "left_coronary_artery",
+                },
+            ),
+        ):
+            for label_id, organ_name in organs.items():
+                self.taxonomy.add_organ(group_name, label_id, organ_name)
 
         self._trim_mask = False
 
-        self.set_other_and_all_mask_ids()
+        self._finalize_other_group()
 
         # Path to Simpleware Medical console executable
         self.simpleware_exe_path = "C:/Program Files/Synopsys/Simpleware Medical/X-2025.06/ConsoleSimplewareMedical.exe"
@@ -268,7 +268,7 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
             sz = sz[::-1]
             labelmap_array = np.zeros(sz, dtype=np.uint8)
             interior_array = np.zeros(sz, dtype=np.uint8)
-            for mask_id, mask_name in self.all_mask_ids.items():
+            for mask_id, mask_name in self.taxonomy.all_labels().items():
                 output_file = os.path.join(tmp_dir, f"mask_{mask_name}.mhd")
                 if os.path.exists(output_file):
                     mask_image = itk.imread(output_file)
@@ -283,17 +283,29 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
                         labelmap_array == 0, mask_array, labelmap_array
                     )
 
+            # landmarks.csv is optional: Simpleware Medical's ASCardio module
+            # writes it for some valid inputs and omits it for others (e.g.
+            # very small ROIs or unsupported acquisitions). Treat its
+            # absence as "no landmarks for this case" rather than a hard
+            # failure, so callers that only need the labelmap still succeed.
             landmarks_file = os.path.join(tmp_dir, "landmarks.csv")
             self.landmarks.clear()
-            with open(landmarks_file, newline="", encoding="utf-8-sig") as fh:
-                next(fh)  # skip line 1 (file header)
-                for row in csv.DictReader(fh):
-                    coords = row["Measurement"].replace(" mm", "").split(",")
-                    self.landmarks[row["Name"]] = (
-                        float(coords[0]),
-                        float(coords[1]),
-                        float(coords[2]),
-                    )
+            if os.path.exists(landmarks_file):
+                with open(landmarks_file, newline="", encoding="utf-8-sig") as fh:
+                    next(fh)  # skip line 1 (file header)
+                    for row in csv.DictReader(fh):
+                        coords = row["Measurement"].replace(" mm", "").split(",")
+                        self.landmarks[row["Name"]] = (
+                            float(coords[0]),
+                            float(coords[1]),
+                            float(coords[2]),
+                        )
+            else:
+                self.log_warning(
+                    "Simpleware did not write landmarks.csv (looked at %s); "
+                    "continuing with an empty landmark set.",
+                    landmarks_file,
+                )
 
             interior_image = itk.GetImageFromArray(interior_array.astype(np.uint8))
             interior_image.CopyInformation(preprocessed_image)

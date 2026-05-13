@@ -139,7 +139,10 @@ class MaterialManager:
             geom_prim: Geometry prim (Mesh, Points, etc.)
             material: Material to bind
         """
-        binding_api = UsdShade.MaterialBindingAPI(geom_prim)
+        # Use Apply() so MaterialBindingAPI ends up in the prim's apiSchemas.
+        # Without this, Omniverse Kit's RTX renderer ignores the binding and
+        # renders the prim as white.
+        binding_api = UsdShade.MaterialBindingAPI.Apply(geom_prim.GetPrim())
         binding_api.Bind(material)
 
         logger.debug(

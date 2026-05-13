@@ -114,10 +114,10 @@ Tests automatically manage data with intelligent fallback:
 4. **Skip test if unavailable**: Graceful failure with helpful message
 
 This approach:
-- ✅ Avoids re-downloading 1.2GB file multiple times
-- ✅ Reuses existing project data
-- ✅ Works offline if data already present
-- ✅ Provides clear error messages
+- Avoids re-downloading 1.2GB file multiple times
+- Reuses existing project data
+- Works offline if data already present
+- Provides clear error messages
 
 ### Slicer-Heart-CT Dataset
 
@@ -154,7 +154,7 @@ tests/
 
 **Problem**: HTTP 404 error when downloading data
 
-**Solution**: ✅ **Fixed!** Tests now automatically:
+**Solution**: **Fixed!** Tests now automatically:
 1. Check for existing data in `data/Slicer-Heart-CT/`
 2. Copy from main data directory if available
 3. Only attempt download if not found locally
@@ -191,7 +191,7 @@ tests/
 
 **Problem**: `TypeError: in method 'itkSize3___getitem__', argument 2 of type 'unsigned long'`
 
-**Solution**: ✅ **Fixed!** ITK Size objects now properly converted to tuples before numpy indexing:
+**Solution**: **Fixed!** ITK Size objects now properly converted to tuples before numpy indexing:
 ```python
 size_itk = itk.size(image)
 size = (int(size_itk[0]), int(size_itk[1]), int(size_itk[2]))
@@ -201,7 +201,7 @@ size = (int(size_itk[0]), int(size_itk[1]), int(size_itk[2]))
 
 **Problem**: `NameError: name 'segmenter' is not defined`
 
-**Solution**: ✅ **Fixed!** Tests now use correct fixture names:
+**Solution**: **Fixed!** Tests now use correct fixture names:
 - `segmenter_total_segmentator` for TotalSegmentator
 - `registrar_ants` for ANTs
 - `registrar_icon` for ICON
@@ -210,7 +210,7 @@ size = (int(size_itk[0]), int(size_itk[1]), int(size_itk[2]))
 
 **Problem**: Tests expecting `DisplacementFieldTransform` but getting `CompositeTransform`
 
-**Solution**: ✅ **Fixed!** Tests now accept both types since registration may return either depending on whether initial transforms are provided.
+**Solution**: **Fixed!** Tests now accept both types since registration may return either depending on whether initial transforms are provided.
 
 ## CI/CD Integration
 
@@ -230,7 +230,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -284,7 +284,7 @@ def test_something(segmenter_total_segmentator, test_images):
 
 **Bad** - Don't import from other test files:
 ```python
-from test_segment_chest import segmenter  # ❌ Will fail
+from test_segment_chest import segmenter  # Will fail
 ```
 
 ### Memory-Intensive Tests
@@ -361,10 +361,10 @@ rm -rf tests/data/Slicer-Heart-CT/
 
 Tests automatically run on pull requests via `.github/workflows/ci.yml`. The workflow:
 
-- ✅ Runs fast tests (USD, conversion, basic validation)
-- ❌ Skips slow tests (registration, segmentation)
-- ✅ Caches test data to speed up subsequent runs
-- ✅ Generates coverage reports
+- Runs fast tests (USD, conversion, basic validation)
+- Skips slow tests (registration, segmentation)
+- Caches test data to speed up subsequent runs
+- Generates coverage reports
 
 See `tests/GITHUB_WORKFLOWS.md` for detailed CI/CD documentation.
 

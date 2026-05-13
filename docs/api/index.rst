@@ -17,6 +17,7 @@ This section provides detailed documentation for all PhysioMotion4D classes, fun
    model_registration/index
    usd/index
    utilities/index
+   cli/index
 
 Quick Navigation
 ================

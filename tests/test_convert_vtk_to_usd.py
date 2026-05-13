@@ -484,7 +484,8 @@ class TestSyntheticConversion:
     # ------------------------------------------------------------------
 
     def test_mask_ids_basic_produces_per_label_prims(self, tmp_path: Path) -> None:
-        """mask_ids must produce one USD prim per label; no unified /Mesh prim."""
+        """mask_ids must produce one USD prim per label grouped under /Anatomy
+        when no segmenter is supplied; no unified /Mesh prim."""
         label_ids = [1, 1, 1, 1, 1, 2, 2, 2, 2]
         mesh = _make_poly(label_ids=label_ids)
         converter = ConvertVTKToUSD(
@@ -494,8 +495,8 @@ class TestSyntheticConversion:
         )
         stage = converter.convert(str(tmp_path / "out.usd"))
 
-        ventricle = stage.GetPrimAtPath("/World/Heart/ventricle")
-        atrium = stage.GetPrimAtPath("/World/Heart/atrium")
+        ventricle = stage.GetPrimAtPath("/World/Heart/Anatomy/ventricle")
+        atrium = stage.GetPrimAtPath("/World/Heart/Anatomy/atrium")
         assert ventricle.IsValid(), "ventricle prim not found"
         assert atrium.IsValid(), "atrium prim not found"
         assert ventricle.IsA(UsdGeom.Mesh)
@@ -504,6 +505,9 @@ class TestSyntheticConversion:
         assert list(UsdGeom.Mesh(atrium).GetPointsAttr().GetTimeSamples()) == [0.0]
         # Unified prim must NOT exist when mask_ids is active
         assert not stage.GetPrimAtPath("/World/Heart/Mesh").IsValid()
+        # Materials live under the same /Anatomy group as the meshes
+        assert stage.GetPrimAtPath("/World/Looks/Anatomy/ventricle_material").IsValid()
+        assert stage.GetPrimAtPath("/World/Looks/Anatomy/atrium_material").IsValid()
 
     def test_structured_grid_extracts_surface(self, tmp_path: Path) -> None:
         """StructuredGrid input is surface-extracted when convert_to_surface is true."""
@@ -543,8 +547,8 @@ class TestSyntheticConversion:
         converter._time_codes = [0.0, 1.0, 2.0]
         stage = converter.convert(str(tmp_path / "out.usd"))
 
-        ventricle = stage.GetPrimAtPath("/World/Heart/ventricle")
-        atrium = stage.GetPrimAtPath("/World/Heart/atrium")
+        ventricle = stage.GetPrimAtPath("/World/Heart/Anatomy/ventricle")
+        atrium = stage.GetPrimAtPath("/World/Heart/Anatomy/atrium")
         assert ventricle.IsValid()
         assert atrium.IsValid()
 
@@ -566,7 +570,42 @@ class TestSyntheticConversion:
         )
         stage = converter.convert(str(tmp_path / "out.usd"))
 
-        assert stage.GetPrimAtPath("/World/FB/default").IsValid(), (
+        assert stage.GetPrimAtPath("/World/FB/Anatomy/default").IsValid(), (
             "'default' fallback prim missing"
         )
-        assert not stage.GetPrimAtPath("/World/FB/ventricle").IsValid()
+        assert not stage.GetPrimAtPath("/World/FB/Anatomy/ventricle").IsValid()
+
+    def test_mask_ids_groups_by_segmenter_type(self, tmp_path: Path) -> None:
+        """When a segmenter is supplied, labels are grouped under their
+        anatomy type (heart/lung/...) for both meshes and materials."""
+        from physiomotion4d.segment_chest_total_segmentator import (
+            SegmentChestTotalSegmentator,
+        )
+
+        # Label 51 is "heart" (heart group), 10 is "lung_upper_lobe_left" (lung group).
+        label_ids = [51, 51, 51, 51, 51, 10, 10, 10, 10]
+        mesh = _make_poly(label_ids=label_ids)
+        seg = SegmentChestTotalSegmentator()
+        converter = ConvertVTKToUSD(
+            data_basename="Chest",
+            input_polydata=[mesh],
+            mask_ids={51: "heart", 10: "lung_upper_lobe_left"},
+            segmenter=seg,
+        )
+        stage = converter.convert(str(tmp_path / "out.usd"))
+
+        # Meshes grouped under per-type Xforms
+        heart_mesh = stage.GetPrimAtPath("/World/Chest/heart/heart")
+        lung_mesh = stage.GetPrimAtPath("/World/Chest/lung/lung_upper_lobe_left")
+        assert heart_mesh.IsValid(), "heart mesh should land under /heart group"
+        assert lung_mesh.IsValid(), "lung mesh should land under /lung group"
+        assert heart_mesh.IsA(UsdGeom.Mesh)
+        assert lung_mesh.IsA(UsdGeom.Mesh)
+
+        # Materials mirror the mesh hierarchy
+        assert stage.GetPrimAtPath("/World/Looks/heart/heart_material").IsValid()
+        assert stage.GetPrimAtPath(
+            "/World/Looks/lung/lung_upper_lobe_left_material"
+        ).IsValid()
+        # Flat fallback group must NOT be defined when segmenter classifies all labels
+        assert not stage.GetPrimAtPath("/World/Chest/Anatomy").IsValid()

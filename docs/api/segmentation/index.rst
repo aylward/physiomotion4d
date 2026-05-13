@@ -22,6 +22,7 @@ Quick Links
 **Segmentation Classes**:
    * :doc:`base` - Base class for all segmentation methods
    * :doc:`totalsegmentator` - TotalSegmentator implementation
+   * :doc:`simpleware` - Simpleware ASCardio cardiac segmentation
 
 Choosing a Method
 =================
@@ -56,6 +57,7 @@ Module Documentation
 
    base
    totalsegmentator
+   simpleware
 
 Common Operations
 =================
@@ -63,14 +65,16 @@ Common Operations
 Structure Extraction
 --------------------
 
-Extract individual anatomical structures from segmentation results:
+Extract individual anatomical structures from segmentation results. The key
+set returned by ``segment()`` is segmenter-specific (see :doc:`base` for the
+anatomy taxonomy contract), so check membership before accessing:
 
 .. code-block:: python
 
    result = segmenter.segment(ct_image)
-   heart_mask = result['heart']
-   lung_mask  = result['lung']
-   bone_mask  = result['bone']
+   for group in ("heart", "lung", "bone"):
+       if group in result:
+           itk.imwrite(result[group], f"{group}_mask.mha")
 
 Batch Processing
 ----------------
@@ -110,4 +114,4 @@ See Also
 
 .. rubric:: Navigation
 
-:doc:`../index` | :doc:`base` | :doc:`totalsegmentator`
+:doc:`../index` | :doc:`base` | :doc:`totalsegmentator` | :doc:`simpleware`

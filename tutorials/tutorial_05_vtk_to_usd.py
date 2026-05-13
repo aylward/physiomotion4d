@@ -1,123 +1,75 @@
 """
-Tutorial 5: VTK Surface Series to Animated USD
+Tutorial 5: VTK Surface Series to USD
 
 Purpose
 -------
-Convert one or more VTK surface files into a USD file suitable for NVIDIA
-Omniverse. Supports a single static mesh, a time-series (animated) set of
-meshes, or a mesh with scalar data visualised via a colormap. This tutorial
-uses the surface files produced by Tutorial 2 (CT Segmentation to VTK) as
-input, but any VTK/VTP/VTU files will work.
-
-Inputs
-------
-- One or more VTK-compatible surface files (``.vtp`` / ``.vtk`` / ``.vtu``).
-  This tutorial looks for ``output/tutorial_02/patient_surfaces.vtp`` (output
-  of Tutorial 2). If that file does not exist, it falls back to any ``.vtp``
-  under ``data/``.
-
-Outputs
--------
-- ``output_dir/surfaces.usd`` - USD file with anatomy materials applied
-- Screenshots (PNG):
-  - ``usd_mesh_rendering.png`` - PyVista off-screen render of the mesh
-
-Strengths
----------
-- Supports time-varying USD for animated sequences (one VTK file per frame).
-- Three appearance modes: ``solid`` (flat colour), ``anatomy`` (clinical
-  material by anatomy type), and ``colormap`` (scalar field visualisation).
-- Coordinate system is automatically converted from RAS to Omniverse Y-up.
-
-Weaknesses / Limitations
-------------------------
-- Requires Tutorial 2 output (or any VTK file) as input; not standalone.
-- Time-series ordering relies on a filename regex pattern (``\.t\d+\.vtp$``);
-  non-conforming filenames are treated as static single-frame input.
-- USD materials use UsdPreviewSurface; advanced Omniverse MDL materials require
-  additional post-processing.
-
-Classes Used
-------------
-- WorkflowConvertVTKToUSD (workflow_convert_vtk_to_usd.py):
-    Loads VTK files, splits meshes, converts to USD, and applies appearance.
-- ConvertVTKToUSD (convert_vtk_to_usd.py):
-    High-level PyVista-to-USD converter with colormap support (used internally).
-- USDAnatomyTools (usd_anatomy_tools.py):
-    Applies clinical material colours to USD prims (used internally).
-
-CLI Equivalent
---------------
-The same main outputs (without screenshots) can be produced via the CLI::
-
-    physiomotion4d-convert-vtk-to-usd \\
-        --input output/tutorial_02/patient_surfaces.vtp \\
-        --output-usd ./output/tutorial_05/surfaces.usd \\
-        --appearance anatomy \\
-        --anatomy-type heart
-
-See ``src/physiomotion4d/cli/convert_vtk_to_usd.py`` for full CLI documentation.
+Convert the VTK surface output from Tutorial 2, or another VTK-compatible mesh,
+into a USD file with anatomy materials.
 
 Data Required
 -------------
-This tutorial uses the output of Tutorial 2 (``output/tutorial_02/patient_surfaces.vtp``).
-Run Tutorial 2 first, or provide any VTK surface file via the ``--vtk-file`` flag.
+Preferred input: ``tutorials/output/tutorial_02/patient_surfaces.vtp``
+Fallback input: any ``*.vtp`` under ``data`` or ``data/test``
 """
 
+# %%
+# Imports
 from __future__ import annotations
 
-import argparse
 import logging
 from pathlib import Path
-from typing import Any, Optional
-
-import pyvista as pv
+from typing import Optional
 
 from physiomotion4d.test_tools import TestTools
 from physiomotion4d.workflow_convert_vtk_to_usd import WorkflowConvertVTKToUSD
 
+# nnUNetv2 (used by TotalSegmentator inside several workflows) spawns a
+# multiprocessing.Pool. On Windows the spawn start method re-imports this
+# script in each child; without the __name__ == "__main__" guard around
+# top-level work, that re-import fires the segmenter again and Python's
+# spawn-cascade detector raises RuntimeError. Wrapping consistently across
+# tutorials also matches the style of tutorial_01.
+if __name__ == "__main__":
+    # %%
+    # Data directory specification
+    REPO_ROOT = Path(__file__).resolve().parent.parent
+    TUTORIALS_DIR = Path(__file__).resolve().parent
+    DATA_DIR = REPO_ROOT / "data"
+    FULL_DATA_DIR = DATA_DIR
+    TEST_DATA_DIR = DATA_DIR / "test"
+    OUTPUT_DIR = TUTORIALS_DIR / "output" / "tutorial_05"
+    BASELINES_DIR = REPO_ROOT / "tests" / "baselines"
+    TUTORIAL_02_SURFACE = (
+        TUTORIALS_DIR / "output" / "tutorial_02" / "patient_surfaces.vtp"
+    )
+    VTK_FILE: Optional[Path] = None
+    LOG_LEVEL = logging.INFO
 
-def run_tutorial(
-    data_dir: Path,
-    output_dir: Path,
-    *,
-    vtk_file: Optional[Path] = None,
-    log_level: int = logging.INFO,
-) -> dict[str, Any]:
-    """Run Tutorial 5: VTK Surface Series to Animated USD.
+    # %%
+    # Data reading
+    test_mode = TestTools.running_as_test()
 
-    Args:
-        data_dir: Root of the ``data/`` directory (see data/README.md).
-        output_dir: Directory to write outputs and screenshots.
-        vtk_file: Explicit path to a VTK file; overrides auto-discovery.
-        log_level: Python logging level.
+    data_dir = TEST_DATA_DIR if test_mode else FULL_DATA_DIR
+    output_dir = OUTPUT_DIR
+    vtk_file = VTK_FILE
+    log_level = LOG_LEVEL
 
-    Returns:
-        dict with keys:
-
-        - ``'usd_file'`` (str): path to the output USD file.
-        - ``'screenshots'`` (list[Path]): paths to saved PNG screenshots.
-    """
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if vtk_file is None and TUTORIAL_02_SURFACE.exists():
+        vtk_file = TUTORIAL_02_SURFACE
     if vtk_file is None:
-        # Prefer Tutorial 2 output
-        project_root = data_dir.parent
-        candidate = project_root / "output" / "tutorial_02" / "patient_surfaces.vtp"
-        if candidate.exists():
-            vtk_file = candidate
-        else:
-            # Fall back to any .vtp under data/
-            found = list(data_dir.rglob("*.vtp"))
-            if not found:
-                raise FileNotFoundError(
-                    "No VTK file found. Run Tutorial 2 first, or specify "
-                    "--vtk-file <path>."
-                )
-            vtk_file = found[0]
+        vtk_candidates = sorted(data_dir.rglob("*.vtp"))
+        if not vtk_candidates:
+            raise FileNotFoundError(
+                "No VTK surface file found. Run Tutorial 2 first or place a "
+                f"*.vtp file under {data_dir}."
+            )
+        vtk_file = vtk_candidates[0]
 
+    # %%
+    # Workflow initialization
     output_usd = output_dir / "surfaces.usd"
-
     workflow = WorkflowConvertVTKToUSD(
         vtk_files=[vtk_file],
         output_usd=output_usd,
@@ -126,58 +78,26 @@ def run_tutorial(
         separate_by_connectivity=True,
         log_level=log_level,
     )
-    usd_path = workflow.run()
 
-    # Screenshots
+    # %%
+    # Workflow execution
+    usd_file = workflow.run()
+
+    # %%
+    # Result saving
     tt = TestTools(
+        class_name="tutorial_05_vtk_to_usd",
         results_dir=output_dir,
-        baselines_dir=output_dir / "baselines",
-        class_name="tutorial_05",
-        results_output_dir=output_dir,
+        baselines_dir=BASELINES_DIR,
         log_level=log_level,
     )
 
     screenshots: list[Path] = []
-
-    mesh = pv.read(str(vtk_file))
     screenshots.append(
-        tt.save_screenshot_mesh(
-            mesh,
+        tt.save_screenshot_openusd(
+            usd_file,
             "usd_mesh_rendering.png",
-            camera_position="iso",
-            color="lightcoral",
-            opacity=0.9,
         )
     )
 
-    return {"usd_file": usd_path, "screenshots": screenshots}
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "--data-dir",
-        type=Path,
-        default=Path("data"),
-        help="Root data directory (default: ./data)",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("output") / "tutorial_05",
-        help="Output directory (default: ./output/tutorial_05)",
-    )
-    parser.add_argument(
-        "--vtk-file",
-        type=Path,
-        default=None,
-        help="Explicit VTK input file (default: auto-discover from Tutorial 2 output)",
-    )
-    args = parser.parse_args()
-
-    results = run_tutorial(args.data_dir, args.output_dir, vtk_file=args.vtk_file)
-    print(f"USD file:    {results['usd_file']}")
-    print(f"Screenshots: {[str(p) for p in results['screenshots']]}")
+    tutorial_results = {"usd_file": usd_file, "screenshots": screenshots}

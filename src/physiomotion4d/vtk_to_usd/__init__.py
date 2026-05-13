@@ -30,6 +30,7 @@ from .mesh_utils import (
 )
 from .usd_mesh_converter import UsdMeshConverter
 from .usd_utils import (
+    add_framing_camera,
     compute_mesh_extent,
     create_primvar,
     ras_normals_to_usd,
@@ -69,6 +70,7 @@ __all__ = [
     "sanitize_primvar_name",
     "triangulate_face",
     "compute_mesh_extent",
+    "add_framing_camera",
     # Mesh utils (cell type split)
     "cell_type_name_for_vertex_count",
     "split_mesh_data_by_cell_type",

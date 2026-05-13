@@ -36,7 +36,7 @@ py -m pytest tests/ --ignore=tests/test_segment_chest_total_segmentator.py \
 # With coverage
 py -m pytest tests/ --cov=src/physiomotion4d --cov-report=html
 
-# Experiment notebook tests (very slow, opt-in)
+# Experiment script tests (very slow, opt-in)
 py -m pytest tests/ --run-experiments
 
 # Create missing baselines

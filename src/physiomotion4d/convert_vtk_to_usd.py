@@ -21,9 +21,10 @@ from typing import Any, Literal, Optional, Union, cast
 import numpy as np
 import pyvista as pv
 import vtk
-from pxr import Usd, UsdGeom
+from pxr import Sdf, Usd, UsdGeom
 
 from .physiomotion4d_base import PhysioMotion4DBase
+from .segment_anatomy_base import SegmentAnatomyBase
 from .vtk_to_usd import (
     ConversionSettings,
     DataType,
@@ -32,6 +33,7 @@ from .vtk_to_usd import (
     MaterialManager,
     MeshData,
     UsdMeshConverter,
+    add_framing_camera,
     cell_type_name_for_vertex_count,
     read_vtk_file,
     split_mesh_data_by_cell_type,
@@ -80,6 +82,7 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         times_per_second: float = 24.0,
         separate_by: Literal["none", "connectivity", "cell_type"] = "none",
         solid_color: tuple[float, float, float] = (0.8, 0.8, 0.8),
+        segmenter: Optional[SegmentAnatomyBase] = None,
         log_level: int | str = logging.INFO,
     ) -> None:
         """
@@ -98,6 +101,12 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
                         'none' keeps the mesh as-is, 'connectivity' splits by connected
                         component, 'cell_type' splits by face vertex count.
             solid_color: Default RGB diffuse color in [0, 1] used when no colormap is set.
+            segmenter: Optional SegmentAnatomyBase instance used to classify each
+                       mask_ids label into an anatomy group (heart / lung / bone /
+                       major_vessels / contrast / soft_tissue / other) so labeled
+                       prims are written under ``/World/{data_basename}/{type}/{label}``
+                       and materials under ``/World/Looks/{type}/{label}_material``.
+                       When None, labels are grouped under a single ``Anatomy`` Xform.
             log_level: Logging level
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
@@ -109,6 +118,7 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         self.convert_to_surface = convert_to_surface
         self.separate_by = separate_by
         self.solid_color = solid_color
+        self.segmenter = segmenter
 
         # Colormap settings
         self.color_by_array: Optional[str] = None
@@ -153,6 +163,7 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         time_codes: Optional[list[float]] = None,
         static_merge: bool = False,
         mask_ids: Optional[dict[int, str]] = None,
+        segmenter: Optional[SegmentAnatomyBase] = None,
         log_level: int | str = logging.INFO,
     ) -> "ConvertVTKToUSD":
         """Create a converter by loading VTK files from disk.
@@ -173,6 +184,8 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
             static_merge: If True, treat each file as a separate mesh object in a
                           single static scene (no time samples).
             mask_ids: Optional anatomical label mapping.
+            segmenter: Optional SegmentAnatomyBase used to group labeled prims
+                       by anatomy type. See the ConvertVTKToUSD constructor.
             log_level: Logging level.
 
         Returns:
@@ -217,6 +230,7 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
             convert_to_surface=extract_surface,
             times_per_second=times_per_second,
             solid_color=solid_color,
+            segmenter=segmenter,
             log_level=log_level,
         )
         instance._is_static_merge = static_merge
@@ -420,6 +434,107 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
 
         return self
 
+    def compute_von_mises_stress(
+        self,
+        stress_array_name: str = "stress",
+        output_name: str = "von_mises_stress",
+    ) -> "ConvertVTKToUSD":
+        """Add a scalar von Mises stress array derived from a 9-component
+        stress tensor on every input mesh.
+
+        For each mesh in ``self.input_polydata``, looks up ``stress_array_name``
+        in ``cell_data`` first (FE stress is typically per-cell), then in
+        ``point_data``, reduces the 9-component tensor to scalar von Mises, and
+        writes the result back to the same data dict under ``output_name``.
+
+        Call this between ``from_files()`` and ``convert()``. The new array
+        becomes a USD primvar at convert time (``vtk_cell_<output_name>`` or
+        ``vtk_point_<output_name>``) and can be selected as the
+        ``color_by_array`` for set_colormap or as the target primvar for
+        ``USDTools.apply_colormap_from_primvar``.
+
+        Tensor layout (row-major)::
+
+            [s_xx, s_xy, s_xz, s_yx, s_yy, s_yz, s_zx, s_zy, s_zz]
+
+        Off-diagonal pairs are averaged to symmetrize, which is a no-op for an
+        already-symmetric Cauchy stress tensor.
+
+        Formula::
+
+            sigma_VM = sqrt(0.5 * [(sxx-syy)^2 + (syy-szz)^2 + (szz-sxx)^2]
+                            + 3.0 * (sxy^2 + syz^2 + szx^2))
+
+        Args:
+            stress_array_name: Source array name on the input meshes.
+                Defaults to ``"stress"``.
+            output_name: Name under which to store the resulting scalar
+                array. Defaults to ``"von_mises_stress"``.
+
+        Returns:
+            self: For method chaining.
+
+        Raises:
+            ValueError: If no input mesh contains a 9-component array named
+                ``stress_array_name`` in either cell_data or point_data.
+        """
+        found_any = False
+        for mesh in self.input_polydata:
+            pv_mesh = mesh if isinstance(mesh, pv.DataSet) else pv.wrap(mesh)
+            for data_dict in (pv_mesh.cell_data, pv_mesh.point_data):
+                if stress_array_name not in data_dict:
+                    continue
+                source = np.asarray(data_dict[stress_array_name])
+                if source.ndim == 1 and source.size % 9 == 0:
+                    source = source.reshape(-1, 9)
+                if source.ndim != 2 or source.shape[1] != 9:
+                    continue
+
+                vm = self._von_mises_from_tensor(source)
+                data_dict[output_name] = vm
+                found_any = True
+                break
+
+        if not found_any:
+            raise ValueError(
+                f"No input mesh has a 9-component array named "
+                f"'{stress_array_name}' in point_data or cell_data."
+            )
+
+        # Invalidate cached MeshData so convert() picks up the new array.
+        self._cached_mesh_data = None
+        self.logger.info(
+            "Computed %s from %s on %d input mesh(es)",
+            output_name,
+            stress_array_name,
+            len(self.input_polydata),
+        )
+        return self
+
+    @staticmethod
+    def _von_mises_from_tensor(stress_tensor: np.ndarray) -> np.ndarray:
+        """Scalar von Mises stress from a row-major 9-component tensor field.
+
+        Args:
+            stress_tensor: Float array of shape ``(N, 9)``.
+
+        Returns:
+            Float32 array of shape ``(N,)``.
+        """
+        arr = np.asarray(stress_tensor, dtype=np.float64)
+        sxx, sxy, sxz = arr[:, 0], arr[:, 1], arr[:, 2]
+        syx, syy, syz = arr[:, 3], arr[:, 4], arr[:, 5]
+        szx, szy, szz = arr[:, 6], arr[:, 7], arr[:, 8]
+        sym_xy = 0.5 * (sxy + syx)
+        sym_yz = 0.5 * (syz + szy)
+        sym_zx = 0.5 * (sxz + szx)
+        deviatoric = 0.5 * ((sxx - syy) ** 2 + (syy - szz) ** 2 + (szz - sxx) ** 2)
+        shear = 3.0 * (sym_xy**2 + sym_yz**2 + sym_zx**2)
+        result: np.ndarray = np.sqrt(np.maximum(deviatoric + shear, 0.0)).astype(
+            np.float32
+        )
+        return result
+
     def convert(
         self,
         output_usd_file: str,
@@ -455,6 +570,14 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
             output_path.unlink()
             self.logger.debug(f"Removed existing file: {output_path}")
 
+        # USD caches layers globally by identifier, so a prior call in the
+        # same Python session can block CreateNew even after the file is
+        # gone. Evict any stale in-memory layer for this path.
+        stale_layer = Sdf.Layer.Find(str(output_path))
+        if stale_layer is not None:
+            stale_layer.Clear()
+            del stale_layer
+
         # Create USD stage
         stage = Usd.Stage.CreateNew(str(output_path))
         UsdGeom.SetStageMetersPerUnit(stage, self.settings.meters_per_unit)
@@ -488,6 +611,11 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         else:
             # Single mesh (or time series) conversion
             self._convert_unified(stage, root_path, material_mgr, mesh_converter)
+
+        # Add a framing camera with tight near-clip so Omniverse Kit and other
+        # USD viewers can zoom close without geometry vanishing.
+        if add_framing_camera(stage) is None:
+            self.logger.debug("Skipped framing camera: no stage bounds available")
 
         # Save stage
         stage.Save()
@@ -619,6 +747,10 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         for labeled_meshes in labeled_meshes_by_time:
             all_labels.update(labeled_meshes.keys())
 
+        # Track per-type Xforms/Scopes already defined so we only Define each
+        # once even when multiple labels share a type.
+        defined_type_groups: set[str] = set()
+
         # Convert each label separately
         for label_name in sorted(all_labels):
             self.logger.debug(f"Processing label: {label_name}")
@@ -638,11 +770,27 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
             if not label_mesh_sequence:
                 continue
 
-            # Create material for this label
-            material = self._create_material_from_colormap(f"{label_name}_material")
+            # Group labeled prims under an anatomy-type Xform so a 100-label
+            # output is structured (heart/, lung/, bone/, ...) instead of flat.
+            type_name = (
+                self.segmenter.label_to_type(label_name)
+                if self.segmenter is not None
+                else "Anatomy"
+            )
+            if type_name not in defined_type_groups:
+                UsdGeom.Xform.Define(stage, f"{root_path}/{type_name}")
+                UsdGeom.Scope.Define(stage, f"/World/Looks/{type_name}")
+                defined_type_groups.add(type_name)
+
+            # Create material for this label. The "/" in the material name
+            # makes MaterialManager author it at /World/Looks/{type}/{label}_material,
+            # so material paths mirror the mesh hierarchy.
+            material = self._create_material_from_colormap(
+                f"{type_name}/{label_name}_material"
+            )
 
             # Convert to USD
-            mesh_path = f"{root_path}/{label_name}"
+            mesh_path = f"{root_path}/{type_name}/{label_name}"
             if self._time_codes is not None:
                 label_time_codes = [self._time_codes[i] for i in label_frame_indices]
             else:
@@ -707,29 +855,35 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
         if self.color_by_array and self.color_by_array in vtk_mesh.point_data:
             colors = self._apply_colormap(vtk_mesh.point_data[self.color_by_array])
 
-        # Extract generic arrays
+        # Extract generic arrays from both point and cell data.
+        # Point arrays are vertex-interpolated; cell arrays are uniform
+        # (per-face) and are required for downstream colormap workflows that
+        # target simulation fields such as stress or strain.
         generic_arrays = []
-        for array_name in vtk_mesh.point_data.keys():
-            array_data = vtk_mesh.point_data[array_name]
-            num_components = int(array_data.shape[1] if array_data.ndim > 1 else 1)
+        for source, interpolation in (
+            (vtk_mesh.point_data, "vertex"),
+            (vtk_mesh.cell_data, "uniform"),
+        ):
+            for array_name in source.keys():
+                array_data = source[array_name]
+                num_components = int(array_data.shape[1] if array_data.ndim > 1 else 1)
 
-            # Determine data type
-            if array_data.dtype in [np.float32, np.float64]:
-                data_type = DataType.FLOAT
-            elif array_data.dtype in [np.int32, np.int64]:
-                data_type = DataType.INT
-            else:
-                data_type = DataType.FLOAT
+                if array_data.dtype in [np.float32, np.float64]:
+                    data_type = DataType.FLOAT
+                elif array_data.dtype in [np.int32, np.int64]:
+                    data_type = DataType.INT
+                else:
+                    data_type = DataType.FLOAT
 
-            generic_arrays.append(
-                GenericArray(
-                    name=array_name,
-                    data=array_data,
-                    num_components=num_components,
-                    data_type=data_type,
-                    interpolation="vertex",
+                generic_arrays.append(
+                    GenericArray(
+                        name=array_name,
+                        data=array_data,
+                        num_components=num_components,
+                        data_type=data_type,
+                        interpolation=interpolation,
+                    )
                 )
-            )
 
         return MeshData(
             points=points,
@@ -821,8 +975,11 @@ class ConvertVTKToUSD(PhysioMotion4DBase):
 
         colors_rgba = cmap(normalized)
 
-        # Return RGB (drop alpha)
-        return colors_rgba[:, :3].astype(np.float32)
+        # Return RGB (drop alpha). The intermediate variable pins the type so
+        # mypy doesn't lose track through .astype() — matplotlib's colormap
+        # return signature is loose.
+        colors_rgb: np.ndarray = colors_rgba[:, :3].astype(np.float32)
+        return colors_rgb
 
     def _create_material_from_colormap(self, name: str) -> MaterialData:
         """Create material based on colormap settings."""

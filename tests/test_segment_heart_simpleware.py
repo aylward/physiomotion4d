@@ -42,12 +42,19 @@ class TestSegmentHeartSimpleware:
             "Target spacing should be 1.0 mm for Simpleware"
         )
 
-        assert len(seg.heart_mask_ids) > 0, "Heart mask IDs not defined"
-        assert len(seg.major_vessels_mask_ids) > 0, "Major vessels mask IDs not defined"
-        # ASCardio does not segment lung, bone, soft_tissue (empty dicts)
-        assert seg.lung_mask_ids == {}, "ASCardio does not segment lungs"
-        assert seg.bone_mask_ids == {}, "ASCardio does not segment bone"
-        assert seg.soft_tissue_mask_ids == {}, "ASCardio does not segment soft tissue"
+        taxonomy = seg.taxonomy
+        assert len(taxonomy.labels_in_group("heart")) > 0, "Heart mask IDs not defined"
+        assert len(taxonomy.labels_in_group("major_vessels")) > 0, (
+            "Major vessels mask IDs not defined"
+        )
+        # ASCardio does not segment lung or bone — those groups are never
+        # registered, so labels_in_group returns an empty dict for them.
+        # soft_tissue still contains the base-class placeholder (id 133).
+        assert taxonomy.labels_in_group("lung") == {}, "ASCardio does not segment lungs"
+        assert taxonomy.labels_in_group("bone") == {}, "ASCardio does not segment bone"
+        assert taxonomy.labels_in_group("soft_tissue") == {133: "soft_tissue"}, (
+            "Only the base-class soft_tissue placeholder should be present"
+        )
 
         assert seg.simpleware_exe_path is not None, "Simpleware executable path not set"
         assert seg.simpleware_script_path is not None, "Simpleware script path not set"
@@ -55,8 +62,8 @@ class TestSegmentHeartSimpleware:
 
         print("\nSegmenter initialized with correct parameters")
         print(f"  Target spacing: {seg.target_spacing} mm")
-        print(f"  Heart structures: {len(seg.heart_mask_ids)}")
-        print(f"  Major vessels: {len(seg.major_vessels_mask_ids)}")
+        print(f"  Heart structures: {len(taxonomy.labels_in_group('heart'))}")
+        print(f"  Major vessels: {len(taxonomy.labels_in_group('major_vessels'))}")
 
     def test_set_simpleware_executable_path(
         self, segmenter_simpleware: SegmentHeartSimpleware
@@ -93,19 +100,28 @@ class TestSegmentHeartSimpleware:
         result = segmenter_simpleware.segment(input_image, contrast_enhanced_study=True)
 
         assert isinstance(result, dict), "Result should be a dictionary"
+        # The Simpleware segmenter only registers the groups it actually
+        # populates: heart + major_vessels (subclass) and soft_tissue +
+        # contrast (inherited base-class placeholders). lung and bone are
+        # NOT in the result because ASCardio does not segment them; callers
+        # that need those groups must check membership first.
         expected_keys = [
             "labelmap",
-            "lung",
             "heart",
             "major_vessels",
-            "bone",
             "soft_tissue",
-            "other",
             "contrast",
+            "other",
         ]
         for key in expected_keys:
             assert key in result, f"Missing key '{key}' in result"
             assert result[key] is not None, f"Result['{key}'] is None"
+        assert "lung" not in result, (
+            "ASCardio does not segment lung; key must be absent"
+        )
+        assert "bone" not in result, (
+            "ASCardio does not segment bone; key must be absent"
+        )
 
         labelmap = result["labelmap"]
         assert itk.size(labelmap) == itk.size(input_image), "Labelmap size mismatch"
@@ -138,15 +154,15 @@ class TestSegmentHeartSimpleware:
         input_image = test_images[3]
         result = segmenter_simpleware.segment(input_image, contrast_enhanced_study=True)
 
+        # Only assert on groups Simpleware/ASCardio actually populates.
         anatomy_groups = [
-            "lung",
             "heart",
             "major_vessels",
-            "bone",
             "soft_tissue",
             "other",
         ]
         for group in anatomy_groups:
+            assert group in result, f"{group} mask should be present"
             mask = result[group]
             assert mask is not None, f"{group} mask is None"
             mask_arr = itk.array_from_image(mask)

@@ -17,7 +17,6 @@ import ants
 import itk
 import numpy as np
 from numpy.typing import NDArray
-
 from physiomotion4d.register_images_base import RegisterImagesBase
 from physiomotion4d.transform_tools import TransformTools
 
@@ -640,7 +639,7 @@ class RegisterImagesANTs(RegisterImagesBase):
                 syn_metric=syn_metric,
                 use_histogram_matching=False,
                 mask_all_stages=True,
-                verbose=True,
+                verbose=False,
                 reg_iterations=self.number_of_iterations,
             )
         else:
@@ -652,7 +651,7 @@ class RegisterImagesANTs(RegisterImagesBase):
                 aff_metric=aff_metric,
                 syn_metric=syn_metric,
                 use_histogram_matching=False,
-                verbose=True,
+                verbose=False,
                 reg_iterations=self.number_of_iterations,
             )
 
