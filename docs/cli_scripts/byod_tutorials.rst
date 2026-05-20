@@ -192,7 +192,7 @@ rate.  For scalar colormaps, combine ``--primvar``, ``--cmap``, and
    wf.intensity_range  = (0, 500)
    wf.run()
 
-**Lower-level in-memory conversion with** ``ConvertVTKToUSD``**:**
+**Lower-level in-memory conversion with ConvertVTKToUSD:**
 
 For programmatic pipelines where meshes are already in memory, use the
 lower-level :class:`physiomotion4d.ConvertVTKToUSD` class directly:
@@ -238,3 +238,27 @@ See Also
 - :doc:`/api/workflows`
 - :doc:`/examples`
 - :doc:`/troubleshooting`
+
+.. _isaac_for_healthcare_assets:
+
+4D Isaac for Healthcare Assets
+------------------------------
+
+PhysioMotion4D has been used to generate a number of 4D anatomic models for
+Isaac for Healthcare. These datasets are intended to support visualization and
+workflow development with time-varying anatomy in OpenUSD.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - Asset
+     - Download link
+   * - Chest with cardiac motion
+     -
+   * - Chest with respiratory motion
+     -
+   * - Heart with cardiac motion
+     -
+   * - Lungs with respiratory motion
+     -

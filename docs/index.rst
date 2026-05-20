@@ -16,6 +16,8 @@
        documentation sections below for installation, CLI workflows, API
        references, developer notes, and contribution guidance.
      </p>
+
+     <p class="pm4d-hero__version">Version {{ pm4d_project_version }}</p>
    </section>
 
    <section class="pm4d-card-grid" aria-label="Tutorial cards">
@@ -79,6 +81,10 @@
          <h3>CLI Workflows</h3>
          <p>Use production command-line workflows for conversion, reconstruction, modeling, and USD export.</p>
        </a>
+       <a class="pm4d-topic-card" href="isaac_for_healthcare.html">
+         <h3>Isaac for Healthcare</h3>
+         <p>Find PhysioMotion4D workflows and assets for Isaac for Healthcare use cases.</p>
+       </a>
        <a class="pm4d-topic-card" href="api/index.html">
          <h3>API Reference</h3>
          <p>Browse classes and modules for workflows, segmentation, registration, USD, and utilities.</p>
@@ -122,6 +128,14 @@ per-tutorial implementation details.
    tutorials
    examples
    architecture
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Isaac for Healthcare
+   :hidden:
+
+   isaac_for_healthcare
+   cli_scripts/byod_tutorials
 
 .. toctree::
    :maxdepth: 2

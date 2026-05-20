@@ -5,9 +5,9 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## docs/conf.py
 
-- **class Mock** (line 20)
-- `def autodoc_skip_member(app, what, name, obj, skip, options)` (line 222): Custom function to skip certain members during autodoc processing.
-- `def setup(app)` (line 230): Custom setup function for Sphinx.
+- **class Mock** (line 22)
+- `def autodoc_skip_member(app, what, name, obj, skip, options)` (line 227): Custom function to skip certain members during autodoc processing.
+- `def setup(app)` (line 239): Custom setup function for Sphinx.
 
 ## experiments/Colormap-VTK_To_USD/colormap_vtk_to_usd.py
 
