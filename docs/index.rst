@@ -18,13 +18,6 @@
      </p>
    </section>
 
-   <section class="pm4d-clinical-notice" role="note" aria-label="Clinical use notice">
-     <strong>Not validated for clinical use.</strong>
-     PhysioMotion4D 2026.05.07 beta is a research and visualization toolkit,
-     not a medical device. Do not use it for diagnosis, treatment planning, or
-     clinical decision-making.
-   </section>
-
    <section class="pm4d-card-grid" aria-label="Tutorial cards">
      <a class="pm4d-card" href="tutorials.html#tutorial-1-heart-gated-ct-to-animated-usd">
        <span class="pm4d-card__number">01</span>
@@ -182,6 +175,13 @@ per-tutorial implementation details.
    troubleshooting
    references
    changelog
+
+Clinical Use
+============
+
+Not validated for clinical use. PhysioMotion4D 2026.05.07 beta is a research
+and visualization toolkit, not a medical device. Do not use it for diagnosis,
+treatment planning, or clinical decision-making.
 
 Indices and tables
 ==================
