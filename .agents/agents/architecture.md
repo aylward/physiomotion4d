@@ -27,11 +27,18 @@ Use `docs/API_MAP.md` to locate classes and signatures without manual searching.
 
 ## Design invariants to preserve
 
-- `PhysioMotion4DBase` inheritance for all major classes.
+- `PhysioMotion4DBase` inheritance for runtime workflow / segmentation /
+  registration / USD classes. Helper, data-container, and standalone-script
+  classes do not inherit.
 - Segmenters return anatomy group masks with consistent label IDs.
 - Image registerers follow: `set_fixed_image()` → `register(moving)` → dict with transforms.
 - ITK for images; PyVista for surfaces. Boundary is at contour extraction.
-- Coordinate system: RAS internally; Y-up only at USD export.
+- Coordinate system: LPS internally throughout (images and surfaces). Convert
+  to USD right-handed Y-up only at USD export via
+  `vtk_to_usd.lps_points_to_usd`.
+- Public entry point for VTK→USD is `ConvertVTKToUSD`. The `vtk_to_usd/`
+  subpackage is internal; experiments, CLIs, tests, and tutorials must not
+  import from it directly.
 
 ## Output format — always produce all six sections
 
@@ -42,4 +49,4 @@ Use `docs/API_MAP.md` to locate classes and signatures without manual searching.
 5. **Open questions** — decisions that need user input before coding starts.
 6. **Recommended next action** — one sentence.
 
-Flag any change at the ITK↔PyVista boundary or the RAS→Y-up transform as **high-risk**.
+Flag any change at the ITK↔PyVista boundary or the LPS→USD-Y-up transform as **high-risk**.

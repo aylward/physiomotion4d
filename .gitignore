@@ -14,6 +14,13 @@ __pycache__
 _version.py
 htmlcov
 
+# AI files
+.claude
+
+# Intermediate files produced by skills
+.github_review_prompt.txt
+pr*review_summary.md
+
 # Documentation build files
 docs/_build/
 docs/_static/.buildinfo

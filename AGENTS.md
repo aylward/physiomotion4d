@@ -76,8 +76,12 @@ python -m pytest tests/test_contour_tools.py::test_extract_surface -v
 python -m pytest tests/ -v --run-slow
 python -m pytest tests/ -v --run-gpu
 python -m pytest tests/ -v --run-simpleware
+python -m pytest tests/ -v --run-physicsnemo
 python -m pytest tests/ -v --run-experiments
 python -m pytest tests/ -v --run-tutorials
+
+# Enable every bucket at once (equivalent to passing all --run-* flags)
+python -m pytest tests/ -v --run-all
 
 # Typical local GPU profile
 python -m pytest tests/ -v --run-gpu --run-slow
@@ -91,6 +95,18 @@ python -m pytest tests/ --create-baselines
 
 Version bumping: `bumpver update --patch`, `--minor`, or `--major`.
 
+## Codex Sandbox
+
+- If a Python command fails with
+  `No Python at '"C:\Users\saylward\AppData\Local\Programs\Python\Python311\python.exe'`,
+  do not assume Python 3.11 is missing. The Codex sandbox can break the
+  launcher or venv path.
+- Use the temporary validation environment instead:
+  `C:\Users\saylward\AppData\Local\Temp\pm4d-uv-env\Scripts\python.exe`.
+  It has been verified as Python 3.11.9 with `ruff` available.
+- Run that temporary venv outside the sandbox when needed. Treat this as an
+  environment/sandbox workaround, not a dependency or installation problem.
+
 ## Universal Rules
 
 - Read the relevant source files before proposing changes.
@@ -99,6 +115,15 @@ Version bumping: `bumpver update --patch`, `--minor`, or `--major`.
   utility scripts and data/container/helper classes do not.
 - In classes that inherit from `PhysioMotion4DBase`, use `self.log_info()` and
   `self.log_debug()`, never `print()`. Standalone scripts may use `print()`.
+- No emojis in `.py` files; avoid them in docs too. Windows cp1252 encoding
+  has broken this project before.
+- The public VTK→USD entry point is `ConvertVTKToUSD`. Experiments, CLIs,
+  tests, and tutorials must use it. Do not import from the `vtk_to_usd/`
+  subpackage directly outside of `convert_vtk_to_usd.py` and the subpackage
+  itself.
+- Scripts that instantiate `SegmentChestTotalSegmentator` must guard the
+  top-level invocation with `if __name__ == "__main__":` on Windows
+  (`torch.multiprocessing` requires it).
 - Single quotes for strings; double quotes for docstrings. Keep lines at or
   below 88 characters.
 - Full type hints are required under strict mypy. Use `Optional[X]`, not

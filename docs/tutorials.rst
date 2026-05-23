@@ -271,6 +271,10 @@ Workflow
 Dataset
    Tutorial 8 propagated PCA mesh outputs.
 
+Extra install
+   PhysicsNeMo is an optional dependency. Install with
+   ``pip install "physiomotion4d[physicsnemo]"`` (requires Python >= 3.11).
+
 Run
    .. code-block:: bash
 

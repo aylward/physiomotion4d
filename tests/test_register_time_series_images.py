@@ -54,6 +54,22 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTime series registrar initialized with ICON")
 
+    def test_registrar_initialization_greedy(self) -> None:
+        """Test that RegisterTimeSeriesImages initializes correctly with Greedy."""
+        registrar = RegisterTimeSeriesImages(registration_method="greedy")
+        assert registrar is not None, "Registrar not initialized"
+        assert registrar.registration_method_name == "greedy", (
+            "Method not set correctly"
+        )
+        assert registrar.registrar_greedy is not None, (
+            "Internal Greedy registrar not created"
+        )
+        assert registrar.registrar_icon is not None, (
+            "Internal ICON registrar not created"
+        )
+
+        print("\nTime series registrar initialized with Greedy")
+
     def test_registrar_initialization_invalid_method(self) -> None:
         """Test that invalid registration method raises error."""
         with pytest.raises(ValueError, match="registration_method must be"):
@@ -88,6 +104,14 @@ class TestRegisterTimeSeriesImages:
         registrar_ants.set_number_of_iterations_ants(iterations_ants)
         assert registrar_ants.number_of_iterations_ants == iterations_ants, (
             "ANTs iterations not set correctly"
+        )
+
+        registrar_greedy = RegisterTimeSeriesImages(registration_method="greedy")
+        iterations_greedy = [25, 10, 3]
+
+        registrar_greedy.set_number_of_iterations_greedy(iterations_greedy)
+        assert registrar_greedy.number_of_iterations_greedy == iterations_greedy, (
+            "Greedy iterations not set correctly"
         )
 
         registrar_icon = RegisterTimeSeriesImages(registration_method="icon")

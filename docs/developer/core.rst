@@ -50,9 +50,10 @@ For most code changes, run:
 
    py -m pytest tests/ -v
 
-(Slow / GPU / Simpleware / experiment / tutorial tests are auto-skipped;
-opt in with ``--run-slow``, ``--run-gpu``, ``--run-simpleware``,
-``--run-experiments``, ``--run-tutorials``. Data-dependent tests download
+(Slow / GPU / Simpleware / PhysicsNeMo / experiment / tutorial tests are
+auto-skipped; opt in with ``--run-slow``, ``--run-gpu``, ``--run-simpleware``,
+``--run-physicsnemo``, ``--run-experiments``, ``--run-tutorials``, or use
+``--run-all`` to enable every bucket at once. Data-dependent tests download
 their data through the session fixtures and run by default.)
 
 After public API changes, regenerate the API map:

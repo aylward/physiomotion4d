@@ -655,7 +655,11 @@ def build_prompt(
           from `PhysioMotion4DBase`; helper/data/container classes need not
         - Adds features or abstractions beyond what was requested
         - Calls `vtk_to_usd` internals from outside `convert_vtk_to_usd.py`
-        - Applies coordinate conversion (RAS->Y-up) more than once
+        - Applies coordinate conversion (LPS->USD Y-up) more than once, or
+          treats internal PyVista surfaces as RAS (they are LPS)
+        - Uses emojis in `.py` files
+        - Omits the Windows `if __name__ == "__main__":` guard in scripts that
+          instantiate `SegmentChestTotalSegmentator`
         - Exceeds 88-character line length
 
         ## Step 3 — Write summary
@@ -791,6 +795,11 @@ def invoke_codex(prompt: str, repo_root: Path) -> None:
         print(f'[ERROR] "codex" exited with status {exc.returncode}.')
         _save_prompt_fallback(prompt, repo_root, agent="codex")
         sys.exit(exc.returncode)
+
+    # Prompt file is intermediate input to the agent; remove on success.
+    # On failure (FileNotFoundError / CalledProcessError) the fallback path
+    # above re-saves it for manual rerun, so we only delete here.
+    prompt_path.unlink(missing_ok=True)
 
 
 def _save_prompt_file(prompt: str, repo_root: Path) -> Path:
@@ -1019,7 +1028,7 @@ def main() -> None:
     print()
     summary_path = repo_root / summary_filename
     if summary_path.exists():
-        print(f"[✓] Summary written : {summary_filename}")
+        print(f"[+] Summary written : {summary_filename}")
     else:
         print("[!] Summary file not found — check agent output above.")
     print("[*] Inspect changes : git diff")

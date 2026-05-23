@@ -104,16 +104,20 @@ Each flag enables one marker family. Flags compose, so you can stack them.
 | `--run-slow` | `slow` | Slow registration / segmentation tests (>30 s) |
 | `--run-gpu` | `requires_gpu` | CUDA-dependent tests (ICON, Simpleware, etc.) |
 | `--run-simpleware` | `requires_simpleware` | Need a licensed Synopsys Simpleware Medical install (also marked `requires_gpu`) |
+| `--run-physicsnemo` | `requires_physicsnemo` | Need the optional `[physicsnemo]` extra installed |
 | `--run-experiments` | `experiment` | End-to-end experiment notebooks (hours to run) |
 | `--run-tutorials` | `tutorial` | Tutorial scripts run end-to-end |
+| `--run-all` | every bucket above | Equivalent to passing all `--run-*` flags at once |
 
 ```bash
 # Slow tests
 pytest tests/ -v --run-slow
 
-# Typical local GPU profile. The self-hosted CI GPU runner enables every
-# bucket: --run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials
+# Typical local GPU profile. The self-hosted CI GPU runner uses --run-all.
 pytest tests/ -v --run-gpu --run-slow
+
+# Enable every bucket at once
+pytest tests/ -v --run-all
 
 # Full Simpleware coverage (requires Simpleware Medical installed locally)
 pytest tests/ -v --run-simpleware --run-gpu --run-slow
@@ -156,10 +160,15 @@ All test runs automatically generate a comprehensive timing report at the end sh
 - `@pytest.mark.requires_simpleware` — Tests needing a licensed Synopsys
   Simpleware Medical install. Opt in: `--run-simpleware`. (Combine with
   `--run-gpu` and `--run-slow`.)
+- `@pytest.mark.requires_physicsnemo` — Tests needing the optional
+  `[physicsnemo]` extra (`pip install "physiomotion4d[physicsnemo]"`, requires
+  Python >= 3.11). Opt in: `--run-physicsnemo`.
 - `@pytest.mark.experiment` — End-to-end experiment notebooks (EXTREMELY
   SLOW, never in CI). Opt in: `--run-experiments`.
 - `@pytest.mark.tutorial` — Tutorial scripts run end-to-end. Opt in:
   `--run-tutorials`.
+
+`--run-all` is a convenience flag that turns on every `--run-*` bucket at once.
 - `@pytest.mark.integration` — Integration tests vs unit tests (filter-only).
 - `@pytest.mark.timeout(seconds)` — Per-test timeout override.
 

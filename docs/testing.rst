@@ -22,6 +22,7 @@ Each ``--run-<bucket>`` flag enables one marker family:
    pytest tests/ -v --run-slow         # tests marked 'slow'
    pytest tests/ -v --run-gpu          # tests marked 'requires_gpu'
    pytest tests/ -v --run-simpleware   # tests marked 'requires_simpleware'
+   pytest tests/ -v --run-physicsnemo  # tests marked 'requires_physicsnemo'
    pytest tests/ -v --run-experiments  # tests marked 'experiment'
    pytest tests/ -v --run-tutorials    # tests marked 'tutorial'
 
@@ -31,11 +32,13 @@ Flags compose. A typical local GPU profile is:
 
    pytest tests/ -v --run-gpu --run-slow
 
-The self-hosted CI GPU runner enables every bucket:
+``--run-all`` is a convenience flag that turns on every ``--run-*`` bucket at
+once. The self-hosted CI GPU runner uses it (after installing
+``.[test,cuda13,physicsnemo]``):
 
 .. code-block:: bash
 
-   pytest tests/ -v --run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials
+   pytest tests/ -v --run-all
 
 Test Categories
 ===============
@@ -72,11 +75,11 @@ licensed Simpleware Medical installation locally).
 Continuous Integration
 ======================
 
-CI runs the fast subset by default. The self-hosted GPU runner invokes pytest
-with every opt-in flag enabled
-(``--run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials``);
-tests whose host requirements aren't met (e.g. a licensed Simpleware install
-on a runner without one) runtime-skip cleanly via their internal guards.
+CI runs the fast subset by default. The self-hosted GPU runner installs
+``.[test,cuda13,physicsnemo]`` and invokes pytest with ``--run-all`` (which
+enables every ``--run-*`` bucket); tests whose host requirements aren't met
+(e.g. a licensed Simpleware install on a runner without one) runtime-skip
+cleanly via their internal guards.
 
 See Also
 ========

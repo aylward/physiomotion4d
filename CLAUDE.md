@@ -50,11 +50,15 @@ py -m pytest tests/test_contour_tools.py::test_extract_surface -v
 py -m pytest tests/ -v --run-slow         # tests marked 'slow'
 py -m pytest tests/ -v --run-gpu          # tests marked 'requires_gpu'
 py -m pytest tests/ -v --run-simpleware   # tests marked 'requires_simpleware'
+py -m pytest tests/ -v --run-physicsnemo  # tests marked 'requires_physicsnemo'
 py -m pytest tests/ -v --run-experiments  # tests marked 'experiment'
 py -m pytest tests/ -v --run-tutorials    # tests marked 'tutorial'
 
-# Typical local GPU profile. The self-hosted CI GPU runner enables every
-# bucket: --run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials
+# Enable every bucket at once (equivalent to passing all --run-* flags).
+# Self-hosted CI GPU runner uses this after installing [test,cuda13,physicsnemo].
+py -m pytest tests/ -v --run-all
+
+# Typical local GPU profile.
 py -m pytest tests/ -v --run-gpu --run-slow
 
 # With coverage
@@ -122,8 +126,16 @@ Claude, Codex, and other AI tooling.
 
 - `/plan` — inspect files, summarize design, produce a numbered plan (no code changes)
 - `/impl` — read → summarize → plan → implement in small diffs
-- `/test-feature` — propose test plan, write synthetic-data pytest tests
-- `/doc-feature` — update docstrings and regenerate API map
+- `/test-feature` — propose test plan, write real-data-driven pytest tests with baselines
+- `/doc-feature` — update docstrings (and remind you to run `/regen-api-map`)
+- `/regen-api-map` — regenerate `docs/API_MAP.md` and report public-API changes
+- `/check-conventions` — audit changed files against project hard rules
+  (base-class, logging, coordinate frame, USD entry point, Windows mp guard,
+  quoting, type hints, line length, emoji ban)
+- `/simplify-staged` — readability / quality pass over `git diff HEAD`
+- `/commit` — stage tracked changes, draft `<TAG>: …` message, loop until hooks pass
+- `/review-pr <NUMBER>` — drive `utils/ai_agent_github_reviews.py` to triage
+  a PR's review comments and apply accepted edits as pending changes
 
 ## File Operations
 

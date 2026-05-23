@@ -21,7 +21,7 @@ dataset licensing, and expected directory layout.
 | 6 | [tutorial_06_reconstruct_highres_4d_ct.py](tutorial_06_reconstruct_highres_4d_ct.py) | `WorkflowReconstructHighres4DCT` | DirLab-4DCT (manual) |
 | 7 | [tutorial_07_dirlab_pca_model.py](tutorial_07_dirlab_pca_model.py) | `WorkflowCreateStatisticalModel`, `WorkflowFitStatisticalModelToPatient` | DirLab-4DCT (manual) |
 | 8 | [tutorial_08_dirlab_pca_time_series.py](tutorial_08_dirlab_pca_time_series.py) | `RegisterTimeSeriesImages` | DirLab-4DCT plus Tutorial 7 output |
-| 9 | [tutorial_09_physicsnemo_mesh_stage_model.py](tutorial_09_physicsnemo_mesh_stage_model.py) | `physicsnemo.models.mlp.FullyConnected` | Tutorial 8 output |
+| 9 | [tutorial_09_physicsnemo_mesh_stage_model.py](tutorial_09_physicsnemo_mesh_stage_model.py) | `physicsnemo.models.mlp.FullyConnected` (requires `[physicsnemo]` extra) | Tutorial 8 output |
 
 ## Running a Tutorial
 
@@ -72,7 +72,7 @@ pytest tests/test_tutorials.py::TestTutorial01HeartGatedCTToUSD --run-tutorials 
 5. **Tutorial 6** requires DirLab-4DCT - download it per `data/README.md`.
 6. **Tutorial 7** creates a surface PCA model of the five lung lobes from DirLab-4DCT, then fits it to every available case.
 7. **Tutorial 8** registers DirLab respiratory phases with ANTs+ICON and propagates the Tutorial 7 fitted meshes through each time series.
-8. **Tutorial 9** trains a PhysicsNeMo model to predict a PCA-fitted mesh at a user-specified respiratory stage.
+8. **Tutorial 9** trains a PhysicsNeMo model to predict a PCA-fitted mesh at a user-specified respiratory stage. PhysicsNeMo is an optional extra: install with `pip install "physiomotion4d[physicsnemo]"` (requires Python >= 3.11).
 
 ## For Contributors
 

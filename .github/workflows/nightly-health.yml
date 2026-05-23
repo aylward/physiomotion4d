@@ -55,8 +55,10 @@ jobs:
         run: nvidia-smi
 
       - name: Create venv in RUNNER_TEMP
+        # Python 3.11 is required because the [physicsnemo] extra pulls in
+        # nvidia-physicsnemo, which requires Python >= 3.11.
         run: |
-          & "C:\Program Files\Python310\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
+          & "C:\Program Files\Python311\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
           echo "$env:RUNNER_TEMP\physiomotion4d-venv\Scripts" >> $env:GITHUB_PATH
 
       - name: Cache uv packages
@@ -79,9 +81,11 @@ jobs:
 
       - name: Install uv and package
         # Invoke via python -m uv so uv targets the active venv interpreter.
+        # The [physicsnemo] extra is required for --run-physicsnemo (Tutorial 9
+        # and any tests marked requires_physicsnemo).
         run: |
           python -m pip install --upgrade pip uv
-          python -m uv pip install -e ".[test,cuda13]"
+          python -m uv pip install -e ".[test,cuda13,physicsnemo]"
 
       - name: Assert CUDA is accessible
         run: |
@@ -108,7 +112,7 @@ jobs:
         # The step outcome (success/failure) is still captured and passed downstream.
         continue-on-error: true
         run: |
-          pytest tests/ -v --run-experiments --run-tutorials --run-slow --run-gpu --run-simpleware `
+          pytest tests/ -v --run-all `
             --cov=physiomotion4d `
             --cov-report=xml `
             --cov-report=json `

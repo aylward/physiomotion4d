@@ -1,9 +1,8 @@
 """Time series image registration implementation.
 
 This module provides the RegisterTimeSeriesImages class for registering an ordered
-sequence of images (time series) to a fixed image. It supports both ANTs
-and ICON registration methods and can optionally use prior transforms to initialize
-subsequent registrations in the sequence.
+sequence of images (time series) to a fixed image. It supports ANTs, Greedy,
+ICON, and combined ANTs/Greedy initialization followed by ICON refinement.
 
 The class is particularly useful for 4D medical imaging applications such as cardiac
 CT where sequential frames need to be registered to a common frame.
@@ -16,17 +15,27 @@ import itk
 
 from physiomotion4d.register_images_ants import RegisterImagesANTs
 from physiomotion4d.register_images_base import RegisterImagesBase
+from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.transform_tools import TransformTools
+
+REGISTRATION_METHODS: list[str] = [
+    "ants",
+    "greedy",
+    "icon",
+    "ants_icon",
+    "greedy_icon",
+]
 
 
 class RegisterTimeSeriesImages(RegisterImagesBase):
     """Register a time series of images to a fixed image.
 
     This class extends RegisterImagesBase to provide sequential registration of
-    multiple images (time series) to a fixed image. It supports both
-    ANTs and ICON registration methods and can propagate information from prior
-    registrations to initialize subsequent ones.
+    multiple images (time series) to a fixed image. It supports ANTs, Greedy,
+    ICON, and combined ANTs/Greedy initialization followed by ICON refinement.
+    It can propagate information from prior registrations to initialize
+    subsequent ones.
 
     The registration proceeds in two passes from a reference frame:
     1. Forward pass: from reference_frame to the end of the series
@@ -37,15 +46,19 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
 
     Key features:
     - Sequential registration of ordered image lists
-    - Support for both ANTs and ICON registration backends
+    - Support for ANTs, Greedy, ICON, ANTs+ICON, and Greedy+ICON backends
     - Optional use of prior transforms to initialize next registration
     - Configurable starting point in the time series
     - Returns all transforms and loss values for the entire series
 
     Attributes:
-        registration_method (str): Registration method to use ('ants' or 'icon')
-        registrar (RegisterImagesBase): Internal registration object (ANTs or ICON)
-        transform_tools (TransformTools): Utility for transform operations
+        registration_method_name (str): Registration method in use ('ants',
+            'greedy', 'icon', 'ants_icon', or 'greedy_icon').
+        registrar_ants (RegisterImagesANTs): Internal ANTs registrar.
+        registrar_greedy (RegisterImagesGreedy): Internal Greedy registrar.
+        registrar_icon (RegisterImagesICON): Internal ICON registrar (also used
+            as the refinement stage for 'ants_icon' and 'greedy_icon').
+        transform_tools (TransformTools): Utility for transform operations.
 
     Example:
         >>> # Register a cardiac CT time series
@@ -81,26 +94,30 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
 
         Args:
             registration_method (str): Registration method to use.
-                Options: 'ants' or 'icon'. Default: 'ants'
+                Options: 'ants', 'greedy', 'icon', 'ants_icon', or
+                'greedy_icon'. Default: 'ants'
             log_level: Logging level (default: logging.INFO)
 
         Raises:
-            ValueError: If registration_method is not 'ants' or 'icon'
+            ValueError: If registration_method is not supported.
         """
         super().__init__(log_level=log_level)
 
         self.registration_method_name: str = registration_method.lower()
 
         self.registrar_ants = RegisterImagesANTs(log_level=log_level)
+        self.registrar_greedy = RegisterImagesGreedy(log_level=log_level)
         self.registrar_icon = RegisterImagesICON(log_level=log_level)
 
         # Set default iterations based on registration method
         self.number_of_iterations_ants: list[int] = [40, 20, 10]
+        self.number_of_iterations_greedy: list[int] = [40, 20, 10]
         self.number_of_iterations_icon: int = 50
 
-        if self.registration_method_name not in ["ants", "icon", "ants_icon"]:
+        if self.registration_method_name not in REGISTRATION_METHODS:
             raise ValueError(
-                f"registration_method must be 'ants', 'icon' or 'ants_icon', got '{registration_method}'"
+                "registration_method must be one of "
+                f"{REGISTRATION_METHODS}, got '{registration_method}'"
             )
 
         self.transform_tools: TransformTools = TransformTools()
@@ -125,6 +142,17 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             number_of_iterations_icon: Number of fine-tuning steps for ICON
         """
         self.number_of_iterations_icon = number_of_iterations_icon
+
+    def set_number_of_iterations_greedy(
+        self, number_of_iterations_greedy: list[int]
+    ) -> None:
+        """Set the number of iterations for Greedy registration.
+
+        Args:
+            number_of_iterations_greedy: List of iterations per Greedy
+                resolution level, for example ``[40, 20, 10]``.
+        """
+        self.number_of_iterations_greedy = number_of_iterations_greedy
 
     def set_smooth_prior_transform_sigma(
         self, smooth_prior_transform_sigma: float
@@ -273,6 +301,15 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             self.registrar_ants.set_number_of_iterations(self.number_of_iterations_ants)
             self.registrar_ants.set_fixed_mask(self.fixed_mask)
             self.registrar_ants.set_fixed_labelmap(self.fixed_labelmap)
+        elif self.registration_method_name == "greedy":
+            self.registrar_greedy.set_fixed_image(self.fixed_image)
+            self.registrar_greedy.set_modality(self.modality)
+            self.registrar_greedy.set_mask_dilation(self.mask_dilation_mm)
+            self.registrar_greedy.set_number_of_iterations(
+                self.number_of_iterations_greedy
+            )
+            self.registrar_greedy.set_fixed_mask(self.fixed_mask)
+            self.registrar_greedy.set_fixed_labelmap(self.fixed_labelmap)
         elif self.registration_method_name == "icon":
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
@@ -280,13 +317,25 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             self.registrar_icon.set_number_of_iterations(self.number_of_iterations_icon)
             self.registrar_icon.set_fixed_mask(self.fixed_mask)
             self.registrar_icon.set_fixed_labelmap(self.fixed_labelmap)
-        elif self.registration_method_name == "ants_icon":
-            self.registrar_ants.set_fixed_image(self.fixed_image)
-            self.registrar_ants.set_modality(self.modality)
-            self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_ants.set_number_of_iterations(self.number_of_iterations_ants)
-            self.registrar_ants.set_fixed_mask(self.fixed_mask)
-            self.registrar_ants.set_fixed_labelmap(self.fixed_labelmap)
+        elif self.registration_method_name in ["ants_icon", "greedy_icon"]:
+            if self.registration_method_name == "ants_icon":
+                self.registrar_ants.set_fixed_image(self.fixed_image)
+                self.registrar_ants.set_modality(self.modality)
+                self.registrar_ants.set_mask_dilation(self.mask_dilation_mm)
+                self.registrar_ants.set_number_of_iterations(
+                    self.number_of_iterations_ants
+                )
+                self.registrar_ants.set_fixed_mask(self.fixed_mask)
+                self.registrar_ants.set_fixed_labelmap(self.fixed_labelmap)
+            else:
+                self.registrar_greedy.set_fixed_image(self.fixed_image)
+                self.registrar_greedy.set_modality(self.modality)
+                self.registrar_greedy.set_mask_dilation(self.mask_dilation_mm)
+                self.registrar_greedy.set_number_of_iterations(
+                    self.number_of_iterations_greedy
+                )
+                self.registrar_greedy.set_fixed_mask(self.fixed_mask)
+                self.registrar_greedy.set_fixed_labelmap(self.fixed_labelmap)
             self.registrar_icon.set_fixed_image(self.fixed_image)
             self.registrar_icon.set_modality(self.modality)
             self.registrar_icon.set_mask_dilation(self.mask_dilation_mm)
@@ -345,24 +394,35 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                     moving_mask=reference_mask,
                     moving_labelmap=reference_labelmap,
                 )
+            elif self.registration_method_name == "greedy":
+                result = self.registrar_greedy.register(
+                    moving_images[reference_frame],
+                    moving_mask=reference_mask,
+                    moving_labelmap=reference_labelmap,
+                )
             elif self.registration_method_name == "icon":
                 result = self.registrar_icon.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
                     moving_labelmap=reference_labelmap,
                 )
-            elif self.registration_method_name == "ants_icon":
-                result = self.registrar_ants.register(
+            elif self.registration_method_name in ["ants_icon", "greedy_icon"]:
+                registrar_initial = (
+                    self.registrar_ants
+                    if self.registration_method_name == "ants_icon"
+                    else self.registrar_greedy
+                )
+                result = registrar_initial.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
                     moving_labelmap=reference_labelmap,
                 )
-                forward_ants = result["forward_transform"]
+                forward_initial = result["forward_transform"]
                 result = self.registrar_icon.register(
                     moving_images[reference_frame],
                     moving_mask=reference_mask,
                     moving_labelmap=reference_labelmap,
-                    initial_forward_transform=forward_ants,
+                    initial_forward_transform=forward_initial,
                 )
             else:
                 raise ValueError(
@@ -420,24 +480,35 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                         moving_mask=moving_mask,
                         moving_labelmap=moving_labelmap,
                     )
+                elif self.registration_method_name == "greedy":
+                    result_init_identity = self.registrar_greedy.register(
+                        moving_image=moving_image,
+                        moving_mask=moving_mask,
+                        moving_labelmap=moving_labelmap,
+                    )
                 elif self.registration_method_name == "icon":
                     result_init_identity = self.registrar_icon.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
                         moving_labelmap=moving_labelmap,
                     )
-                elif self.registration_method_name == "ants_icon":
-                    result_init_identity = self.registrar_ants.register(
+                elif self.registration_method_name in ["ants_icon", "greedy_icon"]:
+                    registrar_initial = (
+                        self.registrar_ants
+                        if self.registration_method_name == "ants_icon"
+                        else self.registrar_greedy
+                    )
+                    result_init_identity = registrar_initial.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
                         moving_labelmap=moving_labelmap,
                     )
-                    forward_ants = result_init_identity["forward_transform"]
+                    forward_initial = result_init_identity["forward_transform"]
                     result_init_identity = self.registrar_icon.register(
                         moving_image=moving_image,
                         moving_mask=moving_mask,
                         moving_labelmap=moving_labelmap,
-                        initial_forward_transform=forward_ants,
+                        initial_forward_transform=forward_initial,
                     )
                 else:
                     raise ValueError(
@@ -457,6 +528,13 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                             moving_labelmap=moving_labelmap,
                             initial_forward_transform=prior_forward,
                         )
+                    elif self.registration_method_name == "greedy":
+                        result_init_prior = self.registrar_greedy.register(
+                            moving_image=moving_image,
+                            moving_mask=moving_mask,
+                            moving_labelmap=moving_labelmap,
+                            initial_forward_transform=prior_forward,
+                        )
                     elif self.registration_method_name == "icon":
                         result_init_prior = self.registrar_icon.register(
                             moving_image=moving_image,
@@ -464,19 +542,24 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                             moving_labelmap=moving_labelmap,
                             initial_forward_transform=prior_forward,
                         )
-                    elif self.registration_method_name == "ants_icon":
-                        result_init_prior = self.registrar_ants.register(
+                    elif self.registration_method_name in ["ants_icon", "greedy_icon"]:
+                        registrar_initial = (
+                            self.registrar_ants
+                            if self.registration_method_name == "ants_icon"
+                            else self.registrar_greedy
+                        )
+                        result_init_prior = registrar_initial.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
                             moving_labelmap=moving_labelmap,
                             initial_forward_transform=prior_forward,
                         )
-                        forward_ants = result_init_prior["forward_transform"]
+                        forward_initial = result_init_prior["forward_transform"]
                         result_init_prior = self.registrar_icon.register(
                             moving_image=moving_image,
                             moving_mask=moving_mask,
                             moving_labelmap=moving_labelmap,
-                            initial_forward_transform=forward_ants,
+                            initial_forward_transform=forward_initial,
                         )
                     else:
                         raise ValueError(
@@ -696,6 +779,19 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
                 "loss": float(cast(float, res["loss"])),
             }
+        if self.registration_method_name == "greedy":
+            res = self.registrar_greedy.registration_method(
+                moving_image=moving_image,
+                moving_mask=moving_mask,
+                moving_labelmap=moving_labelmap,
+                moving_image_pre=moving_image_pre,
+                initial_forward_transform=initial_forward_transform,
+            )
+            return {
+                "forward_transform": cast(itk.Transform, res["forward_transform"]),
+                "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
+                "loss": float(cast(float, res["loss"])),
+            }
         if self.registration_method_name == "icon":
             res = self.registrar_icon.registration_method(
                 moving_image=moving_image,
@@ -709,20 +805,26 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
                 "loss": float(cast(float, res["loss"])),
             }
-        if self.registration_method_name == "ants_icon":
-            ants_res = self.registrar_ants.registration_method(
+        if self.registration_method_name in ["ants_icon", "greedy_icon"]:
+            registrar_initial = (
+                self.registrar_ants
+                if self.registration_method_name == "ants_icon"
+                else self.registrar_greedy
+            )
+            initial_res = registrar_initial.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
                 moving_labelmap=moving_labelmap,
                 moving_image_pre=moving_image_pre,
+                initial_forward_transform=initial_forward_transform,
             )
-            forward_ants = ants_res["forward_transform"]
+            forward_initial = initial_res["forward_transform"]
             icon_res = self.registrar_icon.registration_method(
                 moving_image=moving_image,
                 moving_mask=moving_mask,
                 moving_labelmap=moving_labelmap,
                 moving_image_pre=moving_image_pre,
-                initial_forward_transform=forward_ants,
+                initial_forward_transform=forward_initial,
             )
             return {
                 "forward_transform": cast(itk.Transform, icon_res["forward_transform"]),

@@ -26,18 +26,32 @@ Key modules: `physiomotion4d_base.py`, `segment_chest_*.py`, `register_images_*.
 
 ## Code rules
 
-- All classes inherit from `PhysioMotion4DBase`. New classes must too.
-- Use `self.log_info()` / `self.log_debug()` — never `print()`.
+- Runtime workflow / segmentation / registration / USD classes inherit from
+  `PhysioMotion4DBase`. Standalone scripts, data containers, and helper
+  classes do not.
+- In `PhysioMotion4DBase` subclasses use `self.log_info()` / `self.log_debug()`,
+  never `print()`. Standalone scripts may use `print()`.
+- No emojis in `.py` files. Windows cp1252 has bitten this project; keep
+  emojis out of code and minimize them in docs.
+- Experiments, CLIs, tests, and tutorials must use `ConvertVTKToUSD`. Never
+  import directly from `vtk_to_usd` outside of `convert_vtk_to_usd.py` and
+  the `vtk_to_usd/` subpackage itself.
+- Scripts that instantiate `SegmentChestTotalSegmentator` must guard the
+  top-level invocation with `if __name__ == "__main__":` on Windows
+  (`torch.multiprocessing` requires it).
 - Single quotes for strings; double quotes for docstrings. 88-char line limit.
 - Full type hints; `Optional[X]` not `X | None` (mypy UP007 is suppressed).
 - `pathlib.Path` for all file paths. `subprocess.run(check=True, text=True)` — no `os.system`.
-- Run `ruff check . --fix && ruff format .` after every Python edit.
+- After every Python edit run `python -m ruff check . --fix && python -m ruff format .`
+  from the active `.\venv`.
 
 ## Data shapes — state them explicitly
 
 - ITK images: axes X, Y, Z [, T] in LPS world space (ITK's native frame).
 - 4D time series: shape `(X, Y, Z, T)`. Never silently squeeze or permute.
-- PyVista surfaces: RAS internally; Y-up only at USD export.
+- PyVista surfaces: LPS internally (inherited from `itk.vtk_image_from_image`).
+  Convert to USD right-handed Y-up only at USD export, via
+  `vtk_to_usd.lps_points_to_usd` (USD +X=Left, +Y=Superior, +Z=Anterior).
 - Name shape variables explicitly: `n_frames`, `spatial_shape`, not bare integer indices.
 
 ## What not to do

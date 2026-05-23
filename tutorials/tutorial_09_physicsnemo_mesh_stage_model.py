@@ -11,6 +11,14 @@ Data Required
 -------------
 Run Tutorial 8 first so ``output/tutorial_08_dirlab_pca_time_series`` contains
 ``Case*/meshes/*_pca_fit.vtp`` files.
+
+Extra Install Required
+----------------------
+PhysicsNeMo is an optional dependency of PhysioMotion4D. Install it with::
+
+    pip install "physiomotion4d[physicsnemo]"
+
+PhysicsNeMo itself requires Python >= 3.11.
 """
 
 # %%
@@ -24,7 +32,16 @@ from typing import Any, Optional
 import numpy as np
 import pyvista as pv
 import torch
-from physicsnemo.models.mlp import FullyConnected
+
+
+try:
+    from physicsnemo.models.mlp import FullyConnected
+except ImportError as exc:  # pragma: no cover - import-time guard
+    raise ImportError(
+        "Tutorial 9 requires PhysicsNeMo, which is an optional dependency. "
+        'Install with: pip install "physiomotion4d[physicsnemo]" '
+        "(requires Python >= 3.11).",
+    ) from exc
 
 
 # nnUNetv2 (used by TotalSegmentator inside several workflows) spawns a

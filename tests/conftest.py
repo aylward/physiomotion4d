@@ -32,6 +32,24 @@ from physiomotion4d.transform_tools import TransformTools
 _pytest_config: Optional[pytest.Config] = None
 
 
+_RUN_BUCKET_FLAGS = (
+    "--run-experiments",
+    "--run-tutorials",
+    "--run-simpleware",
+    "--run-slow",
+    "--run-gpu",
+    "--run-physicsnemo",
+)
+
+
+def _run_bucket_enabled(config: pytest.Config, flag: str) -> bool:
+    """Return True if ``flag`` (a --run-* bucket) is on, directly or via --run-all."""
+    return bool(
+        config.getoption(flag, default=False)
+        or config.getoption("--run-all", default=False),
+    )
+
+
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Add custom command-line options for pytest."""
     parser.addoption(
@@ -68,6 +86,21 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Run tests marked 'requires_gpu' (skipped by default)",
     )
     parser.addoption(
+        "--run-physicsnemo",
+        action="store_true",
+        default=False,
+        help=(
+            "Run tests marked 'requires_physicsnemo' (need the optional "
+            "[physicsnemo] extra installed)"
+        ),
+    )
+    parser.addoption(
+        "--run-all",
+        action="store_true",
+        default=False,
+        help=("Enable every --run-* bucket: " + ", ".join(_RUN_BUCKET_FLAGS) + "."),
+    )
+    parser.addoption(
         "--create-baselines",
         action="store_true",
         default=False,
@@ -99,6 +132,11 @@ def pytest_configure(config: pytest.Config) -> None:
         "requires_simpleware: marks tests that need a local Synopsys Simpleware "
         "Medical installation (skipped unless --run-simpleware is passed)",
     )
+    config.addinivalue_line(
+        "markers",
+        "requires_physicsnemo: marks tests that need the optional "
+        "[physicsnemo] extra installed (skipped unless --run-physicsnemo is passed)",
+    )
     # Initialize test timing storage
     config._test_timings = {  # type: ignore[attr-defined]
         "tests": [],
@@ -118,39 +156,56 @@ def pytest_collection_modifyitems(
     accidentally when running the normal test suite.
     """
     for item in items:
-        if "experiment" in item.keywords and not config.getoption("--run-experiments"):
+        if "experiment" in item.keywords and not _run_bucket_enabled(
+            config, "--run-experiments"
+        ):
             item.add_marker(
                 pytest.mark.skip(
-                    reason="Experiment tests require --run-experiments flag to run"
+                    reason="Experiment tests require --run-experiments (or --run-all) to run"
                 )
             )
-        if "tutorial" in item.keywords and not config.getoption("--run-tutorials"):
+        if "tutorial" in item.keywords and not _run_bucket_enabled(
+            config, "--run-tutorials"
+        ):
             item.add_marker(
                 pytest.mark.skip(
-                    reason="Tutorial tests require --run-tutorials flag to run"
+                    reason="Tutorial tests require --run-tutorials (or --run-all) to run"
                 )
             )
-        if "requires_simpleware" in item.keywords and not config.getoption(
-            "--run-simpleware"
+        if "requires_simpleware" in item.keywords and not _run_bucket_enabled(
+            config, "--run-simpleware"
         ):
             item.add_marker(
                 pytest.mark.skip(
                     reason=(
-                        "Simpleware tests require --run-simpleware flag and a "
-                        "local Synopsys Simpleware Medical installation"
+                        "Simpleware tests require --run-simpleware (or --run-all) "
+                        "and a local Synopsys Simpleware Medical installation"
                     )
                 )
             )
-        if "slow" in item.keywords and not config.getoption("--run-slow"):
+        if "slow" in item.keywords and not _run_bucket_enabled(config, "--run-slow"):
             item.add_marker(
                 pytest.mark.skip(
-                    reason="Slow tests require --run-slow flag to run",
+                    reason="Slow tests require --run-slow (or --run-all) to run",
                 )
             )
-        if "requires_gpu" in item.keywords and not config.getoption("--run-gpu"):
+        if "requires_gpu" in item.keywords and not _run_bucket_enabled(
+            config, "--run-gpu"
+        ):
             item.add_marker(
                 pytest.mark.skip(
-                    reason="GPU tests require --run-gpu flag to run",
+                    reason="GPU tests require --run-gpu (or --run-all) to run",
+                )
+            )
+        if "requires_physicsnemo" in item.keywords and not _run_bucket_enabled(
+            config, "--run-physicsnemo"
+        ):
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=(
+                        "PhysicsNeMo tests require --run-physicsnemo (or --run-all) "
+                        "and the optional [physicsnemo] extra installed"
+                    )
                 )
             )
 

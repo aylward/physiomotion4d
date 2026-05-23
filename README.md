@@ -69,6 +69,17 @@ The `[cuda13]` extra installs CuPy. In uv-managed source environments, PyTorch,
 torchvision, and torchaudio resolve from the CUDA 13.0 PyTorch wheel index.
 There is no need to install PyTorch separately.
 
+PhysicsNeMo (used only by Tutorial 9) is an optional extra because it brings in
+a large CUDA-only toolchain and narrows supported Python versions. Install it
+explicitly when needed:
+
+```bash
+pip install "physiomotion4d[physicsnemo]"
+```
+
+PhysicsNeMo itself requires Python >= 3.11. PhysioMotion4D otherwise supports
+Python >= 3.10.
+
 ### Installation from Source
 
 1. **Clone the repository** (Git LFS is required for tests; install it first from [git-lfs.github.com](https://git-lfs.github.com)):
@@ -169,7 +180,7 @@ major workflow. They are the recommended starting point for new users.
 | 6 | `tutorials/tutorial_06_reconstruct_highres_4d_ct.py` | Reconstruct high-res 4D CT | DirLab-4DCT (manual) |
 | 7 | `tutorials/tutorial_07_dirlab_pca_model.py` | Build a surface PCA lung-lobe model and fit all cases | DirLab-4DCT (manual) |
 | 8 | `tutorials/tutorial_08_dirlab_pca_time_series.py` | Propagate PCA-fitted lung-lobe meshes through DirLab time series | DirLab-4DCT plus Tutorial 7 output |
-| 9 | `tutorials/tutorial_09_physicsnemo_mesh_stage_model.py` | Train a PhysicsNeMo mesh stage model | Tutorial 8 output |
+| 9 | `tutorials/tutorial_09_physicsnemo_mesh_stage_model.py` | Train a PhysicsNeMo mesh stage model (requires `[physicsnemo]` extra; Python >= 3.11) | Tutorial 8 output |
 
 Each tutorial is a `# %%` percent-cell Python script. Paths are defined near
 the top of the script; edit those constants for custom data/output locations,

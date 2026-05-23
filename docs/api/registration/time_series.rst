@@ -6,7 +6,8 @@ Time-Series Registration
 .. currentmodule:: physiomotion4d
 
 ``RegisterTimeSeriesImages`` registers ordered 3D image phases to a reference
-frame using ANTs, ICON, or the combined ``ants_icon`` method.
+frame using ANTs, Greedy, ICON, or combined ``ants_icon`` / ``greedy_icon``
+methods.
 
 Class Reference
 ===============
@@ -43,5 +44,6 @@ See Also
 ========
 
 * :doc:`ants`
+* :doc:`greedy`
 * :doc:`icon`
 * :doc:`../../cli_scripts/4dct_reconstruction`

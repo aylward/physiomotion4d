@@ -267,8 +267,9 @@ Run Tests
    # Opt into specific buckets
    pytest tests/ --run-slow
    pytest tests/ --run-gpu --run-slow   # typical local GPU profile
-   # Self-hosted CI GPU runner enables every bucket:
-   #   --run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials
+   pytest tests/ --run-physicsnemo      # needs [physicsnemo] extra; requires Python >= 3.11
+   # --run-all turns on every --run-* bucket at once (used by self-hosted CI):
+   pytest tests/ --run-all
 
 Documentation
 =============

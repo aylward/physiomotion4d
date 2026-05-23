@@ -9,11 +9,13 @@ name: CI
 # - Code quality: Linting and formatting checks
 #
 # Test markers (gated by opt-in pytest flags; default = skip):
-# - slow            -> --run-slow
-# - requires_gpu    -> --run-gpu
-# - requires_simpleware -> --run-simpleware  (also implies GPU)
-# - experiment      -> --run-experiments
-# - tutorial        -> --run-tutorials
+# - slow                 -> --run-slow
+# - requires_gpu         -> --run-gpu
+# - requires_simpleware  -> --run-simpleware  (also implies GPU)
+# - requires_physicsnemo -> --run-physicsnemo (needs the [physicsnemo] extra)
+# - experiment           -> --run-experiments
+# - tutorial             -> --run-tutorials
+# --run-all enables every bucket above at once.
 # Tests that need external data download it automatically via fixtures.
 
 on:
@@ -280,8 +282,10 @@ jobs:
         lfs: true
 
     - name: Create venv in RUNNER_TEMP
+      # Python 3.11 is required because the [physicsnemo] extra pulls in
+      # nvidia-physicsnemo, which requires Python >= 3.11.
       run: |
-        & "C:\Program Files\Python310\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
+        & "C:\Program Files\Python311\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
         echo "$env:RUNNER_TEMP\physiomotion4d-venv\Scripts" >> $env:GITHUB_PATH
 
     - name: Check GPU availability
@@ -300,10 +304,12 @@ jobs:
         python -m pip install --upgrade pip setuptools wheel uv
 
     - name: Install package with test dependencies
-      # uv respects [tool.uv.sources], routing torch to pytorch-cu130 for cuda13
+      # uv respects [tool.uv.sources], routing torch to pytorch-cu130 for cuda13.
+      # The [physicsnemo] extra brings in nvidia-physicsnemo so Tutorial 9 and
+      # requires_physicsnemo-marked tests can run on this GPU runner.
       # Invoke via python -m uv so uv targets the active venv interpreter.
       run: |
-        python -m uv pip install -e ".[test,cuda13]"
+        python -m uv pip install -e ".[test,cuda13,physicsnemo]"
 
     - name: Assert CUDA is accessible
       run: |
@@ -329,12 +335,12 @@ jobs:
         pip list
 
     - name: Run GPU tests
-      # External self-hosted GPU runner: enable every opt-in bucket.
+      # External self-hosted GPU runner: enable every opt-in bucket via --run-all.
       # Tests whose host requirements (e.g. a licensed Simpleware install)
       # aren't met on the runner will runtime-skip cleanly via their
       # internal availability guards.
       run: |
-        pytest tests/ -v --run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
+        pytest tests/ -v --run-all --cov=physiomotion4d --cov-report=xml --cov-report=term --cov-report=html
       env:
         CUDA_VISIBLE_DEVICES: 0
 
@@ -417,8 +423,9 @@ jobs:
 #   pytest tests/ -v --run-simpleware --run-gpu --run-slow  # Full Simpleware coverage
 #   pytest tests/test_register_images_ants.py -v --run-slow
 #
-# Self-hosted GPU runner enables ALL buckets:
-#   --run-gpu --run-slow --run-simpleware --run-experiments --run-tutorials
+# Self-hosted GPU runner enables ALL buckets via --run-all
+# (--run-gpu --run-slow --run-simpleware --run-physicsnemo --run-experiments --run-tutorials).
+# That runner installs the [physicsnemo] extra in addition to [test,cuda13].
 #
 # To run experiment tests (manual only, extremely slow):
 #   pytest tests/test_experiments.py -v --run-experiments

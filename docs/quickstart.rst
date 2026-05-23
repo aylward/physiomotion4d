@@ -247,8 +247,9 @@ Download Sample Cardiac CT Data
 
 DirLab-4DCT data is manual-only; see ``data/README.md`` before running the
 high-resolution 4D CT reconstruction, lung-lobe PCA model, or PCA time-series
-propagation tutorials. Tutorial 9 also requires the PhysicsNeMo dependency
-installed with PhysioMotion4D.
+propagation tutorials. Tutorial 9 additionally requires the optional
+``physicsnemo`` extra (``pip install "physiomotion4d[physicsnemo]"``);
+PhysicsNeMo itself requires Python >= 3.11.
 
 Visualizing Results
 ===================

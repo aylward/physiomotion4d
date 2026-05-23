@@ -28,21 +28,66 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## experiments/LongitudinalRegistration/0-cardiacGatedCT_segment_and_landmark.py
 
-- `def segment_images(src_data_dirs, src_data_files)` (line 57): Segment each image with SegmentHeartSimpleware and save labelmaps.
+- `def segment_images(src_data_dirs, src_data_files)` (line 63): Segment each image with SegmentHeartSimpleware and save labelmaps.
 
 ## experiments/LongitudinalRegistration/1-finetune_icon.py
 
-- `def get_segmented_images(src_data_dirs, src_data_files)` (line 84): Segment each image with SegmentHeartSimpleware and save labelmaps.
+- `def get_segmented_images(src_data_dirs, src_data_files)` (line 81): Segment each image with SegmentHeartSimpleware and save labelmaps.
 - `def get_mask_images(src_data_dirs, src_data_files)` (line 117): Get mask images for each image.
 
-## experiments/LongitudinalRegistration/recon_4d_icon_finetuned.py
+## experiments/LongitudinalRegistration/2-run_registration_comparison.py
 
-- `def convert_labelmap_to_masks(labelmap_file, output_dir)` (line 82)
-- `def register_time_series(reference_image_file, reference_labelmap_file, source_image_dir, source_image_files, segmented_image_files, weights_path)` (line 91)
+- **class MethodSpec** (line 49): Registration method plus optional ICON checkpoint.
+- **class ImageArtifacts** (line 58): Input files associated with one image volume.
+- `def nii_stem(path)` (line 67): Return a stable stem for ``.nii.gz`` or single-suffix files.
+- `def timepoint_from_name(path)` (line 74): Extract the gated time-point tag from a filename.
+- `def first_existing(paths)` (line 82): Return the first existing path from a candidate list.
+- `def landmark_candidates(image_file, segmentation_dir, artifact_dir)` (line 90): Return likely landmark CSV paths for an image.
+- `def labelmap_candidates(image_file, segmentation_dir, artifact_dir)` (line 114): Return likely labelmap paths for an image.
+- `def image_artifacts(image_file, segmentation_dir, artifact_dir=None)` (line 132): Find landmarks and labelmaps associated with one image.
+- `def read_landmarks(path)` (line 150): Read physical LPS landmarks from ``Name,X,Y,Z`` CSV.
+- `def write_landmarks(path, landmarks)` (line 163): Write physical LPS landmarks to ``Name,X,Y,Z`` CSV.
+- `def transform_landmarks(landmarks, transform)` (line 173): Apply an ITK physical-space transform to landmark coordinates.
+- `def landmark_errors(source, target)` (line 186): Return per-landmark Euclidean errors in millimeters.
+- `def summarize_errors(errors, prefix)` (line 196): Summarize landmark errors for one comparison mode.
+- `def write_error_details(path, subject_id, method_name, timepoint, mode, errors)` (line 214): Append per-landmark errors to the detail CSV.
+- `def dice_by_label(labelmap_a, labelmap_b)` (line 243): Compute Dice scores for labels present in either 3D labelmap.
+- `def summarize_dice(scores)` (line 265): Summarize per-label Dice scores.
+- `def discover_subjects(reference_dir, timepoint_base_dir, reference_pattern, timepoint_pattern, exclude_tokens, segmentation_dir, segmentation_base_dir)` (line 277): Discover reference and time-point files for each subject.
+- `def build_method_specs(method_names, finetuned_weights_path)` (line 329): Map output method labels to registrar methods and optional weights.
+- `def configure_registrar(method_spec, fixed_image, fixed_labelmap, ants_iterations, greedy_iterations, icon_iterations)` (line 361): Create and configure the time-series registrar.
+- `def write_summary(path, rows)` (line 384): Write experiment summary rows.
+- `def run_method_for_subject(subject_id, reference_artifacts, timepoint_artifacts, method_spec, output_dir, run_resegmentation, ants_iterations, greedy_iterations, icon_iterations, error_detail_file)` (line 396): Run one registration method for one subject and return summary rows.
+- `def parse_iterations(value)` (line 561): Parse comma-separated multi-resolution iteration counts.
+- `def main()` (line 566): Run the longitudinal registration comparison experiment.
+
+## experiments/LongitudinalRegistration/recon_4d_icon_eval.py
+
+- **class MethodSpec** (line 67): Output label and optional ICON checkpoint for one registration run.
+- **class TimepointArtifacts** (line 75): File paths for one gated time-point: image, labelmap, landmarks.
+- `def nii_stem(path)` (line 84): Return the stem of a ``.nii.gz`` (or single-suffix) file.
+- `def timepoint_from_name(path)` (line 91): Extract the gated time-point tag (``g###``) from a filename.
+- `def select_reference_index(num_frames, percentile)` (line 99): Return the frame index closest to ``percentile`` of the series.
+- `def discover_subject(subject_id, timepoint_base_dir, segmentation_base_dir, exclude_tokens)` (line 108): Discover gated images plus their labelmap and landmark companions.
+- `def discover_subject_ids(timepoint_base_dir, segmentation_base_dir)` (line 149): Return subject IDs that have both gated and segmentation directories.
+- `def read_landmarks(path)` (line 166): Read physical LPS landmarks from a ``Name,X,Y,Z`` CSV file.
+- `def write_landmarks(path, landmarks)` (line 179): Write physical LPS landmarks to a ``Name,X,Y,Z`` CSV file.
+- `def transform_landmarks(landmarks, transform)` (line 189): Apply an ITK physical-space transform to landmark coordinates.
+- `def landmark_errors(source, target)` (line 202): Return per-landmark Euclidean errors in millimeters.
+- `def summarize_errors(errors, prefix)` (line 212): Summarize landmark errors for one comparison mode.
+- `def dice_by_label(labelmap_a, labelmap_b)` (line 230): Compute Dice for every non-zero label present in either 3D labelmap.
+- `def summarize_dice(scores)` (line 249): Summarize per-label Dice scores into mean and minimum.
+- `def write_error_details(path, subject_id, method_name, timepoint, mode, errors)` (line 261): Append per-landmark errors to the long-form detail CSV.
+- `def read_error_details(path)` (line 290): Read the long-form per-landmark error CSV.
+- `def print_summary_table(detail_file)` (line 299): Print a high-level table comparing methods for each landmark mode.
+- `def write_summary(path, rows)` (line 366): Write the wide-form summary CSV.
+- `def mask_from_labelmap(labelmap)` (line 378): Return a uint8 binary mask covering the non-zero labels.
+- `def run_method_for_subject(subject_id, timepoint_artifacts, reference_index, method_spec, output_dir, icon_iterations, run_resegmentation, error_detail_file)` (line 386): Run one ICON method for one subject and return per-timepoint rows.
+- `def main()` (line 544): Run the ICON default-vs-finetuned comparison experiment.
 
 ## experiments/LongitudinalRegistration/recon_4d_run.py
 
-- `def register_time_series(reference_image_file, source_image_dir, source_image_files, registration_method)` (line 69)
+- `def register_time_series(reference_image_file, source_image_dir, source_image_files, registration_method)` (line 75)
 
 ## experiments/LongitudinalRegistration/uniGradICON/scripts/prepare_l2r_datasets.py
 
@@ -598,18 +643,19 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/register_time_series_images.py
 
-- **class RegisterTimeSeriesImages** (line 23): Register a time series of images to a fixed image.
-  - `def __init__(self, registration_method='ants', log_level=logging.INFO)` (line 77): Initialize the time series image registration class.
-  - `def set_number_of_iterations_ants(self, number_of_iterations_ants)` (line 110): Set the number of iterations for ANTs registration.
-  - `def set_number_of_iterations_icon(self, number_of_iterations_icon)` (line 121): Set the number of iterations for ICON registration.
-  - `def set_smooth_prior_transform_sigma(self, smooth_prior_transform_sigma)` (line 129): Set the sigma for smoothing the prior transform.
-  - `def set_mask_dilation(self, mask_dilation_mm)` (line 139): Set the dilation of the fixed and moving image masks.
-  - `def set_modality(self, modality)` (line 149): Set the imaging modality for registration optimization.
-  - `def set_fixed_image(self, fixed_image)` (line 159): Set the fixed image for registration.
-  - `def set_fixed_mask(self, fixed_mask)` (line 170): Set a binary mask for the fixed image region of interest.
-  - `def register_time_series(self, moving_images, moving_masks=None, moving_labelmaps=None, reference_frame=0, register_reference=True, prior_weight=0.0)` (line 180): Register a time series of images to the fixed image.
-  - `def reconstruct_time_series(self, moving_images, inverse_transforms, upsample_to_fixed_resolution=False)` (line 534): Reconstruct time series images using inverse transforms.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 664): Registration method required by RegisterImagesBase.
+- **class RegisterTimeSeriesImages** (line 31): Register a time series of images to a fixed image.
+  - `def __init__(self, registration_method='ants', log_level=logging.INFO)` (line 90): Initialize the time series image registration class.
+  - `def set_number_of_iterations_ants(self, number_of_iterations_ants)` (line 127): Set the number of iterations for ANTs registration.
+  - `def set_number_of_iterations_icon(self, number_of_iterations_icon)` (line 138): Set the number of iterations for ICON registration.
+  - `def set_number_of_iterations_greedy(self, number_of_iterations_greedy)` (line 146): Set the number of iterations for Greedy registration.
+  - `def set_smooth_prior_transform_sigma(self, smooth_prior_transform_sigma)` (line 157): Set the sigma for smoothing the prior transform.
+  - `def set_mask_dilation(self, mask_dilation_mm)` (line 167): Set the dilation of the fixed and moving image masks.
+  - `def set_modality(self, modality)` (line 177): Set the imaging modality for registration optimization.
+  - `def set_fixed_image(self, fixed_image)` (line 187): Set the fixed image for registration.
+  - `def set_fixed_mask(self, fixed_mask)` (line 198): Set a binary mask for the fixed image region of interest.
+  - `def register_time_series(self, moving_images, moving_masks=None, moving_labelmaps=None, reference_frame=0, register_reference=True, prior_weight=0.0)` (line 208): Register a time series of images to the fixed image.
+  - `def reconstruct_time_series(self, moving_images, inverse_transforms, upsample_to_fixed_resolution=False)` (line 617): Reconstruct time series images using inverse transforms.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 747): Registration method required by RegisterImagesBase.
 
 ## src/physiomotion4d/segment_anatomy_base.py
 
@@ -839,23 +885,23 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## tests/conftest.py
 
-- `def pytest_addoption(parser)` (line 35): Add custom command-line options for pytest.
-- `def pytest_configure(config)` (line 78): Configure pytest with custom markers and settings.
-- `def pytest_collection_modifyitems(config, items)` (line 110): Automatically skip experiment and tutorial tests unless their opt-in flags
-- `def pytest_runtest_logreport(report)` (line 158): Collect test timing information after each test completes.
-- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 183): Print comprehensive test timing report after all tests complete.
-- `def test_directories()` (line 345): Set up test directories for data and results.
-- `def download_test_data(test_directories)` (line 370): Download Slicer-Heart-CT data.
-- `def test_images(download_test_data, test_directories)` (line 397): Convert and resample 4D NRRD data; return pre-resampled time points.
-- `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 450): Segment each time point with TotalSegmentator and return result dicts.
-- `def test_transforms(registrar_ants, test_images, test_directories)` (line 491): Perform ANTs registration and return results.
-- `def segmenter_total_segmentator()` (line 546): Create a SegmentChestTotalSegmentator instance.
-- `def segmenter_simpleware()` (line 552): Create a SegmentHeartSimpleware instance.
-- `def contour_tools()` (line 558): Create a ContourTools instance.
-- `def registrar_ants()` (line 564): Create a RegisterImagesANTs instance.
-- `def registrar_greedy()` (line 570): Create a RegisterImagesGreedy instance.
-- `def registrar_icon()` (line 576): Create a RegisterImagesICON instance.
-- `def transform_tools()` (line 582): Create a TransformTools instance.
+- `def pytest_addoption(parser)` (line 53): Add custom command-line options for pytest.
+- `def pytest_configure(config)` (line 111): Configure pytest with custom markers and settings.
+- `def pytest_collection_modifyitems(config, items)` (line 148): Automatically skip experiment and tutorial tests unless their opt-in flags
+- `def pytest_runtest_logreport(report)` (line 213): Collect test timing information after each test completes.
+- `def pytest_terminal_summary(terminalreporter, exitstatus, config)` (line 238): Print comprehensive test timing report after all tests complete.
+- `def test_directories()` (line 400): Set up test directories for data and results.
+- `def download_test_data(test_directories)` (line 425): Download Slicer-Heart-CT data.
+- `def test_images(download_test_data, test_directories)` (line 452): Convert and resample 4D NRRD data; return pre-resampled time points.
+- `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 505): Segment each time point with TotalSegmentator and return result dicts.
+- `def test_transforms(registrar_ants, test_images, test_directories)` (line 546): Perform ANTs registration and return results.
+- `def segmenter_total_segmentator()` (line 601): Create a SegmentChestTotalSegmentator instance.
+- `def segmenter_simpleware()` (line 607): Create a SegmentHeartSimpleware instance.
+- `def contour_tools()` (line 613): Create a ContourTools instance.
+- `def registrar_ants()` (line 619): Create a RegisterImagesANTs instance.
+- `def registrar_greedy()` (line 625): Create a RegisterImagesGreedy instance.
+- `def registrar_icon()` (line 631): Create a RegisterImagesICON instance.
+- `def transform_tools()` (line 637): Create a TransformTools instance.
 
 ## tests/test_anatomy_taxonomy.py
 
@@ -1040,21 +1086,22 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - **class TestRegisterTimeSeriesImages** (line 24): Test suite for time series image registration.
   - `def test_registrar_initialization_ants(self)` (line 29): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
   - `def test_registrar_initialization_icon(self)` (line 43): Test that RegisterTimeSeriesImages initializes correctly with ICON.
-  - `def test_registrar_initialization_invalid_method(self)` (line 57): Test that invalid registration method raises error.
-  - `def test_set_modality(self)` (line 64): Test setting imaging modality.
-  - `def test_set_fixed_image(self, test_images)` (line 72): Test setting fixed image.
-  - `def test_set_number_of_iterations(self)` (line 83): Test setting number of iterations.
-  - `def test_register_time_series_basic(self, test_images, test_directories)` (line 103): Test basic time series registration without prior transform.
-  - `def test_register_time_series_with_prior(self, test_images, test_directories)` (line 185): Test time series registration with prior transform usage.
-  - `def test_register_time_series_identity_start(self, test_images)` (line 246): Test time series registration with identity for starting image.
-  - `def test_register_time_series_different_starting_indices(self, test_images)` (line 272): Test time series registration with different starting indices.
-  - `def test_register_time_series_error_no_fixed_image(self)` (line 302): Test that error is raised if fixed image not set.
-  - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 313): Test that error is raised for invalid starting index.
-  - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 336): Test that error is raised for invalid prior portion value.
-  - `def test_transform_application_time_series(self, test_images, test_directories)` (line 361): Test applying transforms from time series registration.
-  - `def test_register_time_series_icon(self, test_images)` (line 413): Test time series registration with ICON method.
-  - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 438): Test time series registration with fixed image mask.
-  - `def test_bidirectional_registration(self, test_images)` (line 483): Test that bidirectional registration works correctly.
+  - `def test_registrar_initialization_greedy(self)` (line 57): Test that RegisterTimeSeriesImages initializes correctly with Greedy.
+  - `def test_registrar_initialization_invalid_method(self)` (line 73): Test that invalid registration method raises error.
+  - `def test_set_modality(self)` (line 80): Test setting imaging modality.
+  - `def test_set_fixed_image(self, test_images)` (line 88): Test setting fixed image.
+  - `def test_set_number_of_iterations(self)` (line 99): Test setting number of iterations.
+  - `def test_register_time_series_basic(self, test_images, test_directories)` (line 127): Test basic time series registration without prior transform.
+  - `def test_register_time_series_with_prior(self, test_images, test_directories)` (line 209): Test time series registration with prior transform usage.
+  - `def test_register_time_series_identity_start(self, test_images)` (line 270): Test time series registration with identity for starting image.
+  - `def test_register_time_series_different_starting_indices(self, test_images)` (line 296): Test time series registration with different starting indices.
+  - `def test_register_time_series_error_no_fixed_image(self)` (line 326): Test that error is raised if fixed image not set.
+  - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 337): Test that error is raised for invalid starting index.
+  - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 360): Test that error is raised for invalid prior portion value.
+  - `def test_transform_application_time_series(self, test_images, test_directories)` (line 385): Test applying transforms from time series registration.
+  - `def test_register_time_series_icon(self, test_images)` (line 437): Test time series registration with ICON method.
+  - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 462): Test time series registration with fixed image mask.
+  - `def test_bidirectional_registration(self, test_images)` (line 507): Test that bidirectional registration works correctly.
 
 ## tests/test_segment_chest_total_segmentator.py
 
@@ -1196,11 +1243,11 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def fetch_reviews(pr_number, repo)` (line 459)
 - `def resolve_review_threads(thread_ids, repo)` (line 464): Mark each thread in *thread_ids* as resolved via the GitHub GraphQL API.
 - `def build_prompt(pr_number, pr_data, reviews, thread_comments, summary_filename, agent, repo_root)` (line 580)
-- `def invoke_ai_agent(prompt, repo_root, agent)` (line 708): Invoke the selected AI agent non-interactively.
-- `def invoke_claude(prompt, repo_root)` (line 718): Invoke Claude Code non-interactively via stdin.
-- `def invoke_codex(prompt, repo_root)` (line 750): Invoke Codex CLI non-interactively.
-- `def parse_args()` (line 823)
-- `def main()` (line 894)
+- `def invoke_ai_agent(prompt, repo_root, agent)` (line 712): Invoke the selected AI agent non-interactively.
+- `def invoke_claude(prompt, repo_root)` (line 722): Invoke Claude Code non-interactively via stdin.
+- `def invoke_codex(prompt, repo_root)` (line 754): Invoke Codex CLI non-interactively.
+- `def parse_args()` (line 832)
+- `def main()` (line 903)
 
 ## utils/generate_api_map.py
 

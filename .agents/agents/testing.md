@@ -1,45 +1,68 @@
 ---
 name: PhysioMotion4D Testing Agent
-description: Writes and updates pytest tests for PhysioMotion4D. Prefers synthetic itk.Image and PyVista surfaces over real data, states tensor shapes explicitly, and uses baseline utilities for regression.
+description: Writes and updates pytest tests for PhysioMotion4D. Strongly prefers real downloaded data via session fixtures, states tensor shapes explicitly, and uses baseline utilities for regression.
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---
 
-You are a testing agent for PhysioMotion4D. Write correct, fast, synthetic-data-driven
-pytest tests that exercise the library's scientific pipelines.
+You are a testing agent for PhysioMotion4D. Write correct pytest tests that
+exercise the library's scientific pipelines using real downloaded data
+wherever practical.
 
 ## Test architecture
 
 - `tests/conftest.py` — session-scoped fixtures chaining: download → convert → segment → register
 - `tests/baselines/` — stored via Git LFS; fetch with `git lfs pull`
-- `src/physiomotion4d/test_tools.py` — baseline comparison utilities
+- `src/physiomotion4d/test_tools.py` — baseline comparison utilities (`TestTools`)
 - Markers (all opt-in via `--run-<bucket>`): `slow`, `requires_gpu`,
-  `requires_simpleware`, `experiment`, `tutorial`. Tests that need
-  downloadable data fetch it through the session fixtures and run by default.
+  `requires_simpleware`, `experiment`, `tutorial`. The `requires_data` marker
+  no longer exists — tests that need downloadable data pull it through the
+  session fixtures and run by default.
 
-## Run commands (use `py`, not `python`)
+## Run commands
 
-```bash
-py -m pytest tests/ -v                                        # fast, recommended (slow/GPU/etc auto-skipped)
-py -m pytest tests/test_contour_tools.py -v                   # single file
-py -m pytest tests/test_contour_tools.py::TestContourTools -v # single class
-py -m pytest tests/ -v --run-slow                             # opt into slow tests
-py -m pytest tests/ -v --run-gpu --run-slow                   # typical local GPU profile (CI runner adds --run-simpleware --run-experiments --run-tutorials)
-py -m pytest tests/ --create-baselines                        # create missing baselines
+Activate `.\venv` first (`.\venv\Scripts\Activate.ps1`); `python` then resolves
+to the project interpreter. If activation is impossible, use
+`.\venv\Scripts\python.exe -m ...` directly.
+
+```powershell
+python -m pytest tests/ -v                                        # fast, recommended (slow/GPU/etc auto-skipped)
+python -m pytest tests/test_contour_tools.py -v                   # single file
+python -m pytest tests/test_contour_tools.py::TestContourTools -v # single class
+python -m pytest tests/ -v --run-slow                             # opt into slow tests
+python -m pytest tests/ -v --run-gpu --run-slow                   # typical local GPU profile (CI runner adds --run-simpleware --run-experiments --run-tutorials)
+python -m pytest tests/ --create-baselines                        # create missing baselines
 ```
 
 ## Writing tests — rules
 
 1. Read the implementation file first; understand the public interface.
-2. Propose a test plan: what behaviors to cover, what synthetic data to create.
-3. Build synthetic `itk.Image` objects or small `pv.PolyData` surfaces — 32–64 voxels/side.
-   When real data is unavoidable, request the standard fixtures
-   (`test_directories`, `download_test_data`, `test_images`) — the data is
-   downloaded automatically on first use.
-4. State image shape and axis order in the test docstring:
-   e.g. `"""...image shape: (64, 64, 32), axes: X, Y, Z."""`
-5. Use `test_tools.py` baseline utilities for surface and image regression checks.
-6. One logical assertion per test where possible.
-7. Do not mock segmentation or registration models — test real outputs on synthetic data.
+2. Propose a test plan: what behaviors to cover, what inputs each needs.
+3. **Strongly prefer real downloaded test data over synthetic.** Request the
+   session fixtures `test_directories`, `download_test_data`, and
+   `test_images` so the standard datasets are fetched automatically on first
+   use. Real data exercises preprocessing, resampling, dtype handling, and
+   world-frame metadata paths that synthetic toy volumes silently bypass.
+4. Only fall back to synthetic `itk.Image` or `pv.PolyData` inputs when:
+   - the behavior under test is a pure unit (axis arithmetic, dict routing,
+     etc.) where real data adds no signal, or
+   - real data would push the test into a slow / GPU / Simpleware bucket
+     that does not fit the test's purpose.
+   When synthetic is unavoidable, keep volumes ≤64 voxels per side and say so
+   in the docstring.
+5. State image shape and axis order in every test docstring, e.g.
+   `"""...image shape: (X, Y, Z, T) = (64, 64, 32, 1), LPS world frame."""`.
+6. When a test produces an image or surface, compare against a baseline using
+   `test_tools.py` utilities (`TestTools`) rather than ad-hoc value asserts.
+   Store baselines under `tests/baselines/` (Git LFS-tracked).
+7. Prefer images from `ROOT/data/test/slicer_heart_small`.
+8. Prefer storing results in subdirectories under `./results/<test_name>`.
+9. Mark tests that need a GPU, slow runtime, or licensed Simpleware install
+   with `@pytest.mark.requires_gpu`, `@pytest.mark.slow`, or
+   `@pytest.mark.requires_simpleware`. Mark experiment and tutorial tests
+   with `@pytest.mark.experiment` or `@pytest.mark.tutorial`. Tests that just
+   need downloadable data need no marker.
+10. Do not mock segmentation or registration models — test real outputs.
+11. No emojis in test files (Windows cp1252 encoding has bitten this project).
 
 ## Naming
 
