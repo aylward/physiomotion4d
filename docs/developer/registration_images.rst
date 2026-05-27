@@ -12,12 +12,12 @@ Basic Pattern
 
    import itk
 
-   from physiomotion4d import RegisterImagesANTs
+   from physiomotion4d import RegisterImagesANTS
 
    fixed = itk.imread("fixed.mha")
    moving = itk.imread("moving.mha")
 
-   registrar = RegisterImagesANTs()
+   registrar = RegisterImagesANTS()
    registrar.set_modality("ct")
    registrar.set_fixed_image(fixed)
 
@@ -38,7 +38,7 @@ Time Series
 
    images = [itk.imread(f"phase_{idx:02d}.mha") for idx in range(10)]
 
-   registrar = RegisterTimeSeriesImages(registration_method="ants")
+   registrar = RegisterTimeSeriesImages(registration_method="ANTS")
    registrar.set_fixed_image(images[0])
    result = registrar.register_time_series(
        moving_images=images,

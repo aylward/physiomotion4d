@@ -49,7 +49,7 @@ Classes Used
     contour extraction -> USD export.
 - SegmentChestTotalSegmentator (segment_chest_total_segmentator.py):
     Deep-learning segmentation of 117 anatomical structures (used internally).
-- RegisterImagesICON / RegisterImagesANTs (register_images_icon.py / _ants.py):
+- RegisterImagesICON / RegisterImagesANTS (register_images_icon.py / _ants.py):
     Frame-to-frame image registration (used internally).
 - ContourTools (contour_tools.py):
     Extracts and transforms surface meshes from segmentation masks (used internally).

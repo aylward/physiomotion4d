@@ -25,7 +25,7 @@ Data Flow
           v
    RegisterTimeSeriesImages
       |        |
-      |        +--> RegisterImagesANTs / RegisterImagesICON
+      |        +--> RegisterImagesANTS / RegisterImagesICON
       v
    SegmentChestTotalSegmentator / SegmentHeartSimpleware
           |

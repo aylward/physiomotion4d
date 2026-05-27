@@ -19,7 +19,7 @@ from physiomotion4d import ConvertVTKToUSD
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_image_4d_to_3d import ConvertImage4DTo3D
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.register_images_base import RegisterImagesBase
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
@@ -161,7 +161,7 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
         self.registrar: RegisterImagesBase
         if self.registration_method == "ANTS":
             self.log_info("Initializing ANTs registration...")
-            ants_registrar = RegisterImagesANTs(log_level=log_level)
+            ants_registrar = RegisterImagesANTS(log_level=log_level)
             ants_registrar.set_modality("ct")
             ants_registrar.set_transform_type("Deformable")
             if (

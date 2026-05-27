@@ -23,85 +23,85 @@ from physiomotion4d.transform_tools import TransformTools
 class TestRegisterImagesICON:
     """Test suite for ICON-based image registration."""
 
-    def test_registrar_initialization(self, registrar_icon: RegisterImagesICON) -> None:
+    def test_registrar_initialization(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test that RegisterImagesICON initializes correctly."""
-        assert registrar_icon is not None, "Registrar not initialized"
-        assert hasattr(registrar_icon, "fixed_image"), "Missing fixed_image attribute"
-        assert hasattr(registrar_icon, "fixed_mask"), "Missing fixed_mask attribute"
-        assert hasattr(registrar_icon, "number_of_iterations"), (
+        assert registrar_ICON is not None, "Registrar not initialized"
+        assert hasattr(registrar_ICON, "fixed_image"), "Missing fixed_image attribute"
+        assert hasattr(registrar_ICON, "fixed_mask"), "Missing fixed_mask attribute"
+        assert hasattr(registrar_ICON, "number_of_iterations"), (
             "Missing number_of_iterations attribute"
         )
-        assert hasattr(registrar_icon, "net"), "Missing net attribute (ICON network)"
+        assert hasattr(registrar_ICON, "net"), "Missing net attribute (ICON network)"
 
         print("\nICON registrar initialized successfully")
-        print(f"  Default iterations: {registrar_icon.number_of_iterations}")
+        print(f"  Default iterations: {registrar_ICON.number_of_iterations}")
 
-    def test_set_modality(self, registrar_icon: RegisterImagesICON) -> None:
+    def test_set_modality(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test setting imaging modality."""
-        registrar_icon.set_modality("ct")
-        assert registrar_icon.modality == "ct", "Modality not set correctly"
+        registrar_ICON.set_modality("ct")
+        assert registrar_ICON.modality == "ct", "Modality not set correctly"
 
-        registrar_icon.set_modality("mr")
-        assert registrar_icon.modality == "mr", "Modality change failed"
+        registrar_ICON.set_modality("mr")
+        assert registrar_ICON.modality == "mr", "Modality change failed"
 
         print("\nModality setting works correctly")
 
-    def test_set_number_of_iterations(self, registrar_icon: RegisterImagesICON) -> None:
+    def test_set_number_of_iterations(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test setting number of iterations."""
-        registrar_icon.set_number_of_iterations(10)
-        assert registrar_icon.number_of_iterations == 10, "Number of iterations not set"
+        registrar_ICON.set_number_of_iterations(10)
+        assert registrar_ICON.number_of_iterations == 10, "Number of iterations not set"
 
-        registrar_icon.set_number_of_iterations(5)
-        assert registrar_icon.number_of_iterations == 5, (
+        registrar_ICON.set_number_of_iterations(5)
+        assert registrar_ICON.number_of_iterations == 5, (
             "Number of iterations update failed"
         )
 
         print("\nNumber of iterations setting works correctly")
 
     def test_set_fixed_image(
-        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+        self, registrar_ICON: RegisterImagesICON, test_images: list[Any]
     ) -> None:
         """Test setting fixed image."""
         fixed_image = test_images[0]
 
-        registrar_icon.set_fixed_image(fixed_image)
-        assert registrar_icon.fixed_image is not None, "Fixed image not set"
+        registrar_ICON.set_fixed_image(fixed_image)
+        assert registrar_ICON.fixed_image is not None, "Fixed image not set"
 
         print("\nFixed image set successfully")
-        print(f"  Image size: {itk.size(registrar_icon.fixed_image)}")
-        print(f"  Image spacing: {itk.spacing(registrar_icon.fixed_image)}")
+        print(f"  Image size: {itk.size(registrar_ICON.fixed_image)}")
+        print(f"  Image spacing: {itk.spacing(registrar_ICON.fixed_image)}")
 
-    def test_set_mass_preservation(self, registrar_icon: RegisterImagesICON) -> None:
+    def test_set_mass_preservation(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test setting mass preservation flag."""
-        registrar_icon.set_mass_preservation(True)
-        assert registrar_icon.use_mass_preservation, "Mass preservation not set"
+        registrar_ICON.set_mass_preservation(True)
+        assert registrar_ICON.use_mass_preservation, "Mass preservation not set"
 
-        registrar_icon.set_mass_preservation(False)
-        assert not registrar_icon.use_mass_preservation, (
+        registrar_ICON.set_mass_preservation(False)
+        assert not registrar_ICON.use_mass_preservation, (
             "Mass preservation update failed"
         )
 
         print("\nMass preservation setting works correctly")
 
-    def test_set_multi_modality(self, registrar_icon: RegisterImagesICON) -> None:
+    def test_set_multi_modality(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test setting multi-modality flag."""
-        registrar_icon.set_multi_modality(True)
-        assert registrar_icon.use_multi_modality, "Multi-modality not set"
+        registrar_ICON.set_multi_modality(True)
+        assert registrar_ICON.use_multi_modality, "Multi-modality not set"
 
-        registrar_icon.set_multi_modality(False)
-        assert not registrar_icon.use_multi_modality, "Multi-modality update failed"
+        registrar_ICON.set_multi_modality(False)
+        assert not registrar_ICON.use_multi_modality, "Multi-modality update failed"
 
         print("\nMulti-modality setting works correctly")
 
     def test_register_without_mask(
         self,
-        registrar_icon: RegisterImagesICON,
+        registrar_ICON: RegisterImagesICON,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test basic ICON registration without masks."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir = output_dir / "registration_ICON"
         reg_output_dir.mkdir(exist_ok=True)
 
         # Set up registration
@@ -112,12 +112,12 @@ class TestRegisterImagesICON:
         print(f"  Fixed image: {itk.size(fixed_image)}")
         print(f"  Moving image: {itk.size(moving_image)}")
 
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
-        registrar_icon.set_number_of_iterations(2)  # Use fewer iterations for testing
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
+        registrar_ICON.set_number_of_iterations(2)  # Use fewer iterations for testing
 
         # Register
-        result = registrar_icon.register(moving_image=moving_image)
+        result = registrar_ICON.register(moving_image=moving_image)
 
         # Verify result is a dictionary
         assert isinstance(result, dict), "Result should be a dictionary"
@@ -150,13 +150,13 @@ class TestRegisterImagesICON:
 
     def test_register_with_mask(
         self,
-        registrar_icon: RegisterImagesICON,
+        registrar_ICON: RegisterImagesICON,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test ICON registration with binary masks."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir = output_dir / "registration_ICON"
         reg_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
@@ -207,13 +207,13 @@ class TestRegisterImagesICON:
         print(f"  Moving mask voxels: {np.sum(moving_mask_arr)}")
 
         # Set up registration with masks
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
-        registrar_icon.set_fixed_mask(fixed_mask)
-        registrar_icon.set_number_of_iterations(2)
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
+        registrar_ICON.set_fixed_mask(fixed_mask)
+        registrar_ICON.set_number_of_iterations(2)
 
         # Register
-        result = registrar_icon.register(
+        result = registrar_ICON.register(
             moving_image=moving_image, moving_mask=moving_mask
         )
 
@@ -244,23 +244,23 @@ class TestRegisterImagesICON:
 
     def test_transform_application(
         self,
-        registrar_icon: RegisterImagesICON,
+        registrar_ICON: RegisterImagesICON,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test applying ICON registration transforms to images."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir = output_dir / "registration_ICON"
         reg_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
         moving_image = test_images[1]
 
         # Register
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
-        registrar_icon.set_number_of_iterations(2)
-        result = registrar_icon.register(moving_image=moving_image)
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
+        registrar_ICON.set_number_of_iterations(2)
+        result = registrar_ICON.register(moving_image=moving_image)
 
         forward_transform = result["forward_transform"]
 
@@ -297,7 +297,7 @@ class TestRegisterImagesICON:
         print(f"  Saved to: {reg_output_dir / 'icon_registered_image.mha'}")
 
     def test_inverse_consistency(
-        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+        self, registrar_ICON: RegisterImagesICON, test_images: list[Any]
     ) -> None:
         """Test ICON's inverse consistency property."""
         fixed_image = test_images[0]
@@ -305,10 +305,10 @@ class TestRegisterImagesICON:
 
         print("\nTesting inverse consistency...")
 
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
-        registrar_icon.set_number_of_iterations(2)
-        result = registrar_icon.register(moving_image=moving_image)
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
+        registrar_ICON.set_number_of_iterations(2)
+        result = registrar_ICON.register(moving_image=moving_image)
 
         inverse_transform = result["inverse_transform"]
         forward_transform = result["forward_transform"]
@@ -343,7 +343,7 @@ class TestRegisterImagesICON:
         assert error < 5.0, f"Inverse consistency error too large: {error:.2f} mm"
 
     def test_preprocess_images(
-        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+        self, registrar_ICON: RegisterImagesICON, test_images: list[Any]
     ) -> None:
         """Test image preprocessing for ICON."""
         test_image = test_images[0]
@@ -352,7 +352,7 @@ class TestRegisterImagesICON:
         print(f"  Original spacing: {itk.spacing(test_image)}")
 
         # Preprocess
-        preprocessed = registrar_icon.preprocess(test_image, modality="ct")
+        preprocessed = registrar_ICON.preprocess(test_image, modality="ct")
 
         assert preprocessed is not None, "Preprocessed image is None"
 
@@ -362,13 +362,13 @@ class TestRegisterImagesICON:
 
     def test_registration_with_initial_transform(
         self,
-        registrar_icon: RegisterImagesICON,
+        registrar_ICON: RegisterImagesICON,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test ICON registration with initial transform."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_icon"
+        reg_output_dir = output_dir / "registration_ICON"
         reg_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
@@ -381,11 +381,11 @@ class TestRegisterImagesICON:
         print("\nRegistering with initial transform...")
         print("  Initial offset: [-5.0, -5.0, -5.0]")
 
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
-        registrar_icon.set_number_of_iterations(2)
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
+        registrar_ICON.set_number_of_iterations(2)
 
-        result = registrar_icon.register(
+        result = registrar_ICON.register(
             moving_image=moving_image,
             initial_forward_transform=initial_tfm_forward,
         )
@@ -397,16 +397,16 @@ class TestRegisterImagesICON:
         print("Registration with initial transform complete")
 
     def test_transform_types(
-        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+        self, registrar_ICON: RegisterImagesICON, test_images: list[Any]
     ) -> None:
         """Test that ICON transforms are correct ITK types."""
         fixed_image = test_images[0]
         moving_image = test_images[1]
 
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
-        registrar_icon.set_number_of_iterations(2)
-        result = registrar_icon.register(moving_image=moving_image)
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
+        registrar_ICON.set_number_of_iterations(2)
+        result = registrar_ICON.register(moving_image=moving_image)
 
         inverse_transform = result["inverse_transform"]
         forward_transform = result["forward_transform"]
@@ -438,14 +438,14 @@ class TestRegisterImagesICON:
         print(f"  forward_transform: {type(forward_transform).__name__}")
 
     def test_different_iteration_counts(
-        self, registrar_icon: RegisterImagesICON, test_images: list[Any]
+        self, registrar_ICON: RegisterImagesICON, test_images: list[Any]
     ) -> None:
         """Test ICON with different iteration counts."""
         fixed_image = test_images[0]
         moving_image = test_images[1]
 
-        registrar_icon.set_modality("ct")
-        registrar_icon.set_fixed_image(fixed_image)
+        registrar_ICON.set_modality("ct")
+        registrar_ICON.set_fixed_image(fixed_image)
 
         iteration_counts = [1, 2, 5]
         results = []
@@ -454,8 +454,8 @@ class TestRegisterImagesICON:
 
         for num_iter in iteration_counts:
             print(f"  Running with {num_iter} iterations...")
-            registrar_icon.set_number_of_iterations(num_iter)
-            result = registrar_icon.register(moving_image=moving_image)
+            registrar_ICON.set_number_of_iterations(num_iter)
+            result = registrar_ICON.register(moving_image=moving_image)
             results.append(result)
 
             assert isinstance(result, dict), "Result should be a dictionary"

@@ -66,7 +66,7 @@ phase images:
        time_series_images=time_series_images,
        fixed_image=fixed_image,
        reference_frame=0,
-       registration_method="ants",
+       registration_method="ANTS",
    )
 
    result = workflow.run_workflow(upsample_to_fixed_resolution=True)
@@ -176,10 +176,10 @@ Advanced registration with multiple stages:
 
 .. code-block:: python
 
-   from physiomotion4d import RegisterImagesANTs
+   from physiomotion4d import RegisterImagesANTS
    import itk
 
-   registerer = RegisterImagesANTs()
+   registerer = RegisterImagesANTS()
 
    fixed = itk.imread("reference.mha")
    moving = itk.imread("target.mha")

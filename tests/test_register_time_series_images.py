@@ -26,29 +26,29 @@ class TestRegisterTimeSeriesImages:
 
     _class_name = "registration_time_series_images"
 
-    def test_registrar_initialization_ants(self) -> None:
+    def test_registrar_initialization_ANTS(self) -> None:
         """Test that RegisterTimeSeriesImages initializes correctly with ANTs."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         assert registrar is not None, "Registrar not initialized"
-        assert registrar.registration_method_name == "ants", "Method not set correctly"
-        assert registrar.registrar_ants is not None, (
+        assert registrar.registration_method_name == "ANTS", "Method not set correctly"
+        assert registrar.registrar_ANTS is not None, (
             "Internal ANTs registrar not created"
         )
-        assert registrar.registrar_icon is not None, (
+        assert registrar.registrar_ICON is not None, (
             "Internal ICON registrar not created"
         )
 
         print("\nTime series registrar initialized with ANTs")
 
-    def test_registrar_initialization_icon(self) -> None:
+    def test_registrar_initialization_ICON(self) -> None:
         """Test that RegisterTimeSeriesImages initializes correctly with ICON."""
-        registrar = RegisterTimeSeriesImages(registration_method="icon")
+        registrar = RegisterTimeSeriesImages(registration_method="ICON")
         assert registrar is not None, "Registrar not initialized"
-        assert registrar.registration_method_name == "icon", "Method not set correctly"
-        assert registrar.registrar_ants is not None, (
+        assert registrar.registration_method_name == "ICON", "Method not set correctly"
+        assert registrar.registrar_ANTS is not None, (
             "Internal ANTs registrar not created"
         )
-        assert registrar.registrar_icon is not None, (
+        assert registrar.registrar_ICON is not None, (
             "Internal ICON registrar not created"
         )
 
@@ -64,7 +64,7 @@ class TestRegisterTimeSeriesImages:
         assert registrar.registrar_greedy is not None, (
             "Internal Greedy registrar not created"
         )
-        assert registrar.registrar_icon is not None, (
+        assert registrar.registrar_ICON is not None, (
             "Internal ICON registrar not created"
         )
 
@@ -79,7 +79,7 @@ class TestRegisterTimeSeriesImages:
 
     def test_set_modality(self) -> None:
         """Test setting imaging modality."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         assert registrar.modality == "ct", "Modality not set correctly"
 
@@ -87,7 +87,7 @@ class TestRegisterTimeSeriesImages:
 
     def test_set_fixed_image(self, test_images: list[Any]) -> None:
         """Test setting fixed image."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         fixed_image = test_images[0]
 
         registrar.set_fixed_image(fixed_image)
@@ -98,11 +98,11 @@ class TestRegisterTimeSeriesImages:
 
     def test_set_number_of_iterations(self) -> None:
         """Test setting number of iterations."""
-        registrar_ants = RegisterTimeSeriesImages(registration_method="ants")
-        iterations_ants = [30, 15, 5]
+        registrar_ANTS = RegisterTimeSeriesImages(registration_method="ANTS")
+        iterations_ANTS = [30, 15, 5]
 
-        registrar_ants.set_number_of_iterations_ants(iterations_ants)
-        assert registrar_ants.number_of_iterations_ants == iterations_ants, (
+        registrar_ANTS.set_number_of_iterations_ANTS(iterations_ANTS)
+        assert registrar_ANTS.number_of_iterations_ANTS == iterations_ANTS, (
             "ANTs iterations not set correctly"
         )
 
@@ -114,11 +114,11 @@ class TestRegisterTimeSeriesImages:
             "Greedy iterations not set correctly"
         )
 
-        registrar_icon = RegisterTimeSeriesImages(registration_method="icon")
-        iterations_icon = 50
+        registrar_ICON = RegisterTimeSeriesImages(registration_method="ICON")
+        iterations_ICON = 50
 
-        registrar_icon.set_number_of_iterations_icon(iterations_icon)
-        assert registrar_icon.number_of_iterations_icon == iterations_icon, (
+        registrar_ICON.set_number_of_iterations_ICON(iterations_ICON)
+        assert registrar_ICON.number_of_iterations_ICON == iterations_ICON, (
             "ICON iterations not set correctly"
         )
 
@@ -136,10 +136,10 @@ class TestRegisterTimeSeriesImages:
         print(f"  Fixed image: {itk.size(fixed_image)}")
         print(f"  Number of moving images: {len(moving_images)}")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ANTS([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -217,10 +217,10 @@ class TestRegisterTimeSeriesImages:
         print(f"  Number of moving images: {len(moving_images)}")
         print("  Using prior transform weight: 0.5")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ANTS([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -274,10 +274,10 @@ class TestRegisterTimeSeriesImages:
 
         print("\nRegistering time series (identity start)...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ANTS([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -302,10 +302,10 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTesting different starting indices...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([10, 5, 1])
+        registrar.set_number_of_iterations_ANTS([10, 5, 1])
 
         # Test starting from beginning, middle, and end
         for starting_index in [0, 1]:
@@ -325,7 +325,7 @@ class TestRegisterTimeSeriesImages:
 
     def test_register_time_series_error_no_fixed_image(self) -> None:
         """Test that error is raised if fixed image not set."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
 
         moving_images = [None, None, None]  # Dummy list
 
@@ -338,7 +338,7 @@ class TestRegisterTimeSeriesImages:
         self, test_images: list[Any]
     ) -> None:
         """Test that error is raised for invalid starting index."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_fixed_image(test_images[0])
 
         moving_images = test_images[1:4]
@@ -361,7 +361,7 @@ class TestRegisterTimeSeriesImages:
         self, test_images: list[Any]
     ) -> None:
         """Test that error is raised for invalid prior portion value."""
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_fixed_image(test_images[0])
 
         moving_images = test_images[1:4]
@@ -391,10 +391,10 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTesting transform application...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ANTS([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -434,17 +434,17 @@ class TestRegisterTimeSeriesImages:
             "transform_application_time_series_0.mha",
         )
 
-    def test_register_time_series_icon(self, test_images: list[Any]) -> None:
+    def test_register_time_series_ICON(self, test_images: list[Any]) -> None:
         """Test time series registration with ICON method."""
         fixed_image = test_images[0]
         moving_images = test_images[1:3]
 
         print("\nTesting time series registration with ICON...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="icon")
+        registrar = RegisterTimeSeriesImages(registration_method="ICON")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_icon(5)  # ICON uses single int
+        registrar.set_number_of_iterations_ICON(5)  # ICON uses single int
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -487,11 +487,11 @@ class TestRegisterTimeSeriesImages:
         print("\nTesting time series registration with mask...")
         print(f"  Mask voxels: {np.sum(fixed_mask_arr)}")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
         registrar.set_fixed_mask(fixed_mask)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ANTS([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -513,10 +513,10 @@ class TestRegisterTimeSeriesImages:
         print(f"  Total images: {len(moving_images)}")
         print("  Starting from middle (index 2)")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ants")
+        registrar = RegisterTimeSeriesImages(registration_method="ANTS")
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ants([20, 10, 2])
+        registrar.set_number_of_iterations_ANTS([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,

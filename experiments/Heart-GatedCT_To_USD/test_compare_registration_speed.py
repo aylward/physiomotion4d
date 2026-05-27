@@ -16,7 +16,7 @@ import pandas as pd
 from itk import TubeTK as ttk
 
 from physiomotion4d.test_tools import TestTools
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
 
@@ -106,7 +106,7 @@ except Exception as e:
 
 # --- ANTs (deformable SyN) ---
 try:
-    reg_a = RegisterImagesANTs()
+    reg_a = RegisterImagesANTS()
     reg_a.set_modality("ct")
     reg_a.set_transform_type("Deformable")
     reg_a.set_number_of_iterations([10, 5, 2])  # reduced for speed

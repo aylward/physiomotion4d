@@ -5,7 +5,7 @@ import os
 import itk
 import numpy as np
 
-from physiomotion4d import RegisterImagesANTs, TransformTools
+from physiomotion4d import RegisterImagesANTS, TransformTools
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,14 +32,14 @@ if quick_run:
     num_files = len(files)
     reference_image_num = num_files // 2
     # reg_method_data = zip(["ICON"], [RegisterImagesICON()], [2])
-    reg_method_data = zip(["ANTs"], [RegisterImagesANTs()], [[20, 10, 2]])
+    reg_method_data = zip(["ANTs"], [RegisterImagesANTS()], [[20, 10, 2]])
 else:
     num_files = len(files)
     files_indx = list(range(num_files))
     reference_image_num = 7
-    reg_method_data = zip(["ANTs"], [RegisterImagesANTs()], [[30, 15, 5]])
+    reg_method_data = zip(["ANTs"], [RegisterImagesANTS()], [[30, 15, 5]])
     # reg_method_data = zip(["ICON"], [RegisterImagesICON()], [20])
-    # reg_method_data = zip(["ICON","ANTs"], [RegisterImagesICON(), RegisterImagesANTs()], [20, [40, 20, 10]])
+    # reg_method_data = zip(["ICON","ANTs"], [RegisterImagesICON(), RegisterImagesANTS()], [20, [40, 20, 10]])
 
 reference_image_file = os.path.join(
     data_dir, f"slice_{files_indx[reference_image_num]:03d}.mha"
@@ -296,7 +296,7 @@ if load_data:
     files = []
     files_indx = []
     for f in sorted(os.listdir(_RESULTS_DIR)):
-        if f.endswith(".hdf") and f.startswith("slice_ANTs_forward_"):
+        if f.endswith(".hdf") and f.startswith("slice_ANTS_forward_"):
             files.append(os.path.join(_RESULTS_DIR, f))
             files_indx.append(int(f.split("_")[3].split(".")[0]))
 
@@ -311,7 +311,7 @@ grid_image = tfm_tool.generate_grid_image(fixed_image, 30, 1)
 for i in range(num_files):
     print(files_indx[i])
     inverse_transform = itk.transformread(
-        os.path.join(_RESULTS_DIR, f"slice_ANTs_inverse_{files_indx[i]:03d}.hdf")
+        os.path.join(_RESULTS_DIR, f"slice_ANTS_inverse_{files_indx[i]:03d}.hdf")
     )[0]
 
     inverse_image = tfm_tool.convert_transform_to_displacement_field(
@@ -321,7 +321,7 @@ for i in range(num_files):
     )
     itk.imwrite(
         inverse_image,
-        os.path.join(_RESULTS_DIR, f"slice_ANTs_inverse_{files_indx[i]:03d}_hdf.mha"),
+        os.path.join(_RESULTS_DIR, f"slice_ANTS_inverse_{files_indx[i]:03d}_hdf.mha"),
         compression=True,
     )
 
@@ -333,7 +333,7 @@ for i in range(num_files):
     itk.imwrite(
         inverse_grid_image,
         os.path.join(
-            _RESULTS_DIR, f"slice_fixed_ANTs_inverse_grid_{files_indx[i]:03d}.mha"
+            _RESULTS_DIR, f"slice_fixed_ANTS_inverse_grid_{files_indx[i]:03d}.mha"
         ),
         compression=True,
     )

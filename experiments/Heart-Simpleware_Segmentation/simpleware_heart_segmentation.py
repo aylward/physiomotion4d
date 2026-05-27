@@ -24,14 +24,17 @@
 # %%
 import logging
 import os
+import tkinter as tk
+from tkinter import filedialog
 
 import itk
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 
-from physiomotion4d.test_tools import TestTools
+from physiomotion4d.landmark_tools import LandmarkTools
 from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
+from physiomotion4d.test_tools import TestTools
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,9 +60,18 @@ log_level = logging.INFO  # Change to logging.DEBUG for more detail
 # Load a cardiac CT image for segmentation. This should be a 3D volume containing the heart.
 
 # %%
-input_image_path = os.path.join(
-    _HERE, "..", "..", "data", "CHOP-Valve4D", "CT", "RVOT28-Dias.nii.gz"
-)
+if TestTools.running_as_test():
+    input_image_path = os.path.join(
+        _HERE, "..", "..", "data", "CHOP-Valve4D", "CT", "RVOT28-Dias.nii.gz"
+    )
+else:
+    root = tk.Tk()
+    root.withdraw()
+    input_image_path = filedialog.askopenfilename(
+        title="Select a cardiac CT image",
+        filetypes=[("NIfTI", "*.nii.gz"), ("MetaIO", "*.mhd"), ("All files", "*.*")],
+    )
+    root.destroy()
 
 # Load the image
 try:
@@ -79,6 +91,7 @@ except (FileNotFoundError, OSError) as e:
 # Display a few slices of the input image to verify it loaded correctly.
 
 # %%
+image_array = None
 if input_image is not None:
     # Get numpy array from ITK image
     image_array = itk.array_from_image(input_image)
@@ -87,6 +100,8 @@ if input_image is not None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
     # Axial slice (middle)
+    dirs = input_image.GetDirection()
+    print(f"Direction: {dirs}")
     axial_slice = image_array[image_array.shape[0] // 2, :, :]
     axes[0].imshow(axial_slice, cmap="gray", vmin=-200, vmax=400)
     axes[0].set_title("Axial View")
@@ -158,8 +173,8 @@ if input_image is not None:
 
     try:
         # Perform segmentation
-        # Set contrast_enhanced_study=True if your CT scan used contrast agent
-        result = segmenter.segment(input_image, contrast_enhanced_study=True)
+        # For Simpleware, set contrast_enhanced_study=False always!
+        result = segmenter.segment(input_image, contrast_enhanced_study=False)
 
         print("\nSegmentation completed successfully!")
 
@@ -190,6 +205,18 @@ if input_image is not None:
             contrast_mask,
             os.path.join(output_dir, "contrast_mask_simpleware.nii.gz"),
             compression=True,
+        )
+        itk.imwrite(
+            input_image,
+            os.path.join(output_dir, "input_image_simpleware.nii.gz"),
+            compression=True,
+        )
+
+        # Save landmarks
+        print("\nSaving landmarks...")
+        landmarks = segmenter.get_landmarks()
+        LandmarkTools().write_landmarks_3dslicer(
+            landmarks=landmarks, path=os.path.join(output_dir, "landmarks.mrk.json")
         )
 
     except FileNotFoundError as e:
@@ -269,7 +296,6 @@ else:
 # %%
 if result is not None and input_image is not None:
     # Get arrays
-    image_array = itk.array_from_image(input_image)
     labelmap_array = itk.array_from_image(result["labelmap"])
     heart_array = itk.array_from_image(result["heart"])
     vessels_array = itk.array_from_image(result["major_vessels"])

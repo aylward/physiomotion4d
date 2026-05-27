@@ -5,13 +5,13 @@ ANTs Registration
 .. module:: physiomotion4d.register_images_ants
 .. currentmodule:: physiomotion4d
 
-``RegisterImagesANTs`` provides optimization-based deformable image
+``RegisterImagesANTS`` provides optimization-based deformable image
 registration through ANTs.
 
 Class Reference
 ===============
 
-.. autoclass:: RegisterImagesANTs
+.. autoclass:: RegisterImagesANTS
    :members:
    :undoc-members:
    :show-inheritance:
@@ -23,12 +23,12 @@ Basic Registration
 
    import itk
 
-   from physiomotion4d import RegisterImagesANTs
+   from physiomotion4d import RegisterImagesANTS
 
    fixed = itk.imread("reference.mha")
    moving = itk.imread("moving.mha")
 
-   registrar = RegisterImagesANTs()
+   registrar = RegisterImagesANTS()
    registrar.set_modality("ct")
    registrar.set_transform_type("SyN")
    registrar.set_number_of_iterations([30, 15, 7])

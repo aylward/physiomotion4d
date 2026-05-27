@@ -19,7 +19,7 @@ PhysioMotion4D image registration classes align moving 3D images to a fixed
 Common Result Shape
 ===================
 
-``RegisterImagesANTs.register()`` and ``RegisterImagesICON.register()`` return:
+``RegisterImagesANTS.register()`` and ``RegisterImagesICON.register()`` return:
 
 * ``forward_transform``
 * ``inverse_transform``
@@ -35,12 +35,12 @@ Basic Example
 
    import itk
 
-   from physiomotion4d import RegisterImagesANTs
+   from physiomotion4d import RegisterImagesANTS
 
    fixed = itk.imread("reference.mha")
    moving = itk.imread("moving.mha")
 
-   registrar = RegisterImagesANTs()
+   registrar = RegisterImagesANTS()
    registrar.set_modality("ct")
    registrar.set_fixed_image(fixed)
 

@@ -47,17 +47,17 @@ Examples:
   %(prog)s \\
     --time-series-images frame_*.mha \\
     --fixed-image highres.mha \\
-    --registration-method ants_icon \\
-    --ants-iterations 30 15 7 3 \\
-    --icon-iterations 20 \\
+    --registration-method ANTS_ICON \\
+    --ANTS-iterations 30 15 7 3 \\
+    --ICON-iterations 20 \\
     --output-dir ./results
 
   # Reconstruction with ICON only
   %(prog)s \\
     --time-series-images frame_*.mha \\
     --fixed-image highres.mha \\
-    --registration-method icon \\
-    --icon-iterations 50 \\
+    --registration-method ICON \\
+    --ICON-iterations 50 \\
     --output-dir ./results
         """,
     )
@@ -81,9 +81,9 @@ Examples:
     # Registration configuration
     parser.add_argument(
         "--registration-method",
-        choices=["ants", "icon", "ants_icon"],
-        default="ants_icon",
-        help="Registration method to use (default: ants_icon)",
+        choices=["ANTS", "ICON", "ANTS_ICON"],
+        default="ANTS_ICON",
+        help="Registration method to use (default: ANTS_ICON)",
     )
     parser.add_argument(
         "--reference-frame",
@@ -106,13 +106,13 @@ Examples:
 
     # Registration iterations
     parser.add_argument(
-        "--ants-iterations",
+        "--ANTS-iterations",
         nargs="+",
         type=int,
         help="ANTs multi-resolution iterations (e.g., 30 15 7 3). Default: [30, 15, 7, 3]",
     )
     parser.add_argument(
-        "--icon-iterations",
+        "--ICON-iterations",
         type=int,
         help="ICON fine-tuning iterations. Default: 20",
     )
@@ -292,14 +292,14 @@ Examples:
 
         # Set number of iterations based on registration method and CLI arguments
         if args.ants_iterations:
-            workflow.set_number_of_iterations_ants(args.ants_iterations)
+            workflow.set_number_of_iterations_ANTS(args.ants_iterations)
         else:
-            workflow.set_number_of_iterations_ants([30, 15, 7, 3])
+            workflow.set_number_of_iterations_ANTS([30, 15, 7, 3])
 
         if args.icon_iterations:
-            workflow.set_number_of_iterations_icon(args.icon_iterations)
+            workflow.set_number_of_iterations_ICON(args.icon_iterations)
         else:
-            workflow.set_number_of_iterations_icon(20)
+            workflow.set_number_of_iterations_ICON(20)
 
     except (ValueError, RuntimeError, OSError) as e:
         print(f"Error initializing workflow: {e}")

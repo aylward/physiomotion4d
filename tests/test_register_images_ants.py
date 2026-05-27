@@ -16,54 +16,54 @@ import itk
 import numpy as np
 import pytest
 
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.transform_tools import TransformTools
 
 
 @pytest.mark.slow
-class TestRegisterImagesANTs:
+class TestRegisterImagesANTS:
     """Test suite for ANTs-based image registration."""
 
-    def test_registrar_initialization(self, registrar_ants: RegisterImagesANTs) -> None:
-        """Test that RegisterImagesANTs initializes correctly."""
-        assert registrar_ants is not None, "Registrar not initialized"
-        assert hasattr(registrar_ants, "fixed_image"), "Missing fixed_image attribute"
-        assert hasattr(registrar_ants, "fixed_mask"), "Missing fixed_mask attribute"
+    def test_registrar_initialization(self, registrar_ANTS: RegisterImagesANTS) -> None:
+        """Test that RegisterImagesANTS initializes correctly."""
+        assert registrar_ANTS is not None, "Registrar not initialized"
+        assert hasattr(registrar_ANTS, "fixed_image"), "Missing fixed_image attribute"
+        assert hasattr(registrar_ANTS, "fixed_mask"), "Missing fixed_mask attribute"
 
-        print("\nANTs registrar initialized successfully")
+        print("\nANTS registrar initialized successfully")
 
-    def test_set_modality(self, registrar_ants: RegisterImagesANTs) -> None:
+    def test_set_modality(self, registrar_ANTS: RegisterImagesANTS) -> None:
         """Test setting imaging modality."""
-        registrar_ants.set_modality("ct")
-        assert registrar_ants.modality == "ct", "Modality not set correctly"
+        registrar_ANTS.set_modality("ct")
+        assert registrar_ANTS.modality == "ct", "Modality not set correctly"
 
-        registrar_ants.set_modality("mr")
-        assert registrar_ants.modality == "mr", "Modality change failed"
+        registrar_ANTS.set_modality("mr")
+        assert registrar_ANTS.modality == "mr", "Modality change failed"
 
         print("\nModality setting works correctly")
 
     def test_set_fixed_image(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test setting fixed image."""
         fixed_image = test_images[0]
 
-        registrar_ants.set_fixed_image(fixed_image)
-        assert registrar_ants.fixed_image is not None, "Fixed image not set"
+        registrar_ANTS.set_fixed_image(fixed_image)
+        assert registrar_ANTS.fixed_image is not None, "Fixed image not set"
 
         print("\nFixed image set successfully")
-        print(f"  Image size: {itk.size(registrar_ants.fixed_image)}")
-        print(f"  Image spacing: {itk.spacing(registrar_ants.fixed_image)}")
+        print(f"  Image size: {itk.size(registrar_ANTS.fixed_image)}")
+        print(f"  Image spacing: {itk.spacing(registrar_ANTS.fixed_image)}")
 
     def test_register_without_mask(
         self,
-        registrar_ants: RegisterImagesANTs,
+        registrar_ANTS: RegisterImagesANTS,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test basic registration without masks."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_ants"
+        reg_output_dir = output_dir / "registration_ANTS"
         reg_output_dir.mkdir(exist_ok=True)
 
         # Set up registration
@@ -74,11 +74,11 @@ class TestRegisterImagesANTs:
         print(f"  Fixed image: {itk.size(fixed_image)}")
         print(f"  Moving image: {itk.size(moving_image)}")
 
-        registrar_ants.set_modality("ct")
-        registrar_ants.set_fixed_image(fixed_image)
+        registrar_ANTS.set_modality("ct")
+        registrar_ANTS.set_fixed_image(fixed_image)
 
         # Register
-        result = registrar_ants.register(moving_image=moving_image)
+        result = registrar_ANTS.register(moving_image=moving_image)
 
         # Verify result is a dictionary
         assert isinstance(result, dict), "Result should be a dictionary"
@@ -111,13 +111,13 @@ class TestRegisterImagesANTs:
 
     def test_register_with_mask(
         self,
-        registrar_ants: RegisterImagesANTs,
+        registrar_ANTS: RegisterImagesANTS,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test registration with binary masks."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_ants"
+        reg_output_dir = output_dir / "registration_ANTS"
         reg_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
@@ -168,12 +168,12 @@ class TestRegisterImagesANTs:
         print(f"  Moving mask voxels: {np.sum(moving_mask_arr)}")
 
         # Set up registration with masks
-        registrar_ants.set_modality("ct")
-        registrar_ants.set_fixed_image(fixed_image)
-        registrar_ants.set_fixed_mask(fixed_mask)
+        registrar_ANTS.set_modality("ct")
+        registrar_ANTS.set_fixed_image(fixed_image)
+        registrar_ANTS.set_fixed_mask(fixed_mask)
 
         # Register
-        result = registrar_ants.register(
+        result = registrar_ANTS.register(
             moving_image=moving_image, moving_mask=moving_mask
         )
 
@@ -204,22 +204,22 @@ class TestRegisterImagesANTs:
 
     def test_transform_application(
         self,
-        registrar_ants: RegisterImagesANTs,
+        registrar_ANTS: RegisterImagesANTS,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test applying registration transforms to images."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_ants"
+        reg_output_dir = output_dir / "registration_ANTS"
         reg_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
         moving_image = test_images[1]
 
         # Register
-        registrar_ants.set_modality("ct")
-        registrar_ants.set_fixed_image(fixed_image)
-        result = registrar_ants.register(moving_image=moving_image)
+        registrar_ANTS.set_modality("ct")
+        registrar_ANTS.set_fixed_image(fixed_image)
+        result = registrar_ANTS.register(moving_image=moving_image)
 
         forward_transform = result["forward_transform"]
 
@@ -257,7 +257,7 @@ class TestRegisterImagesANTs:
         print(f"  Saved to: {reg_output_dir / 'ants_registered_image.mha'}")
 
     def test_preprocess_images(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test image preprocessing."""
         test_image = test_images[0]
@@ -266,7 +266,7 @@ class TestRegisterImagesANTs:
         print(f"  Original spacing: {itk.spacing(test_image)}")
 
         # Preprocess
-        preprocessed = registrar_ants.preprocess(test_image, modality="ct")
+        preprocessed = registrar_ANTS.preprocess(test_image, modality="ct")
 
         assert preprocessed is not None, "Preprocessed image is None"
 
@@ -276,13 +276,13 @@ class TestRegisterImagesANTs:
 
     def test_registration_with_initial_transform(
         self,
-        registrar_ants: RegisterImagesANTs,
+        registrar_ANTS: RegisterImagesANTS,
         test_images: list[Any],
         test_directories: dict[str, Path],
     ) -> None:
         """Test registration with initial transform."""
         output_dir = test_directories["output"]
-        reg_output_dir = output_dir / "registration_ants"
+        reg_output_dir = output_dir / "registration_ANTS"
         reg_output_dir.mkdir(exist_ok=True)
 
         fixed_image = test_images[0]
@@ -295,10 +295,10 @@ class TestRegisterImagesANTs:
         print("\nRegistering with initial transform...")
         print("  Initial offset: [-5.0, -5.0, -5.0]")
 
-        registrar_ants.set_modality("ct")
-        registrar_ants.set_fixed_image(fixed_image)
+        registrar_ANTS.set_modality("ct")
+        registrar_ANTS.set_fixed_image(fixed_image)
 
-        result = registrar_ants.register(
+        result = registrar_ANTS.register(
             moving_image=moving_image,
             initial_forward_transform=initial_tfm_forward,
         )
@@ -310,7 +310,7 @@ class TestRegisterImagesANTs:
         print("Registration with initial transform complete")
 
     def test_multiple_registrations(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test running multiple registrations in sequence."""
         fixed_image = test_images[0]
@@ -318,13 +318,13 @@ class TestRegisterImagesANTs:
 
         print("\nRunning multiple registrations...")
 
-        registrar_ants.set_modality("ct")
-        registrar_ants.set_fixed_image(fixed_image)
+        registrar_ANTS.set_modality("ct")
+        registrar_ANTS.set_fixed_image(fixed_image)
 
         results = []
         for i in range(2):
             print(f"  Registration {i + 1}...")
-            result = registrar_ants.register(moving_image=moving_image)
+            result = registrar_ANTS.register(moving_image=moving_image)
             results.append(result)
 
             assert isinstance(result, dict), f"Result {i + 1} should be a dictionary"
@@ -338,15 +338,15 @@ class TestRegisterImagesANTs:
         print(f"Multiple registrations complete: {len(results)} runs")
 
     def test_transform_types(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test that transforms are correct ITK types."""
         fixed_image = test_images[0]
         moving_image = test_images[1]
 
-        registrar_ants.set_modality("ct")
-        registrar_ants.set_fixed_image(fixed_image)
-        result = registrar_ants.register(moving_image=moving_image)
+        registrar_ANTS.set_modality("ct")
+        registrar_ANTS.set_fixed_image(fixed_image)
+        result = registrar_ANTS.register(moving_image=moving_image)
 
         inverse_transform = result["inverse_transform"]
         forward_transform = result["forward_transform"]
@@ -366,7 +366,7 @@ class TestRegisterImagesANTs:
         print(f"  forward_transform: {type(forward_transform).__name__}")
 
     def test_image_conversion_cycle_scalar(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test round-trip conversion: ITK image -> ANTs -> ITK for scalar images."""
         original_image = test_images[0]
@@ -383,7 +383,7 @@ class TestRegisterImagesANTs:
         original_direction = itk.array_from_matrix(original_image.GetDirection())
 
         # Convert ITK -> ANTs
-        ants_image = registrar_ants._itk_to_ants_image(original_image, dtype="float")
+        ants_image = registrar_ANTS._itk_to_ants_image(original_image, dtype="float")
 
         # Verify ANTs image
         assert ants_image is not None, "ANTs image is None"
@@ -393,7 +393,7 @@ class TestRegisterImagesANTs:
         print(f"  ANTs image shape: {ants_image.shape}")
 
         # Convert ANTs -> ITK
-        recovered_image = registrar_ants._ants_to_itk_image(ants_image)
+        recovered_image = registrar_ANTS._ants_to_itk_image(ants_image)
 
         # Verify recovered image
         assert recovered_image is not None, "Recovered image is None"
@@ -442,7 +442,7 @@ class TestRegisterImagesANTs:
         print("Scalar image conversion cycle successful")
 
     def test_image_conversion_cycle_different_dtypes(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test round-trip conversion with different data types."""
         original_image = test_images[0]
@@ -455,11 +455,11 @@ class TestRegisterImagesANTs:
             print(f"  Testing dtype: {dtype}")
 
             # Convert ITK -> ANTs with specified dtype
-            ants_image = registrar_ants._itk_to_ants_image(original_image, dtype=dtype)
+            ants_image = registrar_ANTS._itk_to_ants_image(original_image, dtype=dtype)
             assert ants_image is not None, f"ANTs image is None for dtype {dtype}"
 
             # Convert ANTs -> ITK
-            recovered_image = registrar_ants._ants_to_itk_image(ants_image)
+            recovered_image = registrar_ANTS._ants_to_itk_image(ants_image)
             assert recovered_image is not None, (
                 f"Recovered image is None for dtype {dtype}"
             )
@@ -474,7 +474,7 @@ class TestRegisterImagesANTs:
         print("All dtype conversions successful")
 
     def test_image_conversion_preserves_metadata(
-        self, registrar_ants: RegisterImagesANTs
+        self, registrar_ANTS: RegisterImagesANTS
     ) -> None:
         """Test that image conversion preserves all metadata."""
         print("\nTesting metadata preservation in image conversion...")
@@ -502,8 +502,8 @@ class TestRegisterImagesANTs:
         print(f"  Test image origin: {origin}")
 
         # Convert ITK -> ANTs -> ITK
-        ants_image = registrar_ants._itk_to_ants_image(test_image)
-        recovered_image = registrar_ants._ants_to_itk_image(ants_image)
+        ants_image = registrar_ANTS._itk_to_ants_image(test_image)
+        recovered_image = registrar_ANTS._ants_to_itk_image(ants_image)
 
         # Verify all metadata
         recovered_size = [int(s) for s in itk.size(recovered_image)]
@@ -521,7 +521,7 @@ class TestRegisterImagesANTs:
         print("Metadata preservation verified")
 
     def test_transform_conversion_cycle_affine(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test round-trip conversion: ITK affine transform -> ANTs -> ITK."""
         reference_image = test_images[0]
@@ -560,7 +560,7 @@ class TestRegisterImagesANTs:
         # Convert ITK -> ANTs file
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_tfm_file = os.path.join(tmpdir, "temp_transform.mat")
-            transform_files = registrar_ants.itk_transform_to_antsfile(
+            transform_files = registrar_ANTS.itk_transform_to_ANTSfile(
                 affine_tfm, reference_image, temp_tfm_file
             )
             assert len(transform_files) == 1, "Should return one transform file"
@@ -577,13 +577,13 @@ class TestRegisterImagesANTs:
             # Convert back ANTs -> ITK
             # Affine transforms are stored as affine in ANTs, so read back as affine
             if ants_tfm.transform_type == "AffineTransform":
-                recovered_tfm = registrar_ants._antsfile_to_itk_affine_transform(
+                recovered_tfm = registrar_ANTS._antsfile_to_itk_affine_transform(
                     transform_files[0]
                 )
             else:
                 # For displacement field transforms
                 recovered_tfm = (
-                    registrar_ants._antsfile_to_itk_displacement_field_transform(
+                    registrar_ANTS._antsfile_to_itk_displacement_field_transform(
                         transform_files[0], reference_image
                     )
                 )
@@ -627,7 +627,7 @@ class TestRegisterImagesANTs:
         print("Affine transform conversion cycle successful")
 
     def test_transform_conversion_cycle_displacement_field(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test round-trip conversion: ITK displacement field -> ANTs -> ITK."""
         reference_image = test_images[0]
@@ -666,7 +666,7 @@ class TestRegisterImagesANTs:
         # Convert ITK -> ANTs file
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_tfm_file = os.path.join(tmpdir, "temp_disp_transform.mat")
-            transform_files = registrar_ants.itk_transform_to_antsfile(
+            transform_files = registrar_ANTS.itk_transform_to_ANTSfile(
                 disp_tfm, reference_image, temp_tfm_file
             )
             assert len(transform_files) == 1, "Should return one transform file"
@@ -679,7 +679,7 @@ class TestRegisterImagesANTs:
             # Convert back ANTs -> ITK
 
             recovered_tfm = (
-                registrar_ants._antsfile_to_itk_displacement_field_transform(
+                registrar_ANTS._antsfile_to_itk_displacement_field_transform(
                     transform_files[0], reference_image
                 )
             )
@@ -711,7 +711,7 @@ class TestRegisterImagesANTs:
         print("Displacement field transform conversion cycle successful")
 
     def test_transform_conversion_with_composite(
-        self, registrar_ants: RegisterImagesANTs, test_images: list[Any]
+        self, registrar_ANTS: RegisterImagesANTS, test_images: list[Any]
     ) -> None:
         """Test conversion of composite transforms."""
         reference_image = test_images[0]
@@ -750,7 +750,7 @@ class TestRegisterImagesANTs:
         # Convert to ANTs file
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_tfm_file = os.path.join(tmpdir, "temp_composite_transform.mat")
-            transform_files = registrar_ants.itk_transform_to_antsfile(
+            transform_files = registrar_ANTS.itk_transform_to_ANTSfile(
                 composite_tfm, reference_image, temp_tfm_file
             )
             assert len(transform_files) == 1, "Should return one transform file"

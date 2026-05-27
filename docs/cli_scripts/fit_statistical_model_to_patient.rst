@@ -119,7 +119,7 @@ Registration Configuration
    Enable mask-to-image refinement registration. Requires
    ``--template-labelmap`` and template label IDs. Disabled by default.
 
-``--use-icon-refinement``
+``--use-ICON-refinement``
    Enable ICON deep learning registration refinement (default: disabled)
 
 Output Options

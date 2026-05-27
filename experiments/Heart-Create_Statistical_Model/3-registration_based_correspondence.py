@@ -114,7 +114,7 @@ for vtk_file in vtk_files:
     # This performs progressive multi-stage registration: rigid → affine → SyN deformable
     result = registrar.register(
         transform_type="Deformable",  # Uses ANTs SyN (Symmetric Normalization)
-        use_icon=False,  # Set to True for additional ICON deep learning refinement
+        use_ICON=False,  # Set to True for additional ICON deep learning refinement
     )
 
     forward_transform = result["forward_transform"]
@@ -341,6 +341,6 @@ else:
 #   1. Rigid alignment
 #   2. Affine transformation
 #   3. SyN deformable registration (diffeomorphic)
-# - Setting `use_icon=True` in the `register()` call would add ICON deep learning refinement after SyN
+# - Setting `use_ICON=True` in the `register()` call would add ICON deep learning refinement after SyN
 # - The `roi_dilation_mm` parameter controls the dilation of the ROI mask (default 20mm)
 # - SyN registration provides smooth, invertible deformation fields for anatomical correspondence

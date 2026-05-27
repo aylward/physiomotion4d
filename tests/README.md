@@ -185,8 +185,8 @@ test_download_heart_data
     ↓
 test_convert_image_4d_to_3d
     ↓                    ↓
-    ↓                    ├─→ test_register_images_ants ──→ test_transform_tools
-    ↓                    ├─→ test_register_images_icon
+    ↓                    ├─→ test_register_images_ANTS ──→ test_transform_tools
+    ↓                    ├─→ test_register_images_ICON
     ↓                    ↓
 test_segment_chest_total_segmentator ────→ test_contour_tools
                                                 ↓

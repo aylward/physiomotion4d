@@ -2,7 +2,7 @@
 """
 Test for transform tools functionality.
 
-This test depends on test_register_images_ants and uses registration
+This test depends on test_register_images_ANTS and uses registration
 transforms to test transform manipulation and application.
 """
 

@@ -41,7 +41,7 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
 
     **Registration Pipeline:**
         1. **Time Series Registration**: Register each time-series image to the
-           high-resolution reference using RegisterTimeSeriesImages with ants_icon method
+           high-resolution reference using RegisterTimeSeriesImages with ANTS_ICON method
         2. **Reconstruction**: Apply inverse transforms to reconstruct high-resolution
            time series
         3. **Optional Upsampling**: Resample to isotropic high resolution
@@ -58,7 +58,7 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         register_reference (bool): Whether to register reference frame
         prior_weight (float): Weight for temporal smoothing (0.0-1.0)
         upsample_to_fixed_resolution (bool): Whether to upsample reconstruction
-        registration_method (str): Registration method ('ants', 'icon', or 'ants_icon')
+        registration_method (str): Registration method ('ANTS', 'ICON', or 'ANTS_ICON')
         number_of_iterations: Iterations for registration
         registrar (RegisterTimeSeriesImages): Internal registration object
         forward_transforms (list[itk.Transform]): Forward transforms (moving → fixed)
@@ -72,12 +72,12 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         ...     time_series_images=lowres_images,
         ...     fixed_image=highres_reference,
         ...     reference_frame=3,
-        ...     registration_method='ants_icon',
+        ...     registration_method='ANTS_ICON',
         ... )
         >>>
         >>> # Configure registration parameters
-        >>> workflow.set_number_of_iterations_ants([30, 15, 7])
-        >>> workflow.set_number_of_iterations_icon(20)
+        >>> workflow.set_number_of_iterations_ANTS([30, 15, 7])
+        >>> workflow.set_number_of_iterations_ICON(20)
         >>> workflow.set_prior_weight(0.5)
         >>>
         >>> # Run complete workflow
@@ -95,7 +95,7 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         fixed_image: itk.Image,
         reference_frame: int = 0,
         register_reference: bool = False,
-        registration_method: str = "ants_icon",
+        registration_method: str = "ANTS_ICON",
         log_level: int | str = logging.INFO,
     ):
         """Initialize the high-resolution 4D CT reconstruction workflow.
@@ -111,7 +111,7 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
                 to the fixed image. If False, use identity transform for reference.
                 Default: False
             registration_method (str, optional): Registration method to use.
-                Options: 'ants', 'icon', or 'ants_icon'. Default: 'ants_icon'
+                Options: 'ANTS', 'ICON', or 'ANTS_ICON'. Default: 'ANTS_ICON'
             log_level: Logging level (logging.DEBUG, logging.INFO, etc.).
                 Default: logging.INFO
 
@@ -135,9 +135,9 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
                 f"[0, {len(time_series_images) - 1}]"
             )
 
-        if registration_method not in ["ants", "icon", "ants_icon"]:
+        if registration_method not in ["ANTS", "ICON", "ANTS_ICON"]:
             raise ValueError(
-                f"registration_method must be 'ants', 'icon', or 'ants_icon', "
+                f"registration_method must be 'ANTS', 'ICON', or 'ANTS_ICON', "
                 f"got '{registration_method}'"
             )
 
@@ -157,8 +157,8 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         self.moving_masks: Optional[list[Optional[itk.Image]]] = None
 
         # Set default number of iterations based on registration method
-        self.number_of_iterations_ants: list[int] = [30, 15, 7, 3]
-        self.number_of_iterations_icon: int = 20
+        self.number_of_iterations_ANTS: list[int] = [30, 15, 7, 3]
+        self.number_of_iterations_ICON: int = 20
 
         # Initialize registrar
         self.registrar = RegisterTimeSeriesImages(
@@ -171,24 +171,24 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         self.losses: Optional[list[float]] = None
         self.reconstructed_images: Optional[list[itk.Image]] = None
 
-    def set_number_of_iterations_ants(
-        self, number_of_iterations_ants: list[int]
+    def set_number_of_iterations_ANTS(
+        self, number_of_iterations_ANTS: list[int]
     ) -> None:
         """Set the number of iterations for ANTs registration.
 
         Args:
-            number_of_iterations_ants: List of iterations for ANTs multi-resolution
+            number_of_iterations_ANTS: List of iterations for ANTs multi-resolution
                 (e.g., [30, 15, 7, 3] for four resolution levels)
         """
-        self.number_of_iterations_ants = number_of_iterations_ants
+        self.number_of_iterations_ANTS = number_of_iterations_ANTS
 
-    def set_number_of_iterations_icon(self, number_of_iterations_icon: int) -> None:
+    def set_number_of_iterations_ICON(self, number_of_iterations_ICON: int) -> None:
         """Set the number of iterations for ICON registration.
 
         Args:
-            number_of_iterations_icon: Number of fine-tuning steps for ICON
+            number_of_iterations_ICON: Number of fine-tuning steps for ICON
         """
-        self.number_of_iterations_icon = number_of_iterations_icon
+        self.number_of_iterations_ICON = number_of_iterations_ICON
 
     def set_prior_weight(self, prior_weight: float) -> None:
         """Set the weight for temporal smoothing with prior transforms.
@@ -277,8 +277,8 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         self.registrar.set_fixed_image(self.fixed_image)
         self.registrar.set_modality(self.modality)
         self.registrar.set_mask_dilation(self.mask_dilation_mm)
-        self.registrar.set_number_of_iterations_ants(self.number_of_iterations_ants)
-        self.registrar.set_number_of_iterations_icon(self.number_of_iterations_icon)
+        self.registrar.set_number_of_iterations_ANTS(self.number_of_iterations_ANTS)
+        self.registrar.set_number_of_iterations_ICON(self.number_of_iterations_ICON)
         self.registrar.set_fixed_mask(self.fixed_mask)
 
         self.log_info(f"Registration method: {self.registration_method}")
@@ -286,8 +286,8 @@ class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):
         self.log_info(f"Reference frame: {self.reference_frame}")
         self.log_info(f"Register reference: {self.register_reference}")
         self.log_info(f"Prior weight: {self.prior_weight}")
-        self.log_info(f"Number of iterations (ANTs): {self.number_of_iterations_ants}")
-        self.log_info(f"Number of iterations (ICON): {self.number_of_iterations_icon}")
+        self.log_info(f"Number of iterations (ANTs): {self.number_of_iterations_ANTS}")
+        self.log_info(f"Number of iterations (ICON): {self.number_of_iterations_ICON}")
 
         # Perform registration
         result = self.registrar.register_time_series(

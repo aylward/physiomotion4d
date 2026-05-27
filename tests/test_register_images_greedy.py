@@ -2,7 +2,7 @@
 """
 Tests for Greedy-based image registration.
 
-Uses the same fixtures as test_register_images_ants (converted 3D CT images).
+Uses the same fixtures as test_register_images_ANTS (converted 3D CT images).
 Requires the picsl-greedy package and test data.
 """
 

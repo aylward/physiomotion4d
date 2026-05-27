@@ -191,7 +191,7 @@ class WorkflowCreateStatisticalModel(PhysioMotion4DBase):
             )
             result = registrar.register(
                 transform_type="Deformable",
-                use_icon=False,
+                use_ICON=False,
             )
 
             new_aligned_models.append(result["registered_model"])

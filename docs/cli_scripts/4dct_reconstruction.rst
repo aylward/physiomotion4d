@@ -47,8 +47,8 @@ Registration Options
    physiomotion4d-reconstruct-highres-4d-ct \
        --time-series-images frame_*.mha \
        --fixed-image highres_reference.mha \
-       --registration-method ants \
-       --ants-iterations 30 15 7 3 \
+       --registration-method ANTS \
+       --ANTS-iterations 30 15 7 3 \
        --prior-weight 0.5 \
        --output-dir ./results
 

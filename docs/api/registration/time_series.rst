@@ -6,7 +6,7 @@ Time-Series Registration
 .. currentmodule:: physiomotion4d
 
 ``RegisterTimeSeriesImages`` registers ordered 3D image phases to a reference
-frame using ANTs, Greedy, ICON, or combined ``ants_icon`` / ``greedy_icon``
+frame using ANTs, Greedy, ICON, or combined ``ANTS_ICON`` / ``greedy_ICON``
 methods.
 
 Class Reference
@@ -29,7 +29,7 @@ Basic Usage
 
    images = [itk.imread(f"phase_{idx:02d}.mha") for idx in range(10)]
 
-   registrar = RegisterTimeSeriesImages(registration_method="ants")
+   registrar = RegisterTimeSeriesImages(registration_method="ANTS")
    registrar.set_fixed_image(images[0])
 
    result = registrar.register_time_series(

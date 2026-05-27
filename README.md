@@ -134,7 +134,7 @@ print(WorkflowConvertImageToUSD.__name__)
 - **Registration Classes**: Multiple registration methods for different use cases
   - Image-to-Image Registration:
     - `RegisterImagesICON`: Deep learning-based registration using Icon algorithm
-    - `RegisterImagesANTs`: Classical deformable registration using ANTs
+    - `RegisterImagesANTS`: Classical deformable registration using ANTs
     - `RegisterTimeSeriesImages`: Specialized time series registration for 4D CT
   - Model-to-Image/Model Registration:
     - `RegisterModelsPCA`: PCA-based statistical shape model registration
@@ -354,7 +354,7 @@ if "lung" in masks:
 ### Image Registration
 
 ```python
-from physiomotion4d import RegisterImagesICON, RegisterImagesANTs, RegisterTimeSeriesImages
+from physiomotion4d import RegisterImagesICON, RegisterImagesANTS, RegisterTimeSeriesImages
 import itk
 
 # Option 1: Icon deep learning registration (GPU-accelerated)
@@ -364,14 +364,14 @@ registerer.set_fixed_image(itk.imread("reference_frame.mha"))
 results = registerer.register(itk.imread("target_frame.mha"))
 
 # Option 2: ANTs classical registration
-registerer = RegisterImagesANTs()
+registerer = RegisterImagesANTS()
 registerer.set_fixed_image(itk.imread("reference_frame.mha"))
 results = registerer.register(itk.imread("target_frame.mha"))
 
 # Option 3: Time series registration for 4D CT
 time_series_reg = RegisterTimeSeriesImages(
     reference_index=0,
-    registration_method='icon'  # or 'ants'
+    registration_method='ICON'  # or 'ANTS'
 )
 transforms = time_series_reg.register_time_series(
     image_filenames=["time00.mha", "time01.mha", "time02.mha"]
@@ -735,7 +735,7 @@ will change, and flag any coordinate-system or shape implications.
 Use `/impl` for end-to-end implementation: read → summarize → plan → diff → lint.
 
 ```text
-/impl add set_regularization_weight() to RegisterImagesANTs
+/impl add set_regularization_weight() to RegisterImagesANTS
 ```
 
 ```text
@@ -757,7 +757,7 @@ Use `/test-feature` to get a test plan and a complete pytest file using syntheti
 ```
 
 ```text
-/test-feature RegisterImagesANTs with a pair of small synthetic ITK images
+/test-feature RegisterImagesANTS with a pair of small synthetic ITK images
 ```
 
 The agent will state image shapes and axis orders in every test docstring, wire
@@ -772,7 +772,7 @@ Use `/doc-feature` after modifying a public API to refresh docstrings and regene
 the API map.
 
 ```text
-/doc-feature update docstrings for RegisterImagesANTs after adding set_regularization_weight
+/doc-feature update docstrings for RegisterImagesANTS after adding set_regularization_weight
 ```
 
 The agent will update affected docstrings in NumPy style, add shape/axis annotations

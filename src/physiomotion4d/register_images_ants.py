@@ -1,6 +1,6 @@
 """ANTs-based image registration implementation.
 
-This module provides the RegisterImagesANTs class, a concrete implementation of
+This module provides the RegisterImagesANTS class, a concrete implementation of
 RegisterImagesBase that uses the Advanced Normalization Tools (ANTs) algorithm
 for image registration. It supports both affine and deformable (SyN) registration
 for aligning medical images, particularly useful for 4D cardiac CT registration.
@@ -21,7 +21,7 @@ from physiomotion4d.register_images_base import RegisterImagesBase
 from physiomotion4d.transform_tools import TransformTools
 
 
-class RegisterImagesANTs(RegisterImagesBase):
+class RegisterImagesANTS(RegisterImagesBase):
     """ANTs-based deformable image registration implementation.
 
     This class extends RegisterImagesBase to provide deformable image registration
@@ -58,7 +58,7 @@ class RegisterImagesANTs(RegisterImagesBase):
         metric (str): Similarity metric to use ('CC', 'Mattes', or 'MeanSquares', default: 'CC')
 
     Example:
-        >>> registrar = RegisterImagesANTs()
+        >>> registrar = RegisterImagesANTS()
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> registrar.set_transform_type('Affine')
@@ -286,15 +286,15 @@ class RegisterImagesANTs(RegisterImagesBase):
         Returns:
             itk.DisplacementFieldTransform: ITK displacement field transform
         """
-        disp_field_tfm_ants = ants.read_transform(
+        disp_field_tfm_ANTS = ants.read_transform(
             ants_transform_file, precision="double"
         )
-        disp_field_ants = ants.transform_to_displacement_field(
-            disp_field_tfm_ants,
+        disp_field_ANTS = ants.transform_to_displacement_field(
+            disp_field_tfm_ANTS,
             self._itk_to_ants_image(ref_image, dtype="float"),
         )
 
-        disp_field_itk_raw = self._ants_to_itk_image(disp_field_ants)
+        disp_field_itk_raw = self._ants_to_itk_image(disp_field_ANTS)
 
         # Convert to the correct Image[Vector[D, 3], 3] type for DisplacementFieldTransform
         # Use ImageTools helper to convert array to vector image with correct type
@@ -313,7 +313,7 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         return disp_tfm
 
-    def itk_affine_transform_to_ants_transform(
+    def itk_affine_transform_to_ANTS_transform(
         self, itk_tfm: itk.Transform
     ) -> ants.ANTsTransform:
         """Convert ITK affine/rigid transform to ANTs affine transform.
@@ -342,9 +342,9 @@ class RegisterImagesANTs(RegisterImagesBase):
             >>> affine_itk = itk.AffineTransform[itk.D, 3].New()
             >>> affine_itk.SetIdentity()
             >>> # Convert to ANTs
-            >>> affine_ants = registrar.itk_affine_transform_to_ants_transform(affine_itk)
+            >>> affine_ANTS = registrar.itk_affine_transform_to_ANTS_transform(affine_itk)
             >>> # Use in ANTs operations
-            >>> result = ants.apply_ants_transform(affine_ants, moving_image)
+            >>> result = ants.apply_ants_transform(affine_ANTS, moving_image)
         """
         # Get dimension of the transform
         dimension = itk_tfm.GetInputSpaceDimension()
@@ -406,7 +406,7 @@ class RegisterImagesANTs(RegisterImagesBase):
 
         return ants_tfm
 
-    def itk_transform_to_antsfile(
+    def itk_transform_to_ANTSfile(
         self,
         itk_tfm: itk.Transform,
         reference_image: itk.Image,
@@ -440,13 +440,13 @@ class RegisterImagesANTs(RegisterImagesBase):
             >>> # Convert ITK affine transform to ANTs file
             >>> affine_itk = itk.AffineTransform[itk.D, 3].New()
             >>> affine_itk.SetIdentity()
-            >>> transform_files = registrar.itk_transform_to_antsfile(
+            >>> transform_files = registrar.itk_transform_to_ANTSfile(
             ...     affine_itk, reference_image, 'initial_transform.mat'
             ... )
             >>>
             >>> # Use in registration
             >>> result = ants.registration(
-            ...     fixed=fixed_ants, moving=moving_ants, initial_transform=transform_files
+            ...     fixed=fixed_ANTS, moving=moving_ANTS, initial_transform=transform_files
             ... )
         """
         if isinstance(itk_tfm, itk.DisplacementFieldTransform) or isinstance(
@@ -468,7 +468,7 @@ class RegisterImagesANTs(RegisterImagesBase):
             self.log_info("Wrote ANTs displacement field to: %s", output_filename)
 
             return [output_filename]
-        ants_tfm = self.itk_affine_transform_to_ants_transform(itk_tfm)
+        ants_tfm = self.itk_affine_transform_to_ANTS_transform(itk_tfm)
         if ".mat" not in output_filename:
             output_filename = os.path.splitext(output_filename)[0] + ".mat"
 
@@ -588,7 +588,7 @@ class RegisterImagesANTs(RegisterImagesBase):
         initial_transform: str | list[str] = "identity"
         if initial_forward_transform is not None:
             self.log_info("Converting initial ITK transform to ANTs format...")
-            initial_transform = self.itk_transform_to_antsfile(
+            initial_transform = self.itk_transform_to_ANTSfile(
                 itk_tfm=initial_forward_transform,
                 reference_image=self.fixed_image,
                 output_filename="initial_transform_temp.mat",

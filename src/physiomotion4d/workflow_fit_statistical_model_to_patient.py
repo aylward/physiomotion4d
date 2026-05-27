@@ -31,7 +31,7 @@ import pyvista as pv
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.register_models_distance_maps import RegisterModelsDistanceMaps
 from physiomotion4d.register_models_icp import RegisterModelsICP
@@ -92,8 +92,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         mask_dilation_mm (float): Dilation for mask generation
         roi_dilation_mm (float): Dilation for ROI mask
         transform_tools (TransformTools): Transform utilities
-        registrar_icon (RegisterImagesICON): ICON registration instance
-        registrar_ants (RegisterImagesANTs): ANTs registration instance
+        registrar_ICON (RegisterImagesICON): ICON registration instance
+        registrar_ANTS (RegisterImagesANTS): ANTs registration instance
         use_pca_registration (bool): Whether PCA registration is enabled (set via set_use_pca_registration)
         pca_model (dict): PCA model dict when PCA enabled; same structure as WorkflowCreateStatisticalModel output
         pca_number_of_modes (int): Number of PCA modes when PCA enabled
@@ -216,14 +216,14 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
                 ptype=itk.F,
             )
 
-        self.registrar_ants = RegisterImagesANTs()
-        self.registrar_ants.set_number_of_iterations([5, 2, 5])
+        self.registrar_ANTS = RegisterImagesANTS()
+        self.registrar_ANTS.set_number_of_iterations([5, 2, 5])
         # Icon registration for final mask-to-image step
-        self.registrar_icon = RegisterImagesICON()
-        self.registrar_icon.set_modality("ct")
-        self.registrar_icon.set_mass_preservation(False)
-        self.registrar_icon.set_multi_modality(True)
-        self.registrar_icon.set_number_of_iterations(50)
+        self.registrar_ICON = RegisterImagesICON()
+        self.registrar_ICON.set_modality("ct")
+        self.registrar_ICON.set_mass_preservation(False)
+        self.registrar_ICON.set_multi_modality(True)
+        self.registrar_ICON.set_number_of_iterations(50)
 
         # Mask configuration (auto-generated)
         self.template_model_mask = None
@@ -270,7 +270,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.m2i_template_model_surface: Optional[pv.PolyData] = None
         self.m2i_template_labelmap: Optional[itk.Image] = None
 
-        self.use_icon_registration_refinement = False
+        self.use_ICON_registration_refinement = False
 
         # Final result
         self.registered_template_model: Optional[pv.DataSet] = None
@@ -683,7 +683,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         }
 
     def register_mask_to_mask(
-        self, use_icon_refinement: bool = False
+        self, use_ICON_refinement: bool = False
     ) -> Optional[dict]:
         """Perform mask-based deformable registration of model to patient model.
 
@@ -719,7 +719,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         # Run deformable registration
         mask_result = mask_registrar.register(
             transform_type="Deformable",
-            use_icon=use_icon_refinement,
+            use_ICON=use_ICON_refinement,
         )
 
         # Store results
@@ -751,7 +751,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         }
 
     def register_labelmap_to_image(
-        self, use_icon_refinement: bool = False
+        self, use_ICON_refinement: bool = False
     ) -> Optional[dict]:
         """Perform labelmap-to-image refinement.
 
@@ -814,22 +814,22 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         )
         patient_roi = self._auto_generate_roi_mask(patient_mask)
 
-        self.registrar_ants.set_fixed_image(self.patient_image)
-        self.registrar_ants.set_fixed_mask(patient_roi)
+        self.registrar_ANTS.set_fixed_image(self.patient_image)
+        self.registrar_ANTS.set_fixed_mask(patient_roi)
 
-        result = self.registrar_ants.register(
+        result = self.registrar_ANTS.register(
             moving_image=labelmap, moving_mask=labelmap_roi
         )
         self.m2i_inverse_transform = result["inverse_transform"]
         self.m2i_forward_transform = result["forward_transform"]
 
-        if use_icon_refinement:
+        if use_ICON_refinement:
             # Configure Icon registration
-            self.registrar_icon.set_fixed_image(self.patient_image)
-            self.registrar_icon.set_fixed_mask(patient_roi)
+            self.registrar_ICON.set_fixed_image(self.patient_image)
+            self.registrar_ICON.set_fixed_mask(patient_roi)
 
             # Perform Icon registration
-            result = self.registrar_icon.register(
+            result = self.registrar_ICON.register(
                 initial_forward_transform=self.m2i_forward_transform,
                 moving_image=labelmap,
                 moving_mask=labelmap_roi,
@@ -937,7 +937,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
     def run_workflow(
         self,
-        use_icon_registration_refinement: bool = False,
+        use_ICON_registration_refinement: bool = False,
     ) -> dict:
         """Execute the complete multi-stage registration workflow.
 
@@ -950,7 +950,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             set via set_use_mask_to_image_registration(True, ...).
 
         Args:
-            use_icon_registration_refinement: Whether to include icon registration
+            use_ICON_registration_refinement: Whether to include icon registration
                 refinement stage. Default: False
 
         Returns:
@@ -960,7 +960,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             "STARTING COMPLETE MODEL-TO-IMAGE-AND-MODEL REGISTRATION WORKFLOW", width=70
         )
 
-        self.use_icon_registration_refinement = use_icon_registration_refinement
+        self.use_ICON_registration_refinement = use_ICON_registration_refinement
 
         # Stage 1: ICP alignment
         self.register_model_to_model_icp()
@@ -971,13 +971,13 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         # Stage 3: Optional Mask-to-mask deformable registration
         if self.use_m2m_registration:
             self.register_mask_to_mask(
-                use_icon_refinement=use_icon_registration_refinement
+                use_ICON_refinement=use_ICON_registration_refinement
             )
 
         # Stage 4: Optional mask-to-image refinement
         if self.use_m2i_registration:
             self.register_labelmap_to_image(
-                use_icon_refinement=use_icon_registration_refinement
+                use_ICON_refinement=use_ICON_registration_refinement
             )
 
         _ = self.transform_model()

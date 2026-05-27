@@ -4,7 +4,7 @@ from pathlib import Path
 
 import itk
 
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.test_tools import TestTools
 from physiomotion4d.transform_tools import TransformTools
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     )
 
     # %%
-    reg = RegisterImagesANTs()
+    reg = RegisterImagesANTS()
     reg.set_mask_dilation(5)
     reg.set_number_of_iterations([10, 5, 2])
 

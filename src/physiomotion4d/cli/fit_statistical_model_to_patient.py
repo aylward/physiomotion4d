@@ -53,7 +53,7 @@ Examples:
     --template-model heart_model.vtu \\
     --patient-models lv.vtp rv.vtp \\
     --patient-image patient_ct.nii.gz \\
-    --use-icon-refinement \\
+    --use-ICON-refinement \\
     --output-dir ./results
         """,
     )
@@ -133,7 +133,7 @@ Examples:
         help="Enable mask-to-image refinement (requires --template-labelmap and label IDs)",
     )
     parser.add_argument(
-        "--use-icon-refinement",
+        "--use-ICON-refinement",
         action="store_true",
         default=False,
         help="Enable ICON registration refinement (default: disabled)",
@@ -258,7 +258,7 @@ Examples:
         print("\nStarting registration pipeline...")
         print("=" * 70)
         result = workflow.run_workflow(
-            use_icon_registration_refinement=args.use_icon_refinement,
+            use_ICON_registration_refinement=args.use_ICON_refinement,
         )
 
         # Save results

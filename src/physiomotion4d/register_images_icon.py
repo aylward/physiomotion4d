@@ -1,6 +1,6 @@
 """Icon-based image registration implementation.
 
-This module provides the RegisterImagesIcon class, a concrete implementation of
+This module provides the RegisterImagesICON class, a concrete implementation of
 RegisterImagesBase that uses the Icon (Inverse Consistent Image Registration)
 algorithm with deep learning models. It supports both masked and unmasked
 registration for aligning medical images, particularly useful for 4D cardiac CT registration.
@@ -10,9 +10,7 @@ deformable registration with mass preservation constraints.
 """
 
 import logging
-from collections.abc import Sequence
-from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import icon_registration as icon
 import icon_registration.itk_wrapper
@@ -348,6 +346,42 @@ class RegisterImagesICON(RegisterImagesBase):
             tensor, size=shape[2:], mode="trilinear", align_corners=False
         )
 
+    @staticmethod
+    def create_mask(labelmap: itk.Image, dilation_mm: float = 5.0) -> itk.Image:
+        """Create a binary registration mask from a labelmap.
+
+        Thresholds the labelmap at ``>0`` (so every non-zero label becomes
+        foreground) and dilates the result by ``dilation_mm`` millimeters of
+        physical radius.  The radius is converted into per-axis voxel counts
+        from the labelmap's spacing so the dilation is physically isotropic
+        even on anisotropic grids; each per-axis count is clamped to at least
+        1 voxel when ``dilation_mm > 0``.
+
+        Args:
+            labelmap: Multi-label or binary ``itk.Image``.  Any non-zero voxel
+                is treated as foreground.
+            dilation_mm: Physical radius of the binary dilation in
+                millimeters.  Pass ``0`` (or negative) to skip dilation and
+                return the raw ``>0`` mask.  Default 5.0 mm.
+
+        Returns:
+            ``itk.Image[itk.UC, 3]`` binary mask in the same physical space as
+            ``labelmap`` (origin, spacing, direction copied from the input).
+        """
+        arr = (itk.array_from_image(labelmap) > 0).astype(np.uint8)
+        mask = itk.image_from_array(arr)
+        mask.CopyInformation(labelmap)
+        if dilation_mm <= 0:
+            return mask
+        spacing = labelmap.GetSpacing()
+        radius = itk.Size[3]()
+        for i in range(3):
+            radius[i] = max(1, int(round(dilation_mm / float(spacing[i]))))
+        structuring_element = itk.FlatStructuringElement[3].Ball(radius)
+        return itk.binary_dilate_image_filter(
+            mask, kernel=structuring_element, foreground_value=1
+        )
+
     def _mask_to_resized_tensor(
         self, mask: itk.Image, shape: torch.Size
     ) -> torch.Tensor:
@@ -382,111 +416,3 @@ class RegisterImagesICON(RegisterImagesBase):
         arr = np.array(mask)
         tensor = torch.Tensor(arr).to(icon.config.device)[None, None]
         return F.interpolate(tensor, size=shape[2:], mode="nearest")
-
-    def finetune(
-        self,
-        image_pairs: Sequence[tuple[itk.Image, itk.Image]],
-        output_model_filename: str,
-        mask_pairs: Optional[Sequence[tuple[itk.Image, itk.Image]]] = None,
-        epochs: int = 1,
-        learning_rate: float = DEFAULT_FINETUNE_LEARNING_RATE,
-    ) -> dict[str, Any]:
-        """Fine-tune the ICON network on a cohort of image pairs.
-
-        Unlike ``register()``, this method *persistently* updates the in-memory
-        network weights and saves the resulting inner-network state_dict to
-        disk. The starting weights are whatever ``set_weights_path()`` was
-        configured to (default UniGradICON pretrained weights if never set).
-
-        This method intentionally does not call ``register()`` / the ICON
-        ``register_pair`` helpers, because those wrap their optimization in a
-        ``state_dict`` save/restore that discards any persistent weight
-        changes. Here the optimizer steps act directly on ``self.net`` and
-        are not undone.
-
-        Args:
-            image_pairs: Sequence of (fixed_image, moving_image) itk image
-                pairs to fine-tune on. Caller can build this from a list of
-                images with ``itertools.combinations(images, 2)``.
-            output_model_filename: Path where the fine-tuned inner-network
-                state_dict will be saved. Suitable for reloading via
-                ``set_weights_path()`` on a new RegisterImagesICON instance.
-            mask_pairs: Optional sequence of (fixed_mask, moving_mask) itk
-                image pairs, same length as ``image_pairs``. When provided,
-                ICON's masked-loss path is used for every pair.
-            epochs: Number of full passes over ``image_pairs``. Default 1.
-            learning_rate: Adam learning rate. Default matches
-                ``icon_registration``'s per-pair fine-tune rate.
-
-        Returns:
-            Dict with keys:
-                - ``output_model_filename``: str path of saved checkpoint
-                - ``losses``: list[float], one entry per (epoch, pair)
-                - ``epochs``: int
-                - ``number_of_pairs``: int
-
-        Raises:
-            ValueError: If ``image_pairs`` is empty or ``mask_pairs`` length
-                does not match ``image_pairs``.
-        """
-        if len(image_pairs) == 0:
-            raise ValueError("At least one image pair is required for finetune.")
-        if mask_pairs is not None and len(mask_pairs) != len(image_pairs):
-            raise ValueError("mask_pairs must match image_pairs length.")
-        if epochs < 1:
-            raise ValueError("epochs must be >= 1.")
-
-        self._ensure_net()
-        assert self.net is not None
-        self.net.to(icon.config.device)
-        self.net.train()
-
-        optimizer = torch.optim.Adam(self.net.parameters(), lr=learning_rate)
-        shape = self.net.identity_map.shape
-        losses: list[float] = []
-
-        for epoch_index in range(epochs):
-            for pair_index, (fixed_image, moving_image) in enumerate(image_pairs):
-                fixed_pre = self.preprocess(fixed_image, modality=self.modality)
-                moving_pre = self.preprocess(moving_image, modality=self.modality)
-
-                fixed_resized = self._image_to_resized_tensor(fixed_pre, shape)
-                moving_resized = self._image_to_resized_tensor(moving_pre, shape)
-
-                forward_kwargs: dict[str, torch.Tensor] = {}
-                if mask_pairs is not None:
-                    fixed_mask, moving_mask = mask_pairs[pair_index]
-                    forward_kwargs["mask_A"] = self._mask_to_resized_tensor(
-                        fixed_mask, shape
-                    )
-                    forward_kwargs["mask_B"] = self._mask_to_resized_tensor(
-                        moving_mask, shape
-                    )
-
-                optimizer.zero_grad()
-                loss_tuple = self.net(fixed_resized, moving_resized, **forward_kwargs)
-                loss = loss_tuple[0]
-                loss.backward()
-                optimizer.step()
-
-                loss_value = float(loss.detach().cpu().item())
-                losses.append(loss_value)
-                self.log_info(
-                    "finetune epoch %d pair %d/%d loss=%.6f",
-                    epoch_index,
-                    pair_index + 1,
-                    len(image_pairs),
-                    loss_value,
-                )
-
-        output_path = Path(output_model_filename)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(self.net.regis_net.state_dict(), output_path)
-        self.weights_path = str(output_path)
-
-        return {
-            "output_model_filename": str(output_path),
-            "losses": losses,
-            "epochs": epochs,
-            "number_of_pairs": len(image_pairs),
-        }

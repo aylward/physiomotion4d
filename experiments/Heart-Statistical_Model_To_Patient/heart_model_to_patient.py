@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # Perform deformable registration
     print("Starting deformable mask-to-mask registration...")
 
-    m2m_results = registrar.register_mask_to_mask(use_icon_refinement=False)
+    m2m_results = registrar.register_mask_to_mask(use_ICON_refinement=False)
     m2m_inverse_transform = m2m_results["inverse_transform"]
     m2m_forward_transform = m2m_results["forward_transform"]
     m2m_model_surface = m2m_results["registered_template_model_surface"]

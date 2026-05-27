@@ -40,7 +40,7 @@ By Category
 
 **Image Registration**
    * :class:`~physiomotion4d.RegisterImagesBase` - Base registration class
-   * :class:`~physiomotion4d.RegisterImagesANTs` - ANTs registration
+   * :class:`~physiomotion4d.RegisterImagesANTS` - ANTs registration
    * :class:`~physiomotion4d.RegisterImagesICON` - Icon deep learning registration
    * :class:`~physiomotion4d.RegisterTimeSeriesImages` - 4D time series registration
 

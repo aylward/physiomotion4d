@@ -37,7 +37,7 @@ Example:
     ...     reference_image=reference_image,
     ...     roi_dilation_mm=20,
     ... )
-    >>> result = registrar.register(mode='deformable', use_icon=True, icon_iterations=50)
+    >>> result = registrar.register(mode='deformable', use_ICON=True, icon_iterations=50)
     >>>
     >>> # Access results
     >>> aligned_model = result['registered_model']
@@ -53,7 +53,7 @@ from itk import TubeTK as ttk
 
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.transform_tools import TransformTools
 
@@ -84,8 +84,8 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         roi_dilation_mm (float): Dilation amount in mm for ROI mask
         transform_tools (TransformTools): Transform utility instance
         contour_tools (ContourTools): Model utility instance
-        registrar_ants (RegisterImagesANTs): ANTs registration instance
-        registrar_icon (RegisterImagesICON): ICON registration instance
+        registrar_ANTS (RegisterImagesANTS): ANTs registration instance
+        registrar_ICON (RegisterImagesICON): ICON registration instance
         forward_transform (itk.CompositeTransform): Optimized moving→fixed transform
         inverse_transform (itk.CompositeTransform): Optimized fixed→moving transform
         registered_model (pv.PolyData): Aligned moving model
@@ -107,7 +107,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         >>>
         >>> # Or run deformable with ICON refinement
         >>> result = registrar.register(
-        ...     mode='deformable', use_ants=False, use_icon=True, icon_iterations=50
+        ...     mode='deformable', use_ANTS=False, use_ICON=True, icon_iterations=50
         ... )
         >>>
         >>> # Get aligned model and transforms
@@ -150,10 +150,10 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         self.contour_tools = ContourTools()
 
         # Registration instances
-        self.registrar_ants = RegisterImagesANTs(log_level=log_level)
-        self.registrar_icon = RegisterImagesICON(log_level=log_level)
-        self.registrar_icon.set_modality("ct")
-        self.registrar_icon.set_multi_modality(False)
+        self.registrar_ANTS = RegisterImagesANTS(log_level=log_level)
+        self.registrar_ICON = RegisterImagesICON(log_level=log_level)
+        self.registrar_ICON.set_modality("ct")
+        self.registrar_ICON.set_multi_modality(False)
 
         # Generated masks (will be created during registration)
         self.fixed_mask_image: Optional[itk.Image] = None
@@ -225,7 +225,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
     def register(
         self,
         transform_type: str = "Deformable",
-        use_icon: bool = False,
+        use_ICON: bool = False,
         icon_iterations: int = 50,
     ) -> dict:
         """Perform mask-based registration of moving model to fixed model.
@@ -249,8 +249,8 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
         Args:
             transform_type: Registration transform type - 'None', 'Rigid', 'Affine', or 'Deformable'. Default: 'Deformable'
-            use_icon: Whether to apply ICON registration refinement after ANTs. Default: False
-            icon_iterations: Number of ICON optimization iterations if use_icon=True. Default: 50
+            use_ICON: Whether to apply ICON registration refinement after ANTs. Default: False
+            icon_iterations: Number of ICON optimization iterations if use_ICON=True. Default: 50
 
         Returns:
             Dictionary containing:
@@ -270,7 +270,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             >>>
             >>> # Deformable registration with ICON refinement
             >>> result = registrar.register(
-            ...     transform_type='Deformable', use_icon=True, icon_iterations=100
+            ...     transform_type='Deformable', use_ICON=True, icon_iterations=100
             ... )
         """
         if transform_type not in ["None", "Rigid", "Affine", "Deformable"]:
@@ -288,64 +288,64 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             transform_type,
         )
 
-        inverse_transform_ants = None
-        forward_transform_ants = None
+        inverse_transform_ANTS = None
+        forward_transform_ANTS = None
         if transform_type != "None":
-            self.registrar_ants.set_fixed_image(self.fixed_mask_image)
-            self.registrar_ants.set_fixed_mask(self.fixed_mask_roi_image)
+            self.registrar_ANTS.set_fixed_image(self.fixed_mask_image)
+            self.registrar_ANTS.set_fixed_mask(self.fixed_mask_roi_image)
 
-            self.registrar_ants.set_transform_type(transform_type)
-            self.registrar_ants.set_metric("MeanSquares")
+            self.registrar_ANTS.set_transform_type(transform_type)
+            self.registrar_ANTS.set_metric("MeanSquares")
 
-            result_ants = self.registrar_ants.register(
+            result_ANTS = self.registrar_ANTS.register(
                 moving_image=self.moving_mask_image,
                 moving_mask=self.moving_mask_roi_image,
             )
-            inverse_transform_ants = result_ants["inverse_transform"]
-            forward_transform_ants = result_ants["forward_transform"]
+            inverse_transform_ANTS = result_ANTS["inverse_transform"]
+            forward_transform_ANTS = result_ANTS["forward_transform"]
         else:
             identity_transform = itk.AffineTransform[itk.D, 3].New()
             identity_transform.SetIdentity()
-            inverse_transform_ants = identity_transform
-            forward_transform_ants = identity_transform
+            inverse_transform_ANTS = identity_transform
+            forward_transform_ANTS = identity_transform
 
         # Initialize composite transforms
-        self.forward_transform = forward_transform_ants
-        self.inverse_transform = inverse_transform_ants
+        self.forward_transform = forward_transform_ANTS
+        self.inverse_transform = inverse_transform_ANTS
 
         # Optional ICON refinement
-        if use_icon:
+        if use_ICON:
             self.log_info(
                 "Performing ICON refinement registration (%d iterations)...",
                 icon_iterations,
             )
 
             # Transform masks with ANTs result for ICON input
-            moving_mask_ants_transformed = self.transform_tools.transform_image(
+            moving_mask_ANTS_transformed = self.transform_tools.transform_image(
                 self.moving_mask_image,
-                forward_transform_ants,
+                forward_transform_ANTS,
                 self.reference_image,
                 interpolation_method="linear",
             )
 
             # Configure ICON
-            self.registrar_icon.set_number_of_iterations(icon_iterations)
-            self.registrar_icon.set_fixed_image(self.fixed_mask_image)
-            self.registrar_icon.set_fixed_mask(self.fixed_mask_roi_image)
+            self.registrar_ICON.set_number_of_iterations(icon_iterations)
+            self.registrar_ICON.set_fixed_image(self.fixed_mask_image)
+            self.registrar_ICON.set_fixed_mask(self.fixed_mask_roi_image)
 
             # ICON registration
-            result_icon = self.registrar_icon.register(
-                moving_image=moving_mask_ants_transformed,
+            result_ICON = self.registrar_ICON.register(
+                moving_image=moving_mask_ANTS_transformed,
                 moving_mask=self.moving_mask_roi_image,
             )
-            inverse_transform_icon = result_icon["inverse_transform"]
-            forward_transform_icon = result_icon["forward_transform"]
+            inverse_transform_ICON = result_ICON["inverse_transform"]
+            forward_transform_ICON = result_ICON["forward_transform"]
 
             # Compose ANTs and ICON transforms
             composed_forward = (
                 self.transform_tools.combine_displacement_field_transforms(
-                    forward_transform_ants,
-                    forward_transform_icon,
+                    forward_transform_ANTS,
+                    forward_transform_ICON,
                     reference_image=self.reference_image,
                     mode="compose",
                 )
@@ -353,8 +353,8 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
             composed_inverse = (
                 self.transform_tools.combine_displacement_field_transforms(
-                    inverse_transform_icon,
-                    inverse_transform_ants,
+                    inverse_transform_ICON,
+                    inverse_transform_ANTS,
                     reference_image=self.reference_image,
                     mode="compose",
                 )

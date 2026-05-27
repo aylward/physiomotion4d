@@ -32,6 +32,7 @@ network_weights
 *.gz
 *.mat
 *.mhd
+*.raw
 *.zip
 *.nii
 *.tfm

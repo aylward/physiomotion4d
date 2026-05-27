@@ -43,10 +43,11 @@ from .data_download_tools import DataDownloadTools
 
 # Utility classes
 from .image_tools import ImageTools
+from .landmark_tools import LandmarkTools
 
 # Base classes
 from .physiomotion4d_base import PhysioMotion4DBase
-from .register_images_ants import RegisterImagesANTs
+from .register_images_ants import RegisterImagesANTS
 from .register_images_greedy import RegisterImagesGreedy
 
 # Registration classes
@@ -73,6 +74,7 @@ from .workflow_convert_image_to_usd import WorkflowConvertImageToUSD
 from .workflow_convert_vtk_to_usd import WorkflowConvertVTKToUSD
 from .workflow_reconstruct_highres_4d_ct import WorkflowReconstructHighres4DCT
 from .workflow_create_statistical_model import WorkflowCreateStatisticalModel
+from .workflow_fine_tune_icon_registration import WorkflowFineTuneICONRegistration
 from .workflow_fit_statistical_model_to_patient import (
     WorkflowFitStatisticalModelToPatient,
 )
@@ -83,6 +85,7 @@ __all__ = [
     "WorkflowConvertImageToUSD",
     "WorkflowConvertVTKToUSD",
     "WorkflowCreateStatisticalModel",
+    "WorkflowFineTuneICONRegistration",
     "WorkflowReconstructHighres4DCT",
     "WorkflowFitStatisticalModelToPatient",
     # Segmentation classes
@@ -92,7 +95,7 @@ __all__ = [
     # Registration classes
     "RegisterImagesBase",
     "RegisterImagesICON",
-    "RegisterImagesANTs",
+    "RegisterImagesANTS",
     "RegisterImagesGreedy",
     "RegisterTimeSeriesImages",
     "RegisterModelsPCA",
@@ -103,6 +106,7 @@ __all__ = [
     "PhysioMotion4DBase",
     # Utility classes
     "ImageTools",
+    "LandmarkTools",
     "TestTools",
     "TransformTools",
     "USDTools",

@@ -275,17 +275,18 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
             sz = sz[::-1]
             labelmap_array = np.zeros(sz, dtype=np.uint8)
             interior_array = np.zeros(sz, dtype=np.uint8)
+            mask_image = None
             for mask_id, mask_name in self.taxonomy.all_labels().items():
                 output_file = os.path.join(tmp_dir, f"mask_{mask_name}.mhd")
                 if os.path.exists(output_file):
                     mask_image = itk.imread(output_file)
                     mask_array = itk.GetArrayFromImage(mask_image).astype(np.uint8)
+                    tmp_array = (mask_array > 128).astype(np.uint8)
                     if mask_id in mask_ids_of_interior_regions:
-                        tmp_array = (mask_array > 128).astype(np.uint8)
                         interior_array = np.where(
                             interior_array == 0, tmp_array, interior_array
                         )
-                    mask_array = (mask_array > 128) * mask_id
+                    mask_array = tmp_array * mask_id
                     labelmap_array = np.where(
                         labelmap_array == 0, mask_array, labelmap_array
                     )
@@ -314,6 +315,7 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
                     landmarks_file,
                 )
 
+            # Dilate the interior regions to simulate 3mm myocardium (heart)
             interior_image = itk.GetImageFromArray(interior_array.astype(np.uint8))
             interior_image.CopyInformation(preprocessed_image)
             imMath = tube.ImageMath.New(interior_image)
@@ -334,6 +336,50 @@ class SegmentHeartSimpleware(SegmentAnatomyBase):
                     "files found or all masks are empty. Check Simpleware logs above and "
                     "ensure the ASCardio module ran successfully."
                 )
+
+            if mask_image is not None:
+                in_direction = np.array(preprocessed_image.GetDirection())
+                out_direction = np.array(mask_image.GetDirection())
+                flip = [False, False, False]
+                for i in range(3):
+                    if np.sign(out_direction[i, i]) != np.sign(in_direction[i, i]):
+                        self.log_info(f"Flipping labelmap array along {i}-axis")
+                        labelmap_array = np.flip(labelmap_array, axis=(2 - i))
+                        flip[i] = True
+                origin = np.array(mask_image.GetOrigin())
+                edge = np.array(
+                    mask_image.TransformIndexToPhysicalPoint(
+                        mask_image.GetLargestPossibleRegion().GetSize()
+                    )
+                )
+                self.log_debug(f"Origin {origin} Edge {edge}")
+                point = np.zeros(3)
+                for landmark_name, landmark_position in self.landmarks.items():
+                    for i in range(3):
+                        point[i] = landmark_position[i]
+
+                    self.log_debug(f"{landmark_name} {point}")
+                    for i in range(3):
+                        if in_direction[i, i] < 0:
+                            self.log_debug(
+                                f"   Flipping {i} from {point[i]} "
+                                f"with edge {edge[i]} and origin {origin[i]}"
+                            )
+                            if i < 2:
+                                point[i] = -origin[i] + (-origin[i] - point[i])
+                            else:
+                                point[i] = edge[i] - (point[i] - origin[i])
+                        elif i < 2:
+                            point[i] = -point[i]
+                    self.log_debug(f"   New point {point}")
+                    # convert ras to lps as used by this project
+                    point[0] = -point[0]
+                    point[1] = -point[1]
+                    self.landmarks[landmark_name] = (
+                        float(point[0]),
+                        float(point[1]),
+                        float(point[2]),
+                    )
 
             labelmap_image = itk.GetImageFromArray(labelmap_array.astype(np.uint8))
             labelmap_image.CopyInformation(preprocessed_image)

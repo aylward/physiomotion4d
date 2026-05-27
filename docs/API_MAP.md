@@ -28,14 +28,9 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## experiments/LongitudinalRegistration/0-cardiacGatedCT_segment_and_landmark.py
 
-- `def segment_images(src_data_dirs, src_data_files)` (line 63): Segment each image with SegmentHeartSimpleware and save labelmaps.
+- `def segment_images(src_data_dirs, src_data_files)` (line 64): Segment each image with SegmentHeartSimpleware and save labelmaps.
 
-## experiments/LongitudinalRegistration/1-finetune_icon.py
-
-- `def get_segmented_images(src_data_dirs, src_data_files)` (line 81): Segment each image with SegmentHeartSimpleware and save labelmaps.
-- `def get_mask_images(src_data_dirs, src_data_files)` (line 117): Get mask images for each image.
-
-## experiments/LongitudinalRegistration/2-run_registration_comparison.py
+## experiments/LongitudinalRegistration/3-run_registration_method_comparison.py
 
 - **class MethodSpec** (line 49): Registration method plus optional ICON checkpoint.
 - **class ImageArtifacts** (line 58): Input files associated with one image volume.
@@ -61,31 +56,7 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def parse_iterations(value)` (line 561): Parse comma-separated multi-resolution iteration counts.
 - `def main()` (line 566): Run the longitudinal registration comparison experiment.
 
-## experiments/LongitudinalRegistration/recon_4d_icon_eval.py
-
-- **class MethodSpec** (line 67): Output label and optional ICON checkpoint for one registration run.
-- **class TimepointArtifacts** (line 75): File paths for one gated time-point: image, labelmap, landmarks.
-- `def nii_stem(path)` (line 84): Return the stem of a ``.nii.gz`` (or single-suffix) file.
-- `def timepoint_from_name(path)` (line 91): Extract the gated time-point tag (``g###``) from a filename.
-- `def select_reference_index(num_frames, percentile)` (line 99): Return the frame index closest to ``percentile`` of the series.
-- `def discover_subject(subject_id, timepoint_base_dir, segmentation_base_dir, exclude_tokens)` (line 108): Discover gated images plus their labelmap and landmark companions.
-- `def discover_subject_ids(timepoint_base_dir, segmentation_base_dir)` (line 149): Return subject IDs that have both gated and segmentation directories.
-- `def read_landmarks(path)` (line 166): Read physical LPS landmarks from a ``Name,X,Y,Z`` CSV file.
-- `def write_landmarks(path, landmarks)` (line 179): Write physical LPS landmarks to a ``Name,X,Y,Z`` CSV file.
-- `def transform_landmarks(landmarks, transform)` (line 189): Apply an ITK physical-space transform to landmark coordinates.
-- `def landmark_errors(source, target)` (line 202): Return per-landmark Euclidean errors in millimeters.
-- `def summarize_errors(errors, prefix)` (line 212): Summarize landmark errors for one comparison mode.
-- `def dice_by_label(labelmap_a, labelmap_b)` (line 230): Compute Dice for every non-zero label present in either 3D labelmap.
-- `def summarize_dice(scores)` (line 249): Summarize per-label Dice scores into mean and minimum.
-- `def write_error_details(path, subject_id, method_name, timepoint, mode, errors)` (line 261): Append per-landmark errors to the long-form detail CSV.
-- `def read_error_details(path)` (line 290): Read the long-form per-landmark error CSV.
-- `def print_summary_table(detail_file)` (line 299): Print a high-level table comparing methods for each landmark mode.
-- `def write_summary(path, rows)` (line 366): Write the wide-form summary CSV.
-- `def mask_from_labelmap(labelmap)` (line 378): Return a uint8 binary mask covering the non-zero labels.
-- `def run_method_for_subject(subject_id, timepoint_artifacts, reference_index, method_spec, output_dir, icon_iterations, run_resegmentation, error_detail_file)` (line 386): Run one ICON method for one subject and return per-timepoint rows.
-- `def main()` (line 544): Run the ICON default-vs-finetuned comparison experiment.
-
-## experiments/LongitudinalRegistration/recon_4d_run.py
+## experiments/LongitudinalRegistration/experiment_recon_4d.py
 
 - `def register_time_series(reference_image_file, source_image_dir, source_image_files, registration_method)` (line 75)
 
@@ -439,6 +410,27 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 - `def register_slices(reg_tool, reg_tool_name, fixed_image, images, files_indx, reference_image_num, reference_image_reg_use_identity, portion_of_prior_to_use=0.0)` (line 62)
 
+## results/icon_finetuned/icon_finetuned_model/finetune.py
+
+- `def loss_to_dict(loss_object)` (line 33)
+- `def augment(batch)` (line 50): Apply random affine augmentation to all spatial data in a batch dict.
+- `def finetune_multi(config, data_loader, val_data_loaders_dict, data_fields)` (line 304): Unified finetuning loop.
+- `def main(argv=None)` (line 432)
+
+## results/results/icon_finetuned/icon_finetuned_model/finetune.py
+
+- `def loss_to_dict(loss_object)` (line 33)
+- `def augment(batch)` (line 50): Apply random affine augmentation to all spatial data in a batch dict.
+- `def finetune_multi(config, data_loader, val_data_loaders_dict, data_fields)` (line 304): Unified finetuning loop.
+- `def main(argv=None)` (line 432)
+
+## results/results/icon_finetuned/icon_finetuned_model-1/finetune.py
+
+- `def loss_to_dict(loss_object)` (line 33)
+- `def augment(batch)` (line 50): Apply random affine augmentation to all spatial data in a batch dict.
+- `def finetune_multi(config, data_loader, val_data_loaders_dict, data_fields)` (line 304): Unified finetuning loop.
+- `def main(argv=None)` (line 432)
+
 ## src/physiomotion4d/anatomy_taxonomy.py
 
 - **class AnatomyGroup** (line 26): One named anatomy group together with the organ labels it contains.
@@ -542,6 +534,15 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def convert_array_to_image_of_vectors(self, arr_data, reference_image, ptype=itk.D)` (line 218): Convert a numpy array to an ITK image of vector type.
   - `def flip_image(self, in_image, in_mask=None, flip_x=False, flip_y=False, flip_z=False, flip_and_make_identity=False)` (line 249): Flip the image and mask.
 
+## src/physiomotion4d/landmark_tools.py
+
+- **class LandmarkTools** (line 28): Read and write anatomical landmarks in LPS world coordinates.
+  - `def __init__(self, log_level=logging.INFO)` (line 51): Initialize the LandmarkTools class.
+  - `def read_landmarks_3dslicer(self, path)` (line 59): Read landmarks from a 3D Slicer Markups JSON (``.mrk.json``) file.
+  - `def write_landmarks_3dslicer(self, landmarks, path)` (line 112): Write landmarks to a 3D Slicer Markups JSON file in LPS.
+  - `def read_landmarks_csv(self, path)` (line 148): Read landmarks from a CSV file with header ``Name,x,y,z`` (LPS).
+  - `def write_landmarks_csv(self, landmarks, path)` (line 192): Write landmarks to a CSV file with header ``Name,x,y,z`` (LPS).
+
 ## src/physiomotion4d/physiomotion4d_base.py
 
 - **class ClassNameFilter** (line 38): Filter to show logs only from specific class names.
@@ -563,13 +564,13 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/register_images_ants.py
 
-- **class RegisterImagesANTs** (line 24): ANTs-based deformable image registration implementation.
+- **class RegisterImagesANTS** (line 24): ANTs-based deformable image registration implementation.
   - `def __init__(self, log_level=logging.INFO)` (line 70): Initialize the ANTs image registration class.
   - `def set_number_of_iterations(self, number_of_iterations)` (line 85): Set the number of iterations for ANTs registration.
   - `def set_transform_type(self, transform_type)` (line 94): Set the type of transform to use for registration.
   - `def set_metric(self, metric)` (line 106): Set the similarity metric to use for registration.
-  - `def itk_affine_transform_to_ants_transform(self, itk_tfm)` (line 316): Convert ITK affine/rigid transform to ANTs affine transform.
-  - `def itk_transform_to_antsfile(self, itk_tfm, reference_image, output_filename)` (line 409): Convert ITK transform to ANTs transform file.
+  - `def itk_affine_transform_to_ANTS_transform(self, itk_tfm)` (line 316): Convert ITK affine/rigid transform to ANTs affine transform.
+  - `def itk_transform_to_ANTSfile(self, itk_tfm, reference_image, output_filename)` (line 409): Convert ITK transform to ANTs transform file.
   - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 509): Register moving image to fixed image using ANTs registration algorithm.
 
 ## src/physiomotion4d/register_images_base.py
@@ -597,21 +598,21 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## src/physiomotion4d/register_images_icon.py
 
-- **class RegisterImagesICON** (line 32): ICON-based deformable image registration implementation.
-  - `def __init__(self, log_level=logging.INFO)` (line 68): Initialize the ICON image registration class.
-  - `def set_weights_path(self, weights_path)` (line 86): Set a custom weights file for the uniGradICON network.
-  - `def set_number_of_iterations(self, number_of_iterations)` (line 100): Set the number of iterations for ICON registration.
-  - `def set_multi_modality(self, enable)` (line 108): Enable or disable multi-modality registration.
-  - `def set_mass_preservation(self, enable)` (line 125): Enable or disable mass preservation constraint.
-  - `def preprocess(self, image, modality='ct')` (line 142): Preprocess the image for ICON registration.
-  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 162): Register moving image to fixed image using ICON registration algorithm.
-  - `def finetune(self, image_pairs, output_model_filename, mask_pairs=None, epochs=1, learning_rate=DEFAULT_FINETUNE_LEARNING_RATE)` (line 386): Fine-tune the ICON network on a cohort of image pairs.
+- **class RegisterImagesICON** (line 30): ICON-based deformable image registration implementation.
+  - `def __init__(self, log_level=logging.INFO)` (line 66): Initialize the ICON image registration class.
+  - `def set_weights_path(self, weights_path)` (line 84): Set a custom weights file for the uniGradICON network.
+  - `def set_number_of_iterations(self, number_of_iterations)` (line 98): Set the number of iterations for ICON registration.
+  - `def set_multi_modality(self, enable)` (line 106): Enable or disable multi-modality registration.
+  - `def set_mass_preservation(self, enable)` (line 123): Enable or disable mass preservation constraint.
+  - `def preprocess(self, image, modality='ct')` (line 140): Preprocess the image for ICON registration.
+  - `def registration_method(self, moving_image, moving_mask=None, moving_labelmap=None, moving_image_pre=None, initial_forward_transform=None)` (line 160): Register moving image to fixed image using ICON registration algorithm.
+  - `def create_mask(labelmap, dilation_mm=5.0)` (line 350): Create a binary registration mask from a labelmap.
 
 ## src/physiomotion4d/register_models_distance_maps.py
 
 - **class RegisterModelsDistanceMaps** (line 61): Register anatomical models using mask-based deformable registration.
   - `def __init__(self, moving_model, fixed_model, reference_image, roi_dilation_mm=20, log_level=logging.INFO)` (line 118): Initialize mask-based model registration.
-  - `def register(self, transform_type='Deformable', use_icon=False, icon_iterations=50)` (line 225): Perform mask-based registration of moving model to fixed model.
+  - `def register(self, transform_type='Deformable', use_ICON=False, icon_iterations=50)` (line 225): Perform mask-based registration of moving model to fixed model.
 
 ## src/physiomotion4d/register_models_icp.py
 
@@ -644,9 +645,9 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 ## src/physiomotion4d/register_time_series_images.py
 
 - **class RegisterTimeSeriesImages** (line 31): Register a time series of images to a fixed image.
-  - `def __init__(self, registration_method='ants', log_level=logging.INFO)` (line 90): Initialize the time series image registration class.
-  - `def set_number_of_iterations_ants(self, number_of_iterations_ants)` (line 127): Set the number of iterations for ANTs registration.
-  - `def set_number_of_iterations_icon(self, number_of_iterations_icon)` (line 138): Set the number of iterations for ICON registration.
+  - `def __init__(self, registration_method='ANTS', log_level=logging.INFO)` (line 90): Initialize the time series image registration class.
+  - `def set_number_of_iterations_ANTS(self, number_of_iterations_ANTS)` (line 127): Set the number of iterations for ANTs registration.
+  - `def set_number_of_iterations_ICON(self, number_of_iterations_ICON)` (line 138): Set the number of iterations for ICON registration.
   - `def set_number_of_iterations_greedy(self, number_of_iterations_greedy)` (line 146): Set the number of iterations for Greedy registration.
   - `def set_smooth_prior_transform_sigma(self, smooth_prior_transform_sigma)` (line 157): Set the sigma for smoothing the prior transform.
   - `def set_mask_dilation(self, mask_dilation_mm)` (line 167): Set the dilation of the fixed and moving image masks.
@@ -685,8 +686,8 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_trim_branches(self, trim_branches)` (line 118): Enable trimming of pulmonary and great-vessel branches.
   - `def set_simpleware_executable_path(self, path)` (line 133): Set the path to the Simpleware Medical console executable.
   - `def segmentation_method(self, preprocessed_image)` (line 146): Run Simpleware Medical ASCardio segmentation on the preprocessed image.
-  - `def get_landmarks(self)` (line 346): Get the landmarks.
-  - `def trim_branches(self, labelmap_image)` (line 350): Trim pulmonary and great-vessel branches back to the cardiac region.
+  - `def get_landmarks(self)` (line 392): Get the landmarks.
+  - `def trim_branches(self, labelmap_image)` (line 396): Trim pulmonary and great-vessel branches back to the cardiac region.
 
 ## src/physiomotion4d/test_tools.py
 
@@ -852,6 +853,18 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_pca_number_of_components(self, n)` (line 103): Set number of PCA components to retain.
   - `def run_workflow(self)` (line 313): Run the full pipeline and return a dictionary of results (no file I/O).
 
+## src/physiomotion4d/workflow_fine_tune_icon_registration.py
+
+- **class WorkflowFineTuneICONRegistration** (line 53): Fine-tune uniGradICON on paired 3D images and apply the fine-tuned weights.
+  - `def __init__(self, subject_image_files, output_dir, fine_tune_name, subject_ids=None, subject_segmentation_files=None, subject_mask_files=None, subject_landmark_files=None, epochs=2000, batch_size=4, learning_rate=5e-05, input_shape=(175, 175, 175), similarity='lncc', lambda_value=1.5, dice_loss_weight=0.5, lncc_sigma=5, ct_window=(-1000.0, 1000.0), is_ct=True, gpus=None, eval_period=10, save_period=50, mask_dilation_mm=5.0, mask_dir=None, unigradicon_src_path=None, log_level=logging.INFO)` (line 135): Initialize the ICON fine-tuning workflow.
+  - `def uses_segmentations(self)` (line 313): Whether at least one segmentation file is supplied for training.
+  - `def uses_masks(self)` (line 321): Whether the dataset will have a ``mask`` field on every kept entry.
+  - `def prepare_dataset(self)` (line 387): Write the uniGradICON dataset JSON from the configured file lists.
+  - `def prepare_config(self, dataset_json_path=None)` (line 492): Write the uniGradICON fine-tuning YAML config.
+  - `def expected_weights_path(self)` (line 557): Return the path uniGradICON writes its final checkpoint to.
+  - `def run_fine_tuning(self)` (line 572): Build configs and launch ``unigradicon.finetuning.finetune``.
+  - `def apply_registration(self, reference_image, moving_images, weights_path=None, reference_segmentation=None, reference_landmarks=None, moving_segmentations=None, moving_landmarks=None, number_of_iterations=20, modality='ct')` (line 629): Register each moving image to the reference using fine-tuned ICON weights.
+
 ## src/physiomotion4d/workflow_fit_statistical_model_to_patient.py
 
 - **class WorkflowFitStatisticalModelToPatient** (line 56): Register anatomical models using multi-stage ICP, mask-based, and image-based
@@ -863,17 +876,17 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def set_use_mask_to_image_registration(self, use_mask_to_image_registration, template_labelmap=None, template_labelmap_organ_mesh_ids=None, template_labelmap_organ_extra_ids=None, template_labelmap_background_ids=None)` (line 427): Set whether to use mask-to-image registration.
   - `def register_model_to_model_icp(self)` (line 501): Perform ICP alignment of template model to patient model.
   - `def register_model_to_model_pca(self)` (line 559): Perform PCA-based registration after ICP alignment.
-  - `def register_mask_to_mask(self, use_icon_refinement=False)` (line 685): Perform mask-based deformable registration of model to patient model.
-  - `def register_labelmap_to_image(self, use_icon_refinement=False)` (line 753): Perform labelmap-to-image refinement.
+  - `def register_mask_to_mask(self, use_ICON_refinement=False)` (line 685): Perform mask-based deformable registration of model to patient model.
+  - `def register_labelmap_to_image(self, use_ICON_refinement=False)` (line 753): Perform labelmap-to-image refinement.
   - `def transform_model(self, base_model=None)` (line 873): Apply registration transforms to the model.
-  - `def run_workflow(self, use_icon_registration_refinement=False)` (line 938): Execute the complete multi-stage registration workflow.
+  - `def run_workflow(self, use_ICON_registration_refinement=False)` (line 938): Execute the complete multi-stage registration workflow.
 
 ## src/physiomotion4d/workflow_reconstruct_highres_4d_ct.py
 
 - **class WorkflowReconstructHighres4DCT** (line 35): Reconstruct high-resolution 4D CT from time series and reference image.
-  - `def __init__(self, time_series_images, fixed_image, reference_frame=0, register_reference=False, registration_method='ants_icon', log_level=logging.INFO)` (line 92): Initialize the high-resolution 4D CT reconstruction workflow.
-  - `def set_number_of_iterations_ants(self, number_of_iterations_ants)` (line 174): Set the number of iterations for ANTs registration.
-  - `def set_number_of_iterations_icon(self, number_of_iterations_icon)` (line 185): Set the number of iterations for ICON registration.
+  - `def __init__(self, time_series_images, fixed_image, reference_frame=0, register_reference=False, registration_method='ANTS_ICON', log_level=logging.INFO)` (line 92): Initialize the high-resolution 4D CT reconstruction workflow.
+  - `def set_number_of_iterations_ANTS(self, number_of_iterations_ANTS)` (line 174): Set the number of iterations for ANTs registration.
+  - `def set_number_of_iterations_ICON(self, number_of_iterations_ICON)` (line 185): Set the number of iterations for ICON registration.
   - `def set_prior_weight(self, prior_weight)` (line 193): Set the weight for temporal smoothing with prior transforms.
   - `def set_modality(self, modality)` (line 209): Set the imaging modality for registration optimization.
   - `def set_mask_dilation(self, mask_dilation_mm)` (line 217): Set the dilation of the fixed and moving image masks.
@@ -894,13 +907,13 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 - `def download_test_data(test_directories)` (line 425): Download Slicer-Heart-CT data.
 - `def test_images(download_test_data, test_directories)` (line 452): Convert and resample 4D NRRD data; return pre-resampled time points.
 - `def test_labelmaps(segmenter_total_segmentator, test_images, test_directories)` (line 505): Segment each time point with TotalSegmentator and return result dicts.
-- `def test_transforms(registrar_ants, test_images, test_directories)` (line 546): Perform ANTs registration and return results.
+- `def test_transforms(registrar_ANTS, test_images, test_directories)` (line 546): Perform ANTs registration and return results.
 - `def segmenter_total_segmentator()` (line 601): Create a SegmentChestTotalSegmentator instance.
 - `def segmenter_simpleware()` (line 607): Create a SegmentHeartSimpleware instance.
 - `def contour_tools()` (line 613): Create a ContourTools instance.
-- `def registrar_ants()` (line 619): Create a RegisterImagesANTs instance.
+- `def registrar_ANTS()` (line 619): Create a RegisterImagesANTS instance.
 - `def registrar_greedy()` (line 625): Create a RegisterImagesGreedy instance.
-- `def registrar_icon()` (line 631): Create a RegisterImagesICON instance.
+- `def registrar_ICON()` (line 631): Create a RegisterImagesICON instance.
 - `def transform_tools()` (line 637): Create a TransformTools instance.
 
 ## tests/test_anatomy_taxonomy.py
@@ -1028,23 +1041,23 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 
 ## tests/test_register_images_ants.py
 
-- **class TestRegisterImagesANTs** (line 24): Test suite for ANTs-based image registration.
-  - `def test_registrar_initialization(self, registrar_ants)` (line 27): Test that RegisterImagesANTs initializes correctly.
-  - `def test_set_modality(self, registrar_ants)` (line 35): Test setting imaging modality.
-  - `def test_set_fixed_image(self, registrar_ants, test_images)` (line 45): Test setting fixed image.
-  - `def test_register_without_mask(self, registrar_ants, test_images, test_directories)` (line 58): Test basic registration without masks.
-  - `def test_register_with_mask(self, registrar_ants, test_images, test_directories)` (line 112): Test registration with binary masks.
-  - `def test_transform_application(self, registrar_ants, test_images, test_directories)` (line 205): Test applying registration transforms to images.
-  - `def test_preprocess_images(self, registrar_ants, test_images)` (line 259): Test image preprocessing.
-  - `def test_registration_with_initial_transform(self, registrar_ants, test_images, test_directories)` (line 277): Test registration with initial transform.
-  - `def test_multiple_registrations(self, registrar_ants, test_images)` (line 312): Test running multiple registrations in sequence.
-  - `def test_transform_types(self, registrar_ants, test_images)` (line 340): Test that transforms are correct ITK types.
-  - `def test_image_conversion_cycle_scalar(self, registrar_ants, test_images)` (line 368): Test round-trip conversion: ITK image -> ANTs -> ITK for scalar images.
-  - `def test_image_conversion_cycle_different_dtypes(self, registrar_ants, test_images)` (line 444): Test round-trip conversion with different data types.
-  - `def test_image_conversion_preserves_metadata(self, registrar_ants)` (line 476): Test that image conversion preserves all metadata.
-  - `def test_transform_conversion_cycle_affine(self, registrar_ants, test_images)` (line 523): Test round-trip conversion: ITK affine transform -> ANTs -> ITK.
-  - `def test_transform_conversion_cycle_displacement_field(self, registrar_ants, test_images)` (line 629): Test round-trip conversion: ITK displacement field -> ANTs -> ITK.
-  - `def test_transform_conversion_with_composite(self, registrar_ants, test_images)` (line 713): Test conversion of composite transforms.
+- **class TestRegisterImagesANTS** (line 24): Test suite for ANTs-based image registration.
+  - `def test_registrar_initialization(self, registrar_ANTS)` (line 27): Test that RegisterImagesANTS initializes correctly.
+  - `def test_set_modality(self, registrar_ANTS)` (line 35): Test setting imaging modality.
+  - `def test_set_fixed_image(self, registrar_ANTS, test_images)` (line 45): Test setting fixed image.
+  - `def test_register_without_mask(self, registrar_ANTS, test_images, test_directories)` (line 58): Test basic registration without masks.
+  - `def test_register_with_mask(self, registrar_ANTS, test_images, test_directories)` (line 112): Test registration with binary masks.
+  - `def test_transform_application(self, registrar_ANTS, test_images, test_directories)` (line 205): Test applying registration transforms to images.
+  - `def test_preprocess_images(self, registrar_ANTS, test_images)` (line 259): Test image preprocessing.
+  - `def test_registration_with_initial_transform(self, registrar_ANTS, test_images, test_directories)` (line 277): Test registration with initial transform.
+  - `def test_multiple_registrations(self, registrar_ANTS, test_images)` (line 312): Test running multiple registrations in sequence.
+  - `def test_transform_types(self, registrar_ANTS, test_images)` (line 340): Test that transforms are correct ITK types.
+  - `def test_image_conversion_cycle_scalar(self, registrar_ANTS, test_images)` (line 368): Test round-trip conversion: ITK image -> ANTs -> ITK for scalar images.
+  - `def test_image_conversion_cycle_different_dtypes(self, registrar_ANTS, test_images)` (line 444): Test round-trip conversion with different data types.
+  - `def test_image_conversion_preserves_metadata(self, registrar_ANTS)` (line 476): Test that image conversion preserves all metadata.
+  - `def test_transform_conversion_cycle_affine(self, registrar_ANTS, test_images)` (line 523): Test round-trip conversion: ITK affine transform -> ANTs -> ITK.
+  - `def test_transform_conversion_cycle_displacement_field(self, registrar_ANTS, test_images)` (line 629): Test round-trip conversion: ITK displacement field -> ANTs -> ITK.
+  - `def test_transform_conversion_with_composite(self, registrar_ANTS, test_images)` (line 713): Test conversion of composite transforms.
 
 ## tests/test_register_images_greedy.py
 
@@ -1060,20 +1073,20 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 ## tests/test_register_images_icon.py
 
 - **class TestRegisterImagesICON** (line 23): Test suite for ICON-based image registration.
-  - `def test_registrar_initialization(self, registrar_icon)` (line 26): Test that RegisterImagesICON initializes correctly.
-  - `def test_set_modality(self, registrar_icon)` (line 39): Test setting imaging modality.
-  - `def test_set_number_of_iterations(self, registrar_icon)` (line 49): Test setting number of iterations.
-  - `def test_set_fixed_image(self, registrar_icon, test_images)` (line 61): Test setting fixed image.
-  - `def test_set_mass_preservation(self, registrar_icon)` (line 74): Test setting mass preservation flag.
-  - `def test_set_multi_modality(self, registrar_icon)` (line 86): Test setting multi-modality flag.
-  - `def test_register_without_mask(self, registrar_icon, test_images, test_directories)` (line 96): Test basic ICON registration without masks.
-  - `def test_register_with_mask(self, registrar_icon, test_images, test_directories)` (line 151): Test ICON registration with binary masks.
-  - `def test_transform_application(self, registrar_icon, test_images, test_directories)` (line 245): Test applying ICON registration transforms to images.
-  - `def test_inverse_consistency(self, registrar_icon, test_images)` (line 299): Test ICON's inverse consistency property.
-  - `def test_preprocess_images(self, registrar_icon, test_images)` (line 345): Test image preprocessing for ICON.
-  - `def test_registration_with_initial_transform(self, registrar_icon, test_images, test_directories)` (line 363): Test ICON registration with initial transform.
-  - `def test_transform_types(self, registrar_icon, test_images)` (line 399): Test that ICON transforms are correct ITK types.
-  - `def test_different_iteration_counts(self, registrar_icon, test_images)` (line 440): Test ICON with different iteration counts.
+  - `def test_registrar_initialization(self, registrar_ICON)` (line 26): Test that RegisterImagesICON initializes correctly.
+  - `def test_set_modality(self, registrar_ICON)` (line 39): Test setting imaging modality.
+  - `def test_set_number_of_iterations(self, registrar_ICON)` (line 49): Test setting number of iterations.
+  - `def test_set_fixed_image(self, registrar_ICON, test_images)` (line 61): Test setting fixed image.
+  - `def test_set_mass_preservation(self, registrar_ICON)` (line 74): Test setting mass preservation flag.
+  - `def test_set_multi_modality(self, registrar_ICON)` (line 86): Test setting multi-modality flag.
+  - `def test_register_without_mask(self, registrar_ICON, test_images, test_directories)` (line 96): Test basic ICON registration without masks.
+  - `def test_register_with_mask(self, registrar_ICON, test_images, test_directories)` (line 151): Test ICON registration with binary masks.
+  - `def test_transform_application(self, registrar_ICON, test_images, test_directories)` (line 245): Test applying ICON registration transforms to images.
+  - `def test_inverse_consistency(self, registrar_ICON, test_images)` (line 299): Test ICON's inverse consistency property.
+  - `def test_preprocess_images(self, registrar_ICON, test_images)` (line 345): Test image preprocessing for ICON.
+  - `def test_registration_with_initial_transform(self, registrar_ICON, test_images, test_directories)` (line 363): Test ICON registration with initial transform.
+  - `def test_transform_types(self, registrar_ICON, test_images)` (line 399): Test that ICON transforms are correct ITK types.
+  - `def test_different_iteration_counts(self, registrar_ICON, test_images)` (line 440): Test ICON with different iteration counts.
 
 ## tests/test_register_models_pca.py
 
@@ -1084,8 +1097,8 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 ## tests/test_register_time_series_images.py
 
 - **class TestRegisterTimeSeriesImages** (line 24): Test suite for time series image registration.
-  - `def test_registrar_initialization_ants(self)` (line 29): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
-  - `def test_registrar_initialization_icon(self)` (line 43): Test that RegisterTimeSeriesImages initializes correctly with ICON.
+  - `def test_registrar_initialization_ANTS(self)` (line 29): Test that RegisterTimeSeriesImages initializes correctly with ANTs.
+  - `def test_registrar_initialization_ICON(self)` (line 43): Test that RegisterTimeSeriesImages initializes correctly with ICON.
   - `def test_registrar_initialization_greedy(self)` (line 57): Test that RegisterTimeSeriesImages initializes correctly with Greedy.
   - `def test_registrar_initialization_invalid_method(self)` (line 73): Test that invalid registration method raises error.
   - `def test_set_modality(self)` (line 80): Test setting imaging modality.
@@ -1099,7 +1112,7 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
   - `def test_register_time_series_error_invalid_starting_index(self, test_images)` (line 337): Test that error is raised for invalid starting index.
   - `def test_register_time_series_error_invalid_prior_portion(self, test_images)` (line 360): Test that error is raised for invalid prior portion value.
   - `def test_transform_application_time_series(self, test_images, test_directories)` (line 385): Test applying transforms from time series registration.
-  - `def test_register_time_series_icon(self, test_images)` (line 437): Test time series registration with ICON method.
+  - `def test_register_time_series_ICON(self, test_images)` (line 437): Test time series registration with ICON method.
   - `def test_register_time_series_with_mask(self, test_images, test_directories)` (line 462): Test time series registration with fixed image mask.
   - `def test_bidirectional_registration(self, test_images)` (line 507): Test that bidirectional registration works correctly.
 
@@ -1220,6 +1233,32 @@ _Re-run `py utils/generate_api_map.py` whenever public APIs change._
 ## tests/test_workflow_convert_image_to_usd.py
 
 - `def test_create_usd_files_passes_times_per_second(monkeypatch, tmp_path)` (line 14): Workflow forwards FPS to VTK-to-USD for shape (X, Y, Z, T) outputs.
+
+## tests/test_workflow_fine_tune_icon_registration.py
+
+- `def two_subject_dataset(tmp_path)` (line 43): Two patients, two frames each, with matching labelmaps on disk.
+- `def test_init_requires_output_dir_and_name(tmp_path)` (line 80): output_dir and fine_tune_name are required positional args.
+- `def test_init_rejects_empty_image_files(tmp_path)` (line 88): Empty subject list raises immediately.
+- `def test_init_rejects_mismatched_companion_lengths(tmp_path)` (line 98): Mask/seg/landmark lists must match subject_image_files shape exactly.
+- `def test_init_rejects_duplicate_subject_ids(tmp_path)` (line 109): Duplicate subject IDs collapse paired groups, so reject them up front.
+- `def test_init_rejects_mismatched_subject_ids_length(tmp_path)` (line 120): subject_ids must have one entry per subject.
+- `def test_uses_segmentations_and_uses_masks_flags(tmp_path)` (line 131): The two helper flags reflect supplied companions independently.
+- `def test_create_mask_thresholds_and_dilates()` (line 160): Single-voxel labelmap becomes a binary mask whose dilation grows it.
+- `def test_prepare_dataset_uses_real_subject_ids(two_subject_dataset)` (line 185): Subject IDs round-trip from the caller into every dataset entry.
+- `def test_prepare_dataset_skips_frames_with_missing_segmentation(tmp_path)` (line 207): A frame with no seg available is dropped when use_label is required.
+- `def test_prepare_dataset_uses_explicit_mask_over_derived(tmp_path)` (line 234): When subject_mask_files supplies a mask, it overrides the derived one.
+- `def test_prepare_dataset_mask_only_no_segmentations(tmp_path)` (line 263): Mask-only input: entries have ``mask`` but no ``segmentation`` field.
+- `def test_prepare_dataset_derives_mask_next_to_labelmap_by_default(two_subject_dataset)` (line 286): Derived masks land next to each labelmap when ``mask_dir`` is not set.
+- `def test_prepare_dataset_derives_mask_under_explicit_mask_dir(two_subject_dataset, tmp_path)` (line 312): Explicit ``mask_dir`` collects every derived mask in that single folder.
+- `def test_prepare_dataset_raises_on_missing_image_file(tmp_path)` (line 336): Image existence is a hard requirement; missing image aborts the build.
+- `def test_prepare_config_emits_uniGradICON_yaml(two_subject_dataset)` (line 353): YAML config matches uniGradICON's expected structure when seg is present.
+- `def test_prepare_config_flags_off_when_no_companions(tmp_path)` (line 390): Without seg or mask, ``use_label`` and ``loss_function_masking`` are False.
+- `def test_prepare_config_requires_dataset_json(tmp_path)` (line 411): Calling prepare_config without first preparing the dataset is an error.
+- `def test_expected_weights_path_layout(tmp_path)` (line 428): Weights land at ``output_dir/<name>/<name>_model/checkpoints/...``.
+- `def test_run_fine_tuning_invokes_unigradicon_subprocess(monkeypatch, two_subject_dataset)` (line 447): run_fine_tuning launches the uniGradICON finetune module with the YAML path.
+- `def test_run_fine_tuning_without_unigradicon_src(monkeypatch, two_subject_dataset)` (line 489): When unigradicon_src_path is None, PYTHONPATH is not prefixed.
+- `def test_apply_registration_rejects_empty_moving(tmp_path)` (line 519): apply_registration validates inputs before touching the registrar.
+- `def test_apply_registration_rejects_mismatched_companions(tmp_path)` (line 533): moving_segmentations / moving_landmarks length must match moving_images.
 
 ## tests/test_workflow_fit_statistical_model_to_patient.py
 

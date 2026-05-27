@@ -47,8 +47,8 @@ keywords = [
     "ai",
     "deep-learning",
     "totalsegmentator",
-    "icon",
-    "ants",
+    "ICON",
+    "ANTS",
     "physiological-motion",
     "4d-visualization"
 ]
@@ -255,6 +255,7 @@ module = [
     "unigradicon.*",
     "vtk",
     "vtk.*",
+    "yaml",
 ]
 ignore_missing_imports = true
 

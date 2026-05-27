@@ -17,7 +17,7 @@ import pytest
 from physiomotion4d.contour_tools import ContourTools
 from physiomotion4d.convert_image_4d_to_3d import ConvertImage4DTo3D
 from physiomotion4d.data_download_tools import DataDownloadTools
-from physiomotion4d.register_images_ants import RegisterImagesANTs
+from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.register_images_greedy import RegisterImagesGreedy
 from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
@@ -544,7 +544,7 @@ def test_labelmaps(
 
 @pytest.fixture(scope="session")
 def test_transforms(
-    registrar_ants: RegisterImagesANTs,
+    registrar_ANTS: RegisterImagesANTS,
     test_images: list[Any],
     test_directories: dict[str, Path],
 ) -> dict[str, Any]:
@@ -578,8 +578,8 @@ def test_transforms(
     fixed_image = test_images[7]
     moving_image = test_images[1]
 
-    registrar_ants.set_fixed_image(fixed_image)
-    result = registrar_ants.register(moving_image=moving_image)
+    registrar_ANTS.set_fixed_image(fixed_image)
+    result = registrar_ANTS.register(moving_image=moving_image)
 
     inverse_transform = result["inverse_transform"]
     forward_transform = result["forward_transform"]
@@ -616,9 +616,9 @@ def contour_tools() -> ContourTools:
 
 
 @pytest.fixture(scope="session")
-def registrar_ants() -> RegisterImagesANTs:
-    """Create a RegisterImagesANTs instance."""
-    return RegisterImagesANTs()
+def registrar_ANTS() -> RegisterImagesANTS:
+    """Create a RegisterImagesANTS instance."""
+    return RegisterImagesANTS()
 
 
 @pytest.fixture(scope="session")
@@ -628,7 +628,7 @@ def registrar_greedy() -> RegisterImagesGreedy:
 
 
 @pytest.fixture(scope="session")
-def registrar_icon() -> RegisterImagesICON:
+def registrar_ICON() -> RegisterImagesICON:
     """Create a RegisterImagesICON instance."""
     return RegisterImagesICON()
 
