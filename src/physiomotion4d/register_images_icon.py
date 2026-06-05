@@ -88,6 +88,10 @@ class RegisterImagesICON(RegisterImagesBase):
         pretrained weights. Clears any previously loaded network so the new
         weights are applied on the next call to register().
 
+        Also, use this to specify the path to store the downloaded weights.  The
+        file must not exist for the weights to be downloaded correctly.  Typical
+        suffix is ".trch".
+
         Args:
             weights_path: Path to a uniGradICON checkpoint, e.g.
                 "results/duke_4d_finetune/checkpoints/network_weights_100"
@@ -185,16 +189,21 @@ class RegisterImagesICON(RegisterImagesBase):
 
         Returns:
             dict: Dictionary containing:
-                - "forward_transform": transform moving image into fixed space
-                - "inverse_transform": transform fixed image to moving space
+                - "forward_transform": Warps the moving image onto the fixed
+                  grid (warping moving points/landmarks into fixed space uses
+                  "inverse_transform" instead -- image and point warps use
+                  opposite transforms; see
+                  docs/developer/transform_conventions)
+                - "inverse_transform": Warps the fixed image onto the moving grid
                 - "loss": Loss value from the registration
 
         Note:
             The transformations are inverse consistent, meaning
-            forward_transform ≈ inverse(inverse_transform).
-            The inverse_transform is used to warp the fixed image
-            to the moving image space. The forward_transform is used
-            to warp the moving image to the fixed image space.
+            forward_transform is approximately inverse(inverse_transform).
+            Use forward_transform to warp the moving image onto the fixed grid,
+            and inverse_transform to warp the fixed image onto the moving grid.
+            Point/landmark warps use the opposite transform from image warps
+            (see docs/developer/transform_conventions).
 
         Implementation details:
             - Uses UniGradIcon with LNCC loss function
@@ -344,42 +353,6 @@ class RegisterImagesICON(RegisterImagesBase):
         tensor = torch.Tensor(arr).to(icon.config.device)[None, None]
         return F.interpolate(
             tensor, size=shape[2:], mode="trilinear", align_corners=False
-        )
-
-    @staticmethod
-    def create_mask(labelmap: itk.Image, dilation_mm: float = 5.0) -> itk.Image:
-        """Create a binary registration mask from a labelmap.
-
-        Thresholds the labelmap at ``>0`` (so every non-zero label becomes
-        foreground) and dilates the result by ``dilation_mm`` millimeters of
-        physical radius.  The radius is converted into per-axis voxel counts
-        from the labelmap's spacing so the dilation is physically isotropic
-        even on anisotropic grids; each per-axis count is clamped to at least
-        1 voxel when ``dilation_mm > 0``.
-
-        Args:
-            labelmap: Multi-label or binary ``itk.Image``.  Any non-zero voxel
-                is treated as foreground.
-            dilation_mm: Physical radius of the binary dilation in
-                millimeters.  Pass ``0`` (or negative) to skip dilation and
-                return the raw ``>0`` mask.  Default 5.0 mm.
-
-        Returns:
-            ``itk.Image[itk.UC, 3]`` binary mask in the same physical space as
-            ``labelmap`` (origin, spacing, direction copied from the input).
-        """
-        arr = (itk.array_from_image(labelmap) > 0).astype(np.uint8)
-        mask = itk.image_from_array(arr)
-        mask.CopyInformation(labelmap)
-        if dilation_mm <= 0:
-            return mask
-        spacing = labelmap.GetSpacing()
-        radius = itk.Size[3]()
-        for i in range(3):
-            radius[i] = max(1, int(round(dilation_mm / float(spacing[i]))))
-        structuring_element = itk.FlatStructuringElement[3].Ball(radius)
-        return itk.binary_dilate_image_filter(
-            mask, kernel=structuring_element, foreground_value=1
         )
 
     def _mask_to_resized_tensor(

@@ -19,9 +19,8 @@ import logging
 from typing import Any, Optional, Union
 
 import itk
-import numpy as np
-from itk import TubeTK as ttk
 
+from physiomotion4d.labelmap_tools import LabelmapTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.transform_tools import TransformTools
 
@@ -59,8 +58,8 @@ class RegisterImagesBase(PhysioMotion4DBase):
         ...     def registration_method(self, moving_image, **kwargs):
         ...         # Implement specific registration algorithm
         ...         return {
-        ...             'forward_transform': tfm_forward,  # Moving → Fixed
-        ...             'inverse_transform': tfm_inverse,  # Fixed → Moving
+        ...             'forward_transform': tfm_forward,  # warps moving image -> fixed grid
+        ...             'inverse_transform': tfm_inverse,  # warps fixed image -> moving grid
         ...             'loss': 0.0,
         ...         }
         >>>
@@ -68,8 +67,8 @@ class RegisterImagesBase(PhysioMotion4DBase):
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(reference_image)
         >>> result = registrar.register(moving_image)
-        >>> forward_tfm = result['forward_transform']  # Moving → Fixed
-        >>> inverse_tfm = result['inverse_transform']  # Fixed → Moving
+        >>> forward_tfm = result['forward_transform']  # warps moving image -> fixed grid
+        >>> inverse_tfm = result['inverse_transform']  # warps fixed image -> moving grid
     """
 
     def __init__(self, log_level: int | str = logging.INFO) -> None:
@@ -83,6 +82,8 @@ class RegisterImagesBase(PhysioMotion4DBase):
             log_level: Logging level (default: logging.INFO)
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
+
+        self.labelmap_tools = LabelmapTools(log_level=log_level)
 
         self.net: Any = None
 
@@ -180,16 +181,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
         if self.fixed_image is None:
             raise ValueError("Fixed image must be set before setting a fixed mask.")
 
-        mask_arr = itk.GetArrayFromImage(fixed_mask)
-        mask_arr = np.where(mask_arr > 0, 1, 0)
-        self.fixed_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
+        self.fixed_mask = self.labelmap_tools.convert_labelmap_to_mask(
+            fixed_mask, dilation_in_mm=self.mask_dilation_mm
+        )
         self.fixed_mask.CopyInformation(self.fixed_image)
-        if self.mask_dilation_mm > 0:
-            imMath = ttk.ImageMath.New(self.fixed_mask)
-            imMath.Dilate(
-                int(self.mask_dilation_mm / self.fixed_image.GetSpacing()[0]), 1, 0
-            )
-            self.fixed_mask = imMath.GetOutputUChar()
 
     def set_fixed_labelmap(self, fixed_labelmap: Optional[itk.Image]) -> None:
         """Set the fixed image labelmap (multi-label segmentation).
@@ -251,8 +246,11 @@ class RegisterImagesBase(PhysioMotion4DBase):
 
         Returns:
             dict: Dictionary containing:
-                - "forward_transform": Transform that warps moving image into fixed space
-                - "inverse_transform": Transform that warps fixed image into moving space
+                - "forward_transform": Warps the moving image onto the fixed
+                  grid. Warping moving points/landmarks into fixed space uses
+                  "inverse_transform" instead (see register() and
+                  docs/developer/transform_conventions).
+                - "inverse_transform": Warps the fixed image onto the moving grid
                 - "loss": Registration loss/metric value
 
         Raises:
@@ -283,13 +281,24 @@ class RegisterImagesBase(PhysioMotion4DBase):
 
         Returns:
             dict: Dictionary containing transformation results:
-                - "forward_transform": Transforms moving image to fixed space (warps moving → fixed)
-                - "inverse_transform": Transforms fixed image to moving space (warps fixed → moving)
+                - "forward_transform": Warps the moving IMAGE onto the fixed
+                  grid, i.e. transform_image(moving, forward_transform, fixed).
+                - "inverse_transform": Warps the fixed IMAGE onto the moving
+                  grid, i.e. transform_image(fixed, inverse_transform, moving).
                 - "loss": Registration loss/metric value
 
         Note:
-            - forward_transform: Use this to warp the moving image to match the fixed image
-            - inverse_transform: Use this to warp the fixed image to match the moving image
+            Image warps and point/landmark warps use OPPOSITE members of the
+            transform pair, because ITK image resampling pulls back (it maps a
+            fixed-grid sample to the moving image) while point transforms push
+            forward (they map a point to its corresponding location):
+
+            - Warp the moving image into fixed space  -> forward_transform
+            - Warp moving points/landmarks into fixed  -> inverse_transform
+            - Warp the fixed image into moving space   -> inverse_transform
+            - Warp fixed points/landmarks into moving   -> forward_transform
+
+            See docs/developer/transform_conventions for the full discussion.
 
         Raises:
             NotImplementedError: This method must be implemented by subclasses
@@ -313,16 +322,10 @@ class RegisterImagesBase(PhysioMotion4DBase):
 
         new_moving_mask = moving_mask
         if moving_mask is not None:
-            mask_arr = itk.GetArrayFromImage(moving_mask)
-            mask_arr = np.where(mask_arr > 0, 1, 0)
-            new_moving_mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
+            new_moving_mask = self.labelmap_tools.convert_labelmap_to_mask(
+                moving_mask, dilation_in_mm=self.mask_dilation_mm
+            )
             new_moving_mask.CopyInformation(moving_image)
-            if self.mask_dilation_mm > 0:
-                imMath = ttk.ImageMath.New(new_moving_mask)
-                imMath.Dilate(
-                    int(self.mask_dilation_mm / moving_image.GetSpacing()[0]), 1, 0
-                )
-                new_moving_mask = imMath.GetOutputUChar()
 
         self.moving_image = moving_image
         self.moving_image_pre = moving_image_pre

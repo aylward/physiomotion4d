@@ -17,6 +17,7 @@ import ants
 import itk
 import numpy as np
 from numpy.typing import NDArray
+
 from physiomotion4d.register_images_base import RegisterImagesBase
 from physiomotion4d.transform_tools import TransformTools
 
@@ -199,9 +200,7 @@ class RegisterImagesANTS(RegisterImagesBase):
 
         image_dimension = len(spatial_shape)
 
-        direction = np.asarray(itk_image.GetDirection()).reshape(
-            (image_dimension, image_dimension)
-        )
+        direction = itk.array_from_matrix(itk_image.GetDirection())
         spacing = list(itk_image.GetSpacing())
         origin = list(itk_image.GetOrigin())
 
@@ -511,7 +510,7 @@ class RegisterImagesANTS(RegisterImagesBase):
         moving_image: itk.Image,
         moving_mask: Optional[itk.Image] = None,
         moving_labelmap: Optional[itk.Image] = None,
-        moving_image_pre: Optional[ants.ANTsImage] = None,
+        moving_image_pre: Optional[itk.Image] = None,
         initial_forward_transform: Optional[itk.Transform] = None,
     ) -> dict[str, Union[itk.Transform, float]]:
         """Register moving image to fixed image using ANTs registration algorithm.
@@ -524,18 +523,25 @@ class RegisterImagesANTS(RegisterImagesBase):
             moving_image (itk.image): The 3D image to be registered/aligned.
             moving_mask (itk.image, optional): Binary mask defining the
                 region of interest in the moving image
-            moving_image_pre (ants.core.ANTsImage, optional): Pre-processed moving image
-                in ANTs format. If None, preprocessing is performed automatically
-            initial_forward_transform (itk.Transform, optional): Initial transform from moving
-                to fixed space. Can be any ITK transform type (Affine, Rigid,
-                DisplacementField, Composite, etc.). Will be converted to ANTs
-                format automatically. The returned transforms will include this
-                initial transform composed with the registration result.
+            moving_image_pre (itk.Image, optional): Pre-processed moving image.
+             If None, preprocessing is performed automatically
+            initial_forward_transform (itk.Transform, optional): Initial
+                forward transform (same convention as the returned
+                forward_transform: used to warp the moving image onto the fixed
+                grid). Can be any ITK transform type (Affine, Rigid,
+                DisplacementField, Composite, etc.). It is applied by pre-warping
+                the moving image onto the fixed grid before registration; the
+                returned transforms compose this initial alignment with the
+                registration refinement.
 
         Returns:
             dict: Dictionary containing:
-                - "forward_transform": Transformation from moving to fixed
-                - "inverse_transform": Transformation from fixed to moving
+                - "forward_transform": Warps the moving image onto the fixed
+                  grid (warping moving points/landmarks into fixed space uses
+                  "inverse_transform" instead -- image and point warps use
+                  opposite transforms; see
+                  docs/developer/transform_conventions)
+                - "inverse_transform": Warps the fixed image onto the moving grid
                 - "loss": Loss value from the registration
 
         Note:
@@ -543,11 +549,13 @@ class RegisterImagesANTS(RegisterImagesBase):
             consistent. The forward and inverse transforms are stored separately
             by ANTs.
 
-            IMPORTANT: ANTs registration does NOT include the initial_transform
-            in its output fwdtransforms/invtransforms. This method automatically
-            composes the initial transform with the registration result, so the
-            returned transforms include both the initial alignment and
-            the registration refinement.
+            IMPORTANT: the initial transform is applied by pre-warping the
+            moving image onto the fixed grid (the same approach as
+            RegisterImagesICON) rather than via ants.registration's
+            initial_transform argument, which mishandles matrix (affine/
+            translation) initials. This method composes the initial transform
+            with the registration result, so the returned transforms include
+            both the initial alignment and the registration refinement.
 
         Implementation details:
             - Uses ANTs registration with configurable transform types
@@ -584,24 +592,29 @@ class RegisterImagesANTS(RegisterImagesBase):
         if self.fixed_image_pre is None:
             self.fixed_image_pre = self.preprocess(self.fixed_image, self.modality)
 
-        # Convert initial ITK transform to ANTs format if provided
-        initial_transform: str | list[str] = "identity"
         if initial_forward_transform is not None:
-            self.log_info("Converting initial ITK transform to ANTs format...")
-            initial_transform = self.itk_transform_to_ANTSfile(
-                itk_tfm=initial_forward_transform,
-                reference_image=self.fixed_image,
-                output_filename="initial_transform_temp.mat",
+            self.log_info("Pre-warping moving image with initial transform...")
+            transform_tools = TransformTools()
+            self.moving_image_pre = transform_tools.transform_image(
+                self.moving_image_pre,
+                initial_forward_transform,
+                self.fixed_image,
             )
-            self.log_info("Initial transform converted successfully")
+            if self.moving_mask is not None:
+                self.moving_mask = transform_tools.transform_image(
+                    self.moving_mask,
+                    initial_forward_transform,
+                    self.fixed_image,
+                    interpolation_method="nearest",
+                )
 
         transform_type = None
         if self.transform_type == "Deformable":
             transform_type = "antsRegistrationSyNQuick[so]"
         elif self.transform_type == "Affine":
-            transform_type = "antsRegistrationAffineQuick[so]"
+            transform_type = "Affine"
         elif self.transform_type == "Rigid":
-            transform_type = "antsRegistrationRigidQuick[so]"
+            transform_type = "Rigid"
         else:
             self.log_error("Invalid transform type: %s", self.transform_type)
             raise ValueError(f"Invalid transform type: {self.transform_type}")
@@ -627,13 +640,36 @@ class RegisterImagesANTS(RegisterImagesBase):
             elif self.metric == "MeanSquares":
                 syn_metric = "meansquares"
 
+        # antsRegistration --dimensionality 3 --float 0 \
+        # --output [$thisfolder/pennTemplate_to_${sub}_,$thisfolder/pennTemplate_to_${sub}_Warped.nii.gz] \
+        # --interpolation Linear \
+        # --winsorize-image-intensities [0.005,0.995] \
+        # --use-histogram-matching 0 \
+        # --initial-moving-transform [$t1brain,$template,1] \
+        # --transform Rigid[0.1] \
+        # --metric MI[$t1brain,$template,1,32,Regular,0.25] \
+        # --convergence [1000x500x250x100,1e-6,10] \
+        # --shrink-factors 8x4x2x1 \
+        # --smoothing-sigmas 3x2x1x0vox \
+        # --transform Affine[0.1] \
+        # --metric MI[$t1brain,$template,1,32,Regular,0.25] \
+        # --convergence [1000x500x250x100,1e-6,10] \
+        # --shrink-factors 8x4x2x1 \
+        # --smoothing-sigmas 3x2x1x0vox \
+        # --transform SyN[0.1,3,0] \
+        # --metric CC[$t1brain,$template,1,4] \
+        # --convergence [100x70x50x20,1e-6,10] \
+        # --shrink-factors 8x4x2x1 \
+        # --smoothing-sigmas 3x2x1x0vox \
+        # -x $brainlesionmask
+
         if self.fixed_mask is not None and self.moving_mask is not None:
             registration_result = ants.registration(
                 fixed=self._itk_to_ants_image(self.fixed_image_pre),
                 mask=self._itk_to_ants_image(self.fixed_mask),
                 moving=self._itk_to_ants_image(self.moving_image_pre),
                 moving_mask=self._itk_to_ants_image(self.moving_mask),
-                initial_transform=[initial_transform],
+                initial_transform=["identity"],
                 type_of_transform=transform_type,
                 aff_metric=aff_metric,
                 syn_metric=syn_metric,
@@ -646,7 +682,7 @@ class RegisterImagesANTS(RegisterImagesBase):
             registration_result = ants.registration(
                 fixed=self._itk_to_ants_image(self.fixed_image_pre),
                 moving=self._itk_to_ants_image(self.moving_image_pre),
-                initial_transform=[initial_transform],
+                initial_transform=["identity"],
                 type_of_transform=transform_type,
                 aff_metric=aff_metric,
                 syn_metric=syn_metric,

@@ -20,7 +20,6 @@ import numpy as np
 import pytest
 import yaml
 
-from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.workflow_fine_tune_icon_registration import (
     WorkflowFineTuneICONRegistration,
 )
@@ -47,7 +46,7 @@ def two_subject_dataset(tmp_path: Path) -> dict[str, Any]:
     output_dir = tmp_path / "ft_out"
 
     subject_image_files: list[list[str]] = []
-    subject_segmentation_files: list[list[Optional[str]]] = []
+    subject_labelmap_files: list[list[Optional[str]]] = []
     for patient_id in ("pm0001", "pm0002"):
         pdir = data_dir / patient_id
         pdir.mkdir()
@@ -61,14 +60,14 @@ def two_subject_dataset(tmp_path: Path) -> dict[str, Any]:
             images.append(str(image_path))
             segs.append(str(label_path))
         subject_image_files.append(images)
-        subject_segmentation_files.append(segs)
+        subject_labelmap_files.append(segs)
 
     return {
         "output_dir": output_dir,
         "fine_tune_name": "test_exp",
         "subject_ids": ["pm0001", "pm0002"],
         "subject_image_files": subject_image_files,
-        "subject_segmentation_files": subject_segmentation_files,
+        "subject_labelmap_files": subject_labelmap_files,
     }
 
 
@@ -128,7 +127,7 @@ def test_init_rejects_mismatched_subject_ids_length(tmp_path: Path) -> None:
         )
 
 
-def test_uses_segmentations_and_uses_masks_flags(tmp_path: Path) -> None:
+def test_use_segmentations_and_use_masks_flags(tmp_path: Path) -> None:
     """The two helper flags reflect supplied companions independently."""
     base: dict[str, Any] = {
         "subject_image_files": [["a"]],
@@ -136,45 +135,20 @@ def test_uses_segmentations_and_uses_masks_flags(tmp_path: Path) -> None:
         "fine_tune_name": "x",
     }
     none_wf = WorkflowFineTuneICONRegistration(**base)
-    assert not none_wf.uses_segmentations
-    assert not none_wf.uses_masks
+    assert not none_wf.use_segmentations
+    assert not none_wf.use_masks
 
     seg_only = WorkflowFineTuneICONRegistration(
-        **base, subject_segmentation_files=[["seg.nii.gz"]]
+        **base, subject_labelmap_files=[["seg.nii.gz"]]
     )
-    assert seg_only.uses_segmentations
-    assert seg_only.uses_masks  # derived from segs
+    assert seg_only.use_segmentations
+    assert seg_only.use_masks  # derived from segs
 
     mask_only = WorkflowFineTuneICONRegistration(
         **base, subject_mask_files=[["mask.nii.gz"]]
     )
-    assert not mask_only.uses_segmentations
-    assert mask_only.uses_masks
-
-
-# ---------------------------------------------------------------------------
-# RegisterImagesICON.create_mask (in-memory dilation, used by the workflow)
-# ---------------------------------------------------------------------------
-
-
-def test_create_mask_thresholds_and_dilates() -> None:
-    """Single-voxel labelmap becomes a binary mask whose dilation grows it."""
-    arr = np.zeros((5, 5, 5), dtype=np.uint8)
-    arr[2, 2, 2] = 3  # non-zero label id
-    labelmap = itk.image_from_array(arr)
-    # Unit isotropic spacing so dilation_mm == voxel radius.
-    labelmap.SetSpacing([1.0, 1.0, 1.0])
-
-    no_dilate = RegisterImagesICON.create_mask(labelmap, dilation_mm=0.0)
-    no_dilate_arr = itk.array_from_image(no_dilate)
-    assert set(np.unique(no_dilate_arr).tolist()) == {0, 1}
-    assert int(no_dilate_arr.sum()) == 1
-
-    dilated = RegisterImagesICON.create_mask(labelmap, dilation_mm=1.0)
-    dilated_arr = itk.array_from_image(dilated)
-    assert int(dilated_arr.sum()) > 1
-    # Original foreground voxel stays foreground.
-    assert dilated_arr[2, 2, 2] == 1
+    assert not mask_only.use_segmentations
+    assert mask_only.use_masks
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +195,7 @@ def test_prepare_dataset_skips_frames_with_missing_segmentation(
         subject_image_files=[[str(img_a), str(img_b)]],
         output_dir=tmp_path / "out",
         fine_tune_name="exp",
-        subject_segmentation_files=[[str(seg_a), None]],
+        subject_labelmap_files=[[str(seg_a), None]],
         log_level=logging.CRITICAL,
     )
     dataset_json_path = workflow.prepare_dataset()
@@ -246,7 +220,7 @@ def test_prepare_dataset_uses_explicit_mask_over_derived(tmp_path: Path) -> None
         subject_image_files=[[str(image)]],
         output_dir=tmp_path / "out",
         fine_tune_name="exp",
-        subject_segmentation_files=[[str(seg)]],
+        subject_labelmap_files=[[str(seg)]],
         subject_mask_files=[[str(explicit_mask)]],
         log_level=logging.CRITICAL,
     )
@@ -295,7 +269,7 @@ def test_prepare_dataset_derives_mask_next_to_labelmap_by_default(
 
     seg_files = [
         Path(s)
-        for inner in workflow.subject_segmentation_files or []
+        for inner in workflow.subject_labelmap_files or []
         for s in inner
         if s is not None
     ]
@@ -325,7 +299,7 @@ def test_prepare_dataset_derives_mask_under_explicit_mask_dir(
     # None of the labelmap-adjacent locations should have been written to.
     seg_files = [
         Path(s)
-        for inner in workflow.subject_segmentation_files or []
+        for inner in workflow.subject_labelmap_files or []
         for s in inner
         if s is not None
     ]

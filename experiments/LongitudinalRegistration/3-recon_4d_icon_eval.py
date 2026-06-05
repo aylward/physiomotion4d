@@ -3,11 +3,11 @@
 #
 # Enumerates the Duke patient cohort by sorting ``ref_images/`` and uses the
 # *last 20%* of patients as the held-out test set — the same fixed split
-# applied by ``1-finetune_icon.py`` (first 80% train, last 20% test).  For
+# applied by ``2-finetune_icon.py`` (first 80% train, last 20% test).  For
 # each test subject the 70th-percentile gated frame is selected as the
 # reference and every other frame is registered to it twice with
 # ``RegisterTimeSeriesImages``: once with the default uniGradICON weights and
-# once with the finetuned checkpoint from ``1-finetune_icon.py``.  The
+# once with the finetuned checkpoint from ``2-finetune_icon.py``.  The
 # resampler-convention inverse transform (which maps moving-grid points back
 # to reference-grid points) is applied to each time-point's precomputed
 # landmarks to land them in reference space, and the Euclidean error against
@@ -25,8 +25,8 @@ import itk
 import numpy as np
 
 from physiomotion4d import RegisterTimeSeriesImages
+from physiomotion4d.labelmap_tools import LabelmapTools
 from physiomotion4d.landmark_tools import LandmarkTools
-from physiomotion4d.register_images_icon import RegisterImagesICON
 
 # %% [markdown]
 # ## 1. Hard-coded paths and configuration
@@ -35,15 +35,21 @@ from physiomotion4d.register_images_icon import RegisterImagesICON
 ref_data_dir = Path("d:/PhysioMotion4D/duke_data/ref_images")
 timepoint_base_dir = Path("d:/PhysioMotion4D/duke_data/gated_nii")
 segmentation_base_dir = Path("d:/PhysioMotion4D/duke_data/simple_ascardio")
-output_dir = Path("./results")
-finetuned_weights_path = Path(
-    "./results/icon_finetuned/checkpoints/Finetune_multi_final.trch"
+
+_HERE = Path(__file__).parent
+output_dir = _HERE / "results"
+finetuned_weights_path = (
+    output_dir
+    / "icon_finetuned"
+    / "icon_finetuned_model"
+    / "checkpoints"
+    / "network_weights_final.trch"
 )
 
 train_fraction = 0.8
-icon_iterations = 20
+icon_iterations = None
 reference_percentile = 0.70
-exclude_tokens = ("nop", "dia", "sys", "_ref")
+exclude_tokens = ["nop"]
 timepoint_re = re.compile(r"_g(?P<timepoint>[0-9]{3})")
 
 methods: list[tuple[str, Optional[Path]]] = [
@@ -87,12 +93,13 @@ print(f"Held-out test subjects: {test_subjects}")
 # Landmarks are read with :meth:`LandmarkTools.read_landmarks_3dslicer` —
 # they were written as ``<stem>_landmark.mrk.json`` (3D Slicer Markups JSON,
 # LPS) by ``0-cardiacGatedCT_segment_and_landmark.py``.  Binary registration
-# masks come from :meth:`RegisterImagesICON.create_mask` (``>0`` threshold
-# plus 5 mm dilation by default), matching the loss-function masks used
+# masks come from :meth:`LabelmapTools.convert_labelmap_to_mask` (``>0``
+# threshold plus 5 mm dilation), matching the loss-function masks used
 # during fine-tuning in ``1-finetune_icon.py``.
 
 # %%
 landmark_tools = LandmarkTools()
+labelmap_tools = LabelmapTools()
 
 
 # %% [markdown]
@@ -103,15 +110,20 @@ summary_rows: list[dict[str, object]] = []
 
 for subject_id in test_subjects:
     source_dir = timepoint_base_dir / subject_id
+    print(f"Source directory: {source_dir}")
+
     seg_dir = segmentation_base_dir / subject_id
+    print(f"Segmentation directory: {seg_dir}")
 
     image_files = [
         p
         for p in sorted(source_dir.glob("*.nii.gz"))
         if not any(t in p.name for t in exclude_tokens)
     ]
+    print(f"Found {len(image_files)} image files")
     stems = [p.name[:-7] for p in image_files]
     labelmap_files = [seg_dir / f"{s}_labelmap.nii.gz" for s in stems]
+    mask_files = [seg_dir / f"{s}_labelmap_mask.nii.gz" for s in stems]
     landmark_files = [seg_dir / f"{s}_landmark.mrk.json" for s in stems]
     timepoints = [timepoint_re.search(p.name).group("timepoint") for p in image_files]
 
@@ -122,17 +134,34 @@ for subject_id in test_subjects:
     )
 
     fixed_image = itk.imread(str(image_files[reference_index]), pixel_type=itk.F)
-    fixed_mask = RegisterImagesICON.create_mask(
-        itk.imread(str(labelmap_files[reference_index]))
-    )
+    fixed_labelmap = itk.imread(str(labelmap_files[reference_index]))
+    if mask_files[reference_index].exists():
+        fixed_mask = itk.imread(str(mask_files[reference_index]))
+    else:
+        fixed_mask = labelmap_tools.convert_labelmap_to_mask(
+            fixed_labelmap, dilation_in_mm=5.0
+        )
+        itk.imwrite(fixed_mask, str(mask_files[reference_index]), compression=True)
     reference_landmarks = landmark_tools.read_landmarks_3dslicer(
         landmark_files[reference_index]
     )
 
     moving_images = [itk.imread(str(p), pixel_type=itk.F) for p in image_files]
-    moving_masks = [
-        RegisterImagesICON.create_mask(itk.imread(str(p))) for p in labelmap_files
+    moving_labelmaps = [itk.imread(str(p)) for p in labelmap_files]
+    moving_landmarks = [
+        landmark_tools.read_landmarks_3dslicer(str(p)) for p in landmark_files
     ]
+    moving_masks = []
+    for index, p in enumerate(mask_files):
+        if not p.exists():
+            mask = labelmap_tools.convert_labelmap_to_mask(
+                moving_labelmaps[index], dilation_in_mm=5.0
+            )
+            itk.imwrite(mask, str(p), compression=True)
+            moving_masks.append(mask)
+        else:
+            mask = itk.imread(str(p))
+            moving_masks.append(mask)
 
     for method_name, weights_path in methods:
         print(f"  Method: {method_name}")
@@ -147,7 +176,7 @@ for subject_id in test_subjects:
         result = registrar.register_time_series(
             moving_images=moving_images,
             moving_masks=moving_masks,
-            moving_labelmaps=None,
+            moving_labelmaps=moving_labelmaps,
             reference_frame=reference_index,
             register_reference=False,
             prior_weight=0.0,
@@ -178,9 +207,7 @@ for subject_id in test_subjects:
             # inverse_transform follows the ITK resampler convention — it maps
             # moving-grid points back to reference-grid points, which is what
             # we need to warp time-point landmarks into reference space.
-            timepoint_landmarks = landmark_tools.read_landmarks_3dslicer(
-                landmark_files[index]
-            )
+            timepoint_landmarks = moving_landmarks[index]
             shared = sorted(timepoint_landmarks.keys() & reference_landmarks.keys())
             errors: list[tuple[str, float]] = []
             for name in shared:
@@ -221,11 +248,14 @@ for subject_id in test_subjects:
 # ## 5. Write the wide-form per-timepoint summary CSV
 
 # %%
-with summary_file.open("w", newline="", encoding="utf-8") as fh:
-    writer = csv.DictWriter(fh, fieldnames=list(summary_rows[0].keys()))
-    writer.writeheader()
-    writer.writerows(summary_rows)
-print(f"Wrote summary: {summary_file}")
+if not summary_rows:
+    print("No summary rows to write")
+else:
+    with summary_file.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(summary_rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(summary_rows)
+    print(f"Wrote summary: {summary_file}")
 print(f"Wrote landmark details: {detail_file}")
 
 # %% [markdown]

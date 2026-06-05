@@ -42,8 +42,8 @@ import itk
 import numpy as np
 import yaml
 
+from physiomotion4d.labelmap_tools import LabelmapTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.register_time_series_images import RegisterTimeSeriesImages
 from physiomotion4d.transform_tools import TransformTools
 
@@ -79,7 +79,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         subject_ids (Optional[list[str]]): One ID per subject (e.g. patient
             identifiers).  Written into the dataset JSON's ``subject_id``
             field; falls back to synthetic ``subject_NNNN`` when ``None``.
-        subject_segmentation_files (Optional[list[list[Optional[str]]]]):
+        subject_labelmap_files (Optional[list[list[Optional[str]]]]):
             Per-subject multi-label segmentation/labelmap paths aligned with
             ``subject_image_files``.  ``None`` (or per-image ``None``) means no
             segmentation for that image.  If supplied for at least one image,
@@ -88,14 +88,16 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
             Per-subject binary mask paths aligned with ``subject_image_files``.
             When supplied for a frame these masks are used directly for
             loss-function masking; otherwise masks are derived from
-            ``subject_segmentation_files``.
+            ``subject_labelmap_files``.
         subject_landmark_files (Optional[list[list[Optional[str]]]]):
             Per-subject landmark CSV paths (``Name,X,Y,Z`` format) aligned with
             ``subject_image_files``.  Recorded in the dataset JSON for
             traceability; not consumed by uniGradICON fine-tuning itself.
         mask_dilation_mm (float): Millimeters of physical-radius binary
             dilation applied to the >0 labelmap when deriving the loss-masking
-            binary mask via :meth:`RegisterImagesICON.create_mask`.
+            binary mask via :meth:`LabelmapTools.convert_labelmap_to_mask`.
+        mask_exclude_labels (Optional[list[int]]): Labels to exclude from the mask.
+            Default is None.
         mask_dir (Optional[Path]): Directory where derived binary masks are
             written and looked up.  ``None`` (default) writes each derived
             mask next to its source labelmap on disk.
@@ -113,7 +115,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         ...     ],
         ...     output_dir=Path('d:/PhysioMotion4D/icon_finetuned'),
         ...     fine_tune_name='duke_4d_gated_icon_ft',
-        ...     subject_segmentation_files=[
+        ...     subject_labelmap_files=[
         ...         ['pm0001/g000_labelmap.nii.gz', 'pm0001/g050_labelmap.nii.gz'],
         ...         ['pm0002/g000_labelmap.nii.gz', 'pm0002/g050_labelmap.nii.gz'],
         ...     ],
@@ -138,7 +140,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         output_dir: Path,
         fine_tune_name: str,
         subject_ids: Optional[list[str]] = None,
-        subject_segmentation_files: Optional[list[list[Optional[str]]]] = None,
+        subject_labelmap_files: Optional[list[list[Optional[str]]]] = None,
         subject_mask_files: Optional[list[list[Optional[str]]]] = None,
         subject_landmark_files: Optional[list[list[Optional[str]]]] = None,
         epochs: int = 2000,
@@ -148,13 +150,14 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         similarity: str = "lncc",
         lambda_value: float = 1.5,
         dice_loss_weight: float = 0.5,
-        lncc_sigma: int = 5,
+        lncc_sigma: int = 1,
         ct_window: tuple[float, float] = (-1000.0, 1000.0),
         is_ct: bool = True,
         gpus: Optional[list[int]] = None,
         eval_period: int = 10,
         save_period: int = 50,
         mask_dilation_mm: float = 5.0,
+        mask_exclude_labels: Optional[list[int]] = None,
         mask_dir: Optional[Path] = None,
         unigradicon_src_path: Optional[Path] = None,
         log_level: Union[int, str] = logging.INFO,
@@ -174,15 +177,15 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                 JSON's ``subject_id`` field so paired training groups frames
                 that share an ID.  ``None`` falls back to synthetic IDs of the
                 form ``subject_0000``, ``subject_0001``, ...  Must be unique.
-            subject_segmentation_files: Per-subject multi-label segmentation
+            subject_labelmap_files: Per-subject multi-label segmentation
                 (labelmap) paths matching ``subject_image_files``.  ``None``
-                disables paired-with-seg training (no ``use_label``).
+                disables paired-with-seg training.
                 Individual ``None`` entries inside the inner lists skip just
                 those frames when paired-with-seg training is enabled.
             subject_mask_files: Per-subject binary mask paths matching
                 ``subject_image_files``.  When supplied these are used directly
                 for ICON loss-function masking; otherwise masks are derived
-                from ``subject_segmentation_files`` via a >0 threshold and
+                from ``subject_labelmap_files`` via a >0 threshold and
                 dilation by ``mask_dilation_mm``.  Per-image ``None``
                 entries fall back to the derived mask for that frame (or skip
                 it if no segmentation is available either).
@@ -205,8 +208,8 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
             mask_dilation_mm: Physical radius (millimeters) of binary
                 dilation applied to the >0 labelmap when deriving the
                 loss-masking binary mask via
-                :meth:`RegisterImagesICON.create_mask`.  Ignored when no
-                segmentations are supplied.  Default 5.0 mm.
+                :meth:`LabelmapTools.convert_labelmap_to_mask`.  Ignored when
+                no segmentations are supplied.  Default 5.0 mm.
             mask_dir: Directory where derived binary masks are written and
                 looked up.  ``None`` (default) writes each derived mask next
                 to its source labelmap on disk
@@ -220,7 +223,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
 
         Raises:
             ValueError: If ``subject_image_files`` is empty.
-            ValueError: If ``subject_segmentation_files``,
+            ValueError: If ``subject_labelmap_files``,
                 ``subject_mask_files``, or ``subject_landmark_files`` is
                 provided with a shape that does not match
                 ``subject_image_files``.
@@ -243,8 +246,8 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
 
         self._validate_companion_shape(
             subject_image_files,
-            subject_segmentation_files,
-            "subject_segmentation_files",
+            subject_labelmap_files,
+            "subject_labelmap_files",
         )
         self._validate_companion_shape(
             subject_image_files, subject_mask_files, "subject_mask_files"
@@ -255,9 +258,14 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
 
         self.subject_image_files = subject_image_files
         self.subject_ids = subject_ids
-        self.subject_segmentation_files = subject_segmentation_files
+        self.subject_labelmap_files = subject_labelmap_files
         self.subject_mask_files = subject_mask_files
         self.subject_landmark_files = subject_landmark_files
+
+        self.use_segmentations: bool = subject_labelmap_files is not None
+        self.use_masks: bool = (
+            subject_mask_files is not None or subject_labelmap_files is not None
+        )
 
         self.output_dir = Path(output_dir).resolve()
         self.fine_tune_name = fine_tune_name
@@ -277,13 +285,18 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         self.gpus = list(gpus) if gpus is not None else [0]
         self.eval_period = eval_period
         self.save_period = save_period
+        self.mask_exclude_labels = mask_exclude_labels
         self.mask_dilation_mm = float(mask_dilation_mm)
         self.unigradicon_src_path = (
             Path(unigradicon_src_path) if unigradicon_src_path is not None else None
         )
 
         self.transform_tools = TransformTools()
+        self.labelmap_tools = LabelmapTools(log_level=log_level)
         self.registrar: Optional[RegisterTimeSeriesImages] = None
+
+        self._use_segmentations: bool = self.use_segmentations
+        self._use_masks: bool = self.use_masks
 
         self._dataset_json_path: Optional[Path] = None
         self._config_yaml_path: Optional[Path] = None
@@ -309,48 +322,21 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                     f"subject_image_files[{i}] length ({len(images)})"
                 )
 
-    @property
-    def uses_segmentations(self) -> bool:
-        """Whether at least one segmentation file is supplied for training.
-
-        Drives the uniGradICON ``training.use_label`` flag.
-        """
-        return self._any_non_none(self.subject_segmentation_files)
-
-    @property
-    def uses_masks(self) -> bool:
-        """Whether the dataset will have a ``mask`` field on every kept entry.
-
-        True when explicit masks are supplied OR when segmentations are supplied
-        (since masks are then derived).  Drives the uniGradICON
-        ``training.loss_function_masking`` flag.
-        """
-        return self._any_non_none(self.subject_mask_files) or self.uses_segmentations
-
-    @staticmethod
-    def _any_non_none(
-        companion: Optional[list[list[Optional[str]]]],
-    ) -> bool:
-        """Return True when ``companion`` contains at least one non-``None`` entry."""
-        if companion is None:
-            return False
-        for inner in companion:
-            for item in inner:
-                if item is not None:
-                    return True
-        return False
-
     @staticmethod
     def _posix(path: Union[str, Path]) -> str:
         """Return a forward-slashed string path (uniGradICON expects POSIX paths)."""
         return str(path).replace("\\", "/")
 
-    def _derive_mask(self, labelmap_path: Union[str, Path]) -> Path:
+    def _derive_mask(
+        self,
+        labelmap_path: Union[str, Path],
+    ) -> Path:
         """Create (or reuse) a dilated binary mask from a multi-label labelmap.
 
         Threshold the labelmap at ``>0`` and dilate by ``mask_dilation_mm`` mm
-        of physical radius via :meth:`RegisterImagesICON.create_mask` to widen
-        the ROI for loss-function masking.
+        of physical radius via
+        :meth:`LabelmapTools.convert_labelmap_to_mask` to widen the ROI for
+        loss-function masking.
 
         When :attr:`mask_dir` is ``None`` (the default) the mask is written
         next to the source labelmap as
@@ -378,13 +364,19 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
             return mask_path
 
         labelmap = itk.imread(str(labelmap_path))
-        mask = RegisterImagesICON.create_mask(
-            labelmap, dilation_mm=self.mask_dilation_mm
+        mask = self.labelmap_tools.convert_labelmap_to_mask(
+            labelmap,
+            dilation_in_mm=self.mask_dilation_mm,
+            exclude_labels=self.mask_exclude_labels,
         )
         itk.imwrite(mask, str(mask_path), compression=True)
         return mask_path
 
-    def prepare_dataset(self) -> Path:
+    def prepare_dataset(
+        self,
+        use_segmentations: Optional[bool] = None,
+        use_masks: Optional[bool] = None,
+    ) -> Path:
         """Write the uniGradICON dataset JSON from the configured file lists.
 
         Builds one entry per image with ``image``, optional ``segmentation``,
@@ -392,7 +384,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         ``subject_id`` derived from the inner-list index.
 
         Masks are taken from ``subject_mask_files`` when supplied for a frame;
-        otherwise they are derived from ``subject_segmentation_files`` via a
+        otherwise they are derived from ``subject_labelmap_files`` via a
         >0 threshold and ``mask_dilation_mm`` mm dilation.  Frames are
         skipped (with a log warning) when a required companion (segmentation
         for paired-with-seg training, or mask for loss-function masking) is
@@ -406,8 +398,14 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                 does not exist on disk.
         """
         self.experiment_dir.mkdir(parents=True, exist_ok=True)
-        use_seg = self.uses_segmentations
-        use_mask = self.uses_masks
+
+        if use_segmentations is None:
+            use_segmentations = self.use_segmentations
+        if use_masks is None:
+            use_masks = self.use_masks
+
+        self._use_segmentations = use_segmentations
+        self._use_masks = use_masks
 
         dataset_entries: list[dict[str, str]] = []
         for subject_index, image_files in enumerate(self.subject_image_files):
@@ -416,16 +414,24 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                 if self.subject_ids is not None
                 else f"subject_{subject_index:04d}"
             )
-            seg_list = (
-                self.subject_segmentation_files[subject_index]
-                if self.subject_segmentation_files is not None
-                else [None] * len(image_files)
-            )
-            mask_list = (
-                self.subject_mask_files[subject_index]
-                if self.subject_mask_files is not None
-                else [None] * len(image_files)
-            )
+            seg_list: list[Optional[str]]
+            if not use_segmentations:
+                seg_list = [None] * len(image_files)
+            else:
+                seg_list = (
+                    self.subject_labelmap_files[subject_index]
+                    if self.subject_labelmap_files is not None
+                    else [None] * len(image_files)
+                )
+            mask_list: list[Optional[str]]
+            if not use_masks:
+                mask_list = [None] * len(image_files)
+            else:
+                mask_list = (
+                    self.subject_mask_files[subject_index]
+                    if self.subject_mask_files is not None
+                    else [None] * len(image_files)
+                )
             landmark_list = (
                 self.subject_landmark_files[subject_index]
                 if self.subject_landmark_files is not None
@@ -444,7 +450,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                     "subject_id": subject_id,
                 }
 
-                if use_seg:
+                if use_segmentations:
                     if seg_file is None or not Path(seg_file).exists():
                         self.log_warning(
                             "Skipping %s: segmentation missing for paired-with-seg "
@@ -455,7 +461,7 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                         continue
                     entry["segmentation"] = self._posix(seg_file)
 
-                if use_mask:
+                if use_masks:
                     if mask_file is not None and Path(mask_file).exists():
                         resolved_mask: Path = Path(mask_file)
                     elif seg_file is not None and Path(seg_file).exists():
@@ -529,8 +535,8 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                 "lambda": self.lambda_value,
                 "dice_loss_weight": self.dice_loss_weight,
                 "lncc_sigma": self.lncc_sigma,
-                "loss_function_masking": self.uses_masks,
-                "use_label": self.uses_segmentations,
+                "loss_function_masking": self._use_masks,
+                "use_label": self._use_segmentations,
                 "roi_masking": False,
             },
             "datasets": [
@@ -735,8 +741,8 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
             self.log_info("ICON weights: %s", weights_path)
 
         fixed_mask = (
-            RegisterImagesICON.create_mask(
-                reference_segmentation, dilation_mm=self.mask_dilation_mm
+            self.labelmap_tools.convert_labelmap_to_mask(
+                reference_segmentation, dilation_in_mm=self.mask_dilation_mm
             )
             if reference_segmentation is not None
             else None
@@ -745,8 +751,8 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
         if moving_segmentations is not None:
             moving_masks = [
                 (
-                    RegisterImagesICON.create_mask(
-                        seg, dilation_mm=self.mask_dilation_mm
+                    self.labelmap_tools.convert_labelmap_to_mask(
+                        seg, dilation_in_mm=self.mask_dilation_mm
                     )
                     if seg is not None
                     else None

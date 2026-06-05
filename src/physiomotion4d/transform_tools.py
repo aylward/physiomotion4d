@@ -89,12 +89,13 @@ class TransformTools(PhysioMotion4DBase):
         mode: str = "compose",
         tfm1_blur_sigma: float = 0.0,
         tfm2_blur_sigma: float = 0.0,
-    ) -> itk.DisplacementFieldTransform:
+    ) -> itk.Transform:
         """
         Compose two displacement field transforms.
 
-        Composes two displacement field transforms into a single displacement field
-            transform.
+        In ``add`` mode, returns a single displacement field transform with
+        weighted summed vectors. In ``compose`` mode, returns a composite
+        transform containing both weighted displacement field transforms.
         """
         assert mode in ["add", "compose"], "Invalid mode"
 
@@ -225,7 +226,7 @@ class TransformTools(PhysioMotion4DBase):
             field = tfm.GetDisplacementField()
             field_arr = itk.array_view_from_image(tfm.GetDisplacementField())
             reference_image_arr = itk.array_view_from_image(reference_image)
-            if field_arr.shape[:2] != reference_image_arr.shape:
+            if field_arr.shape[:3] != reference_image_arr.shape:
                 field_filter = itk.TransformToDisplacementFieldFilter[
                     itk.Image[itk.Vector[itk.F, 3], 3], TfmPrecision
                 ].New()
@@ -365,7 +366,7 @@ class TransformTools(PhysioMotion4DBase):
             np.array(tfm.TransformPoint((float(p[0]), float(p[1]), float(p[2]))))
             for p in pnts
         ]
-        new_mesh.points = np.asarray(new_pnts, dtype=float)
+        new_mesh.points = np.asarray(new_pnts, dtype=float).reshape(-1, 3)
 
         if with_deformation_magnitude:
             if cp is not None:
@@ -419,7 +420,7 @@ class TransformTools(PhysioMotion4DBase):
             ... )
             >>> # Transform label map preserving discrete values
             >>> warped_labels = transform_tools.transform_image(
-            ...     labelmap, transform, reference, tfm_type='nearest'
+            ...     labelmap, transform, reference, interpolation_method='nearest'
             ... )
         """
         # Handle case where tfm is a list (e.g., from itk.transformread)
@@ -618,6 +619,7 @@ class TransformTools(PhysioMotion4DBase):
         sum_fields_arr = mask1_arr * field1_arr + mask2_arr * field2_arr
 
         denom = mask1_arr + mask2_arr
+        denom[denom == 0] = 1.0
 
         combined_field_arr = sum_fields_arr / denom
 
@@ -757,17 +759,22 @@ class TransformTools(PhysioMotion4DBase):
         width_max = width_min + line_width
         for i in range(grid_size):
             for j in range(grid_size):
-                min_idx0 = int(i * grid_spacing[0]) - width_min
-                max_idx0 = int(i * grid_spacing[0]) + width_max
-                min_idx1 = int(j * grid_spacing[1]) - width_min
-                max_idx1 = int(j * grid_spacing[1]) + width_max
-                img_arr[min_idx0:max_idx0, min_idx1:max_idx1, :] = img_arr_max
-                min_idx2 = int(j * grid_spacing[2]) - width_min
-                max_idx2 = int(j * grid_spacing[2]) + width_max
-                img_arr[min_idx0:max_idx0, :, min_idx2:max_idx2] = img_arr_max
-                min_idx1 = int(i * grid_spacing[1]) - width_min
-                max_idx1 = int(i * grid_spacing[1]) + width_max
-                img_arr[:, min_idx1:max_idx1, min_idx2:max_idx2] = img_arr_max
+                min_idx0 = max(0, int(i * grid_spacing[0]) - width_min)
+                max_idx0 = min(img_arr.shape[0], int(i * grid_spacing[0]) + width_max)
+                min_idx1 = max(0, int(j * grid_spacing[1]) - width_min)
+                max_idx1 = min(img_arr.shape[1], int(j * grid_spacing[1]) + width_max)
+                if min_idx0 < max_idx0 and min_idx1 < max_idx1:
+                    img_arr[min_idx0:max_idx0, min_idx1:max_idx1, :] = img_arr_max
+
+                min_idx2 = max(0, int(j * grid_spacing[2]) - width_min)
+                max_idx2 = min(img_arr.shape[2], int(j * grid_spacing[2]) + width_max)
+                if min_idx0 < max_idx0 and min_idx2 < max_idx2:
+                    img_arr[min_idx0:max_idx0, :, min_idx2:max_idx2] = img_arr_max
+
+                min_idx1 = max(0, int(i * grid_spacing[1]) - width_min)
+                max_idx1 = min(img_arr.shape[1], int(i * grid_spacing[1]) + width_max)
+                if min_idx1 < max_idx1 and min_idx2 < max_idx2:
+                    img_arr[:, min_idx1:max_idx1, min_idx2:max_idx2] = img_arr_max
 
         grid_image = itk.image_from_array(img_arr)
         grid_image.CopyInformation(reference_image)

@@ -19,6 +19,24 @@ from physiomotion4d.image_tools import ImageTools
 from physiomotion4d.transform_tools import TransformTools
 
 
+def test_generate_grid_image_clamps_boundary_lines() -> None:
+    """
+    Grid image clamps boundary slices for an ITK image with axes (X, Y, Z).
+
+    The synthetic ITK image has axes (X, Y, Z) = (7, 6, 5), created from
+    NumPy array shape (Z, Y, X) = (5, 6, 7).
+    """
+    image_arr = np.zeros((5, 6, 7), dtype=np.float32)
+    image_arr[-1, -1, -1] = 5.0
+    image = itk.image_from_array(image_arr)
+
+    grid_image = TransformTools().generate_grid_image(image, grid_size=2, line_width=3)
+    grid_arr = itk.array_from_image(grid_image)
+
+    assert grid_arr.shape == image_arr.shape
+    assert grid_arr[0, 0, 0] == 5.0
+
+
 @pytest.mark.slow
 class TestTransformTools:
     """Test suite for TransformTools functionality."""

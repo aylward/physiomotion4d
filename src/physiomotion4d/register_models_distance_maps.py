@@ -41,7 +41,7 @@ Example:
     >>>
     >>> # Access results
     >>> aligned_model = result['registered_model']
-    >>> forward_transform = result['forward_transform']  # Moving to fixed transform
+    >>> forward_transform = result['forward_transform']  # warps moving image -> fixed grid
 """
 
 import logging
@@ -49,9 +49,9 @@ from typing import Optional
 
 import itk
 import pyvista as pv
-from itk import TubeTK as ttk
 
 from physiomotion4d.contour_tools import ContourTools
+from physiomotion4d.labelmap_tools import LabelmapTools
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
 from physiomotion4d.register_images_ants import RegisterImagesANTS
 from physiomotion4d.register_images_icon import RegisterImagesICON
@@ -74,8 +74,15 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         - **Optional**: ICON deep learning refinement after any mode
 
     **Transform Convention:**
-        - forward_transform: Moving → fixed space transformation
-        - inverse_transform: Fixed → moving space transformation
+        These are the underlying image-registration (ANTs/ICON) transforms, so
+        they follow the image convention (see
+        docs/developer/transform_conventions):
+
+        - forward_transform: warps the moving image/mask onto the fixed grid.
+          Warping the moving MODEL points/landmarks onto the fixed model uses
+          inverse_transform instead (image and point warps use opposite
+          transforms).
+        - inverse_transform: warps the fixed image/mask onto the moving grid.
 
     Attributes:
         moving_model (pv.PolyData): Surface model to be aligned
@@ -148,6 +155,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         # Utilities
         self.transform_tools = TransformTools()
         self.contour_tools = ContourTools()
+        self.labelmap_tools = LabelmapTools(log_level=log_level)
 
         # Registration instances
         self.registrar_ANTS = RegisterImagesANTS(log_level=log_level)
@@ -194,12 +202,9 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         mask = self.contour_tools.create_mask_from_mesh(
             self.fixed_model, self.reference_image
         )
-        imMath = ttk.ImageMath.New(mask)
-        dilation_voxels = int(
-            self.roi_dilation_mm / self.reference_image.GetSpacing()[0]
+        self.fixed_mask_roi_image = self.labelmap_tools.convert_labelmap_to_mask(
+            mask, dilation_in_mm=self.roi_dilation_mm
         )
-        imMath.Dilate(dilation_voxels, 1, 0)
-        self.fixed_mask_roi_image = imMath.GetOutput()
 
         # Create moving mask
         self.moving_mask_image = self.contour_tools.create_distance_map(
@@ -216,9 +221,9 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         mask = self.contour_tools.create_mask_from_mesh(
             self.moving_model, self.reference_image
         )
-        imMath = ttk.ImageMath.New(self.moving_mask_image)
-        imMath.Dilate(dilation_voxels, 1, 0)
-        self.moving_mask_roi_image = imMath.GetOutputUChar()
+        self.moving_mask_roi_image = self.labelmap_tools.convert_labelmap_to_mask(
+            mask, dilation_in_mm=self.roi_dilation_mm
+        )
 
         self.log_info("Mask generation complete")
 
