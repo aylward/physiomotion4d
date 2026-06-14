@@ -6,9 +6,9 @@ import numpy as np
 import pyvista as pv
 from scipy.optimize import minimize
 
-from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.transform_tools import TransformTools
+from .contour_tools import ContourTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .transform_tools import TransformTools
 
 
 class RegisterModelsICPITK(PhysioMotion4DBase):

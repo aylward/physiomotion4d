@@ -28,7 +28,7 @@ import nrrd
 import numpy as np
 import pydicom
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from .physiomotion4d_base import PhysioMotion4DBase
 
 
 class ConvertImage4DTo3D(PhysioMotion4DBase):

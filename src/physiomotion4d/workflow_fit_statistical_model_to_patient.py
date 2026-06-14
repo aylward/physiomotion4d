@@ -29,16 +29,16 @@ import itk
 import numpy as np
 import pyvista as pv
 
-from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.labelmap_tools import LabelmapTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_greedy import RegisterImagesGreedy
-from physiomotion4d.register_images_icon import RegisterImagesICON
-from physiomotion4d.register_models_distance_maps import RegisterModelsDistanceMaps
-from physiomotion4d.register_models_icp import RegisterModelsICP
-from physiomotion4d.register_models_pca import RegisterModelsPCA
-from physiomotion4d.transform_tools import TransformTools
-from physiomotion4d.workflow_convert_image_to_vtk import WorkflowConvertImageToVTK
+from .contour_tools import ContourTools
+from .labelmap_tools import LabelmapTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .register_images_greedy import RegisterImagesGreedy
+from .register_images_icon import RegisterImagesICON
+from .register_models_distance_maps import RegisterModelsDistanceMaps
+from .register_models_icp import RegisterModelsICP
+from .register_models_pca import RegisterModelsPCA
+from .transform_tools import TransformTools
+from .workflow_convert_image_to_vtk import WorkflowConvertImageToVTK
 
 
 def _load_tubetk() -> Any:
@@ -680,12 +680,10 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             "registered_template_labelmap": self.pca_template_labelmap,
         }
 
-    def register_mask_to_mask(
-        self, use_ICON_refinement: bool = False
-    ) -> Optional[dict]:
+    def register_mask_to_mask(self) -> Optional[dict]:
         """Perform mask-based deformable registration of model to patient model.
 
-        Uses RegisterModelsDistanceMaps class for ANTs deformable registration.
+        Uses RegisterModelsDistanceMaps with Greedy affine followed by ICON deformable registration.
 
         Returns:
             dict: Dictionary containing:
@@ -717,7 +715,6 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         # Run deformable registration
         mask_result = mask_registrar.register(
             transform_type="Deformable",
-            use_ICON=use_ICON_refinement,
         )
 
         # Store results
@@ -948,8 +945,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             set via set_use_mask_to_image_registration(True, ...).
 
         Args:
-            use_ICON_registration_refinement: Whether to include icon registration
-                refinement stage. Default: False
+            use_ICON_registration_refinement: Whether to apply ICON refinement in the
+                mask-to-image stage (Stage 4). The mask-to-mask stage always uses
+                Greedy affine + ICON deformable. Default: False
 
         Returns:
             dict with registered_template_model and registered_template_model_surface
@@ -968,9 +966,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
         # Stage 3: Optional Mask-to-mask deformable registration
         if self.use_m2m_registration:
-            self.register_mask_to_mask(
-                use_ICON_refinement=use_ICON_registration_refinement
-            )
+            self.register_mask_to_mask()
 
         # Stage 4: Optional mask-to-image refinement
         if self.use_m2i_registration:

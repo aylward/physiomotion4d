@@ -42,10 +42,10 @@ import itk
 import numpy as np
 import yaml
 
-from physiomotion4d.labelmap_tools import LabelmapTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_time_series_images import RegisterTimeSeriesImages
-from physiomotion4d.transform_tools import TransformTools
+from .labelmap_tools import LabelmapTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .register_time_series_images import RegisterTimeSeriesImages
+from .transform_tools import TransformTools
 
 Landmarks = dict[str, tuple[float, float, float]]
 

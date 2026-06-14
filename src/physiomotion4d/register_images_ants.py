@@ -18,8 +18,8 @@ import itk
 import numpy as np
 from numpy.typing import NDArray
 
-from physiomotion4d.register_images_base import RegisterImagesBase
-from physiomotion4d.transform_tools import TransformTools
+from .register_images_base import RegisterImagesBase
+from .transform_tools import TransformTools
 
 
 class RegisterImagesANTS(RegisterImagesBase):
@@ -296,7 +296,7 @@ class RegisterImagesANTS(RegisterImagesBase):
 
         # Convert to the correct Image[Vector[D, 3], 3] type for DisplacementFieldTransform
         # Use ImageTools helper to convert array to vector image with correct type
-        from physiomotion4d.image_tools import ImageTools
+        from .image_tools import ImageTools
 
         image_tools = ImageTools()
 

@@ -269,7 +269,7 @@ Examples:
     # Initialize workflow
     print("\nInitializing high-resolution 4D CT reconstruction workflow...")
     try:
-        from physiomotion4d import WorkflowReconstructHighres4DCT
+        from .. import WorkflowReconstructHighres4DCT
 
         workflow = WorkflowReconstructHighres4DCT(
             time_series_images=time_series_images,

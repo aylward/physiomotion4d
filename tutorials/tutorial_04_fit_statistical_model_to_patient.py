@@ -33,8 +33,7 @@ from physiomotion4d.workflow_fit_statistical_model_to_patient import (
 # multiprocessing.Pool. On Windows the spawn start method re-imports this
 # script in each child; without the __name__ == "__main__" guard around
 # top-level work, that re-import fires the segmenter again and Python's
-# spawn-cascade detector raises RuntimeError. Wrapping consistently across
-# tutorials also matches the style of tutorial_01.
+# spawn-cascade detector raises RuntimeError.
 if __name__ == "__main__":
     # %%
     # Data directory specification

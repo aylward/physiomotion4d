@@ -110,7 +110,7 @@ Examples:
     # Initialize processor
     print("Initializing Image-to-USD processor...")
     try:
-        from physiomotion4d import WorkflowConvertImageToUSD
+        from .. import WorkflowConvertImageToUSD
 
         processor = WorkflowConvertImageToUSD(
             input_filenames=args.input_files,

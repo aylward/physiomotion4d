@@ -16,11 +16,11 @@ import numpy as np
 import pyvista as pv
 from sklearn.decomposition import PCA
 
-from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_models_distance_maps import RegisterModelsDistanceMaps
-from physiomotion4d.register_models_icp import RegisterModelsICP
-from physiomotion4d.transform_tools import TransformTools
+from .contour_tools import ContourTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .register_models_distance_maps import RegisterModelsDistanceMaps
+from .register_models_icp import RegisterModelsICP
+from .transform_tools import TransformTools
 
 
 def _extract_surface(mesh: pv.DataSet) -> pv.PolyData:
@@ -40,7 +40,7 @@ class WorkflowCreateStatisticalModel(PhysioMotion4DBase):
     1. Extract surfaces from sample and reference meshes, or keep as meshes
     2. ICP alignment: align each sample surface to the reference (template) surface. Always
        extract surfaces for ICP alignment.
-    3. Deformable registration: establish dense correspondence via mask-based SyN.  Uses
+    3. Deformable registration: establish dense correspondence via Greedy affine + ICON deformable registration.  Uses
        either full meshes or surfaces.
     4. Correspondence: warp reference model by each transform to get aligned shapes
     5. PCA: compute mean and modes from corresponded shapes
@@ -191,7 +191,6 @@ class WorkflowCreateStatisticalModel(PhysioMotion4DBase):
             )
             result = registrar.register(
                 transform_type="Deformable",
-                use_ICON=False,
             )
 
             new_aligned_models.append(result["registered_model"])

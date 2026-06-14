@@ -13,10 +13,10 @@ from typing import Optional, Union, cast
 
 import itk
 
-from physiomotion4d.register_images_base import RegisterImagesBase
-from physiomotion4d.register_images_greedy import RegisterImagesGreedy
-from physiomotion4d.register_images_icon import RegisterImagesICON
-from physiomotion4d.transform_tools import TransformTools
+from .register_images_base import RegisterImagesBase
+from .register_images_greedy import RegisterImagesGreedy
+from .register_images_icon import RegisterImagesICON
+from .transform_tools import TransformTools
 
 REGISTRATION_METHODS: list[str] = [
     "Greedy",

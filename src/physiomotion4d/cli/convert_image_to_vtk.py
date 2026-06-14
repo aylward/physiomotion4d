@@ -160,7 +160,7 @@ Examples
     print("=" * 70)
 
     try:
-        from physiomotion4d import WorkflowConvertImageToVTK
+        from .. import WorkflowConvertImageToVTK
 
         workflow = WorkflowConvertImageToVTK(
             segmentation_method=args.segmentation_method,

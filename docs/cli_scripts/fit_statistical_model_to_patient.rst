@@ -16,7 +16,7 @@ The registration pipeline consists of four stages:
 
 1. **ICP Alignment**: Rigid/affine alignment using surface matching
 2. **PCA Registration** (optional): Statistical shape model fitting
-3. **Mask-to-Mask Registration**: Deformable registration using distance maps
+3. **Mask-to-Mask Registration**: Greedy affine + ICON deformable registration using distance maps
 4. **Mask-to-Image Refinement** (optional): Final intensity-based refinement
 
 Installation
@@ -120,7 +120,9 @@ Registration Configuration
    ``--template-labelmap`` and template label IDs. Disabled by default.
 
 ``--use-ICON-refinement``
-   Enable ICON deep learning registration refinement (default: disabled)
+   Enable ICON deep learning refinement in the mask-to-image stage (Stage 4).
+   The mask-to-mask stage always uses Greedy affine + ICON deformable.
+   Default: disabled
 
 Output Options
 --------------

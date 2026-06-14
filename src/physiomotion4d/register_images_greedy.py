@@ -20,9 +20,9 @@ import itk
 import numpy as np
 from numpy.typing import NDArray
 
-from physiomotion4d.image_tools import ImageTools
-from physiomotion4d.register_images_base import RegisterImagesBase
-from physiomotion4d.transform_tools import TransformTools
+from .image_tools import ImageTools
+from .register_images_base import RegisterImagesBase
+from .transform_tools import TransformTools
 
 
 def _try_import_greedy() -> Any:
@@ -262,7 +262,7 @@ class RegisterImagesGreedy(RegisterImagesBase):
     ) -> itk.Transform:
         """Convert SimpleITK displacement field to ITK DisplacementFieldTransform."""
         field_itk = self._sitk_to_itk(warp_sitk)
-        from physiomotion4d.image_tools import ImageTools
+        from .image_tools import ImageTools
 
         image_tools = ImageTools()
         arr = itk.array_from_image(field_itk)
@@ -462,7 +462,7 @@ class RegisterImagesGreedy(RegisterImagesBase):
         # integer labelmap is piecewise-constant, so NCC sees zero local
         # variance and emits NaN gradients (a native crash). Encode each
         # labelmap as a continuous label-plus-boundary-distance field instead.
-        from physiomotion4d.labelmap_tools import LabelmapTools
+        from .labelmap_tools import LabelmapTools
 
         labelmap_tools = LabelmapTools()
         fixed_labelmap_sitk = None
@@ -579,7 +579,7 @@ class RegisterImagesGreedy(RegisterImagesBase):
                 )
             else:
                 # Assume numpy displacement field (z,y,x,3)
-                from physiomotion4d.image_tools import ImageTools
+                from .image_tools import ImageTools
 
                 image_tools = ImageTools()
                 warp_arr = np.asarray(warp_sitk, dtype=np.float64)

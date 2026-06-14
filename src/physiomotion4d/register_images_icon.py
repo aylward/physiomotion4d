@@ -21,8 +21,8 @@ import torch.nn.functional as F
 from unigradicon import get_multigradicon, get_unigradicon
 from unigradicon import preprocess as unigradicon_preprocess
 
-from physiomotion4d.register_images_base import RegisterImagesBase
-from physiomotion4d.transform_tools import TransformTools
+from .register_images_base import RegisterImagesBase
+from .transform_tools import TransformTools
 
 DEFAULT_FINETUNE_LEARNING_RATE = 2e-5
 

@@ -14,7 +14,7 @@ import json
 import logging
 from pathlib import Path
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from .physiomotion4d_base import PhysioMotion4DBase
 
 LandmarkDict = dict[str, tuple[float, float, float]]
 

@@ -11,7 +11,7 @@ import argparse
 import os
 import sys
 
-from physiomotion4d.usd_anatomy_tools import DEFAULT_RENDER_PARAMS
+from ..usd_anatomy_tools import DEFAULT_RENDER_PARAMS
 
 # Anatomy types accepted by --anatomy-type, sourced from the renderer's
 # registered defaults so that new groups/organs registered in
@@ -193,7 +193,7 @@ Examples:
             return 1
 
     try:
-        from physiomotion4d import WorkflowConvertVTKToUSD
+        from .. import WorkflowConvertVTKToUSD
 
         workflow = WorkflowConvertVTKToUSD(
             vtk_files=args.vtk_files,

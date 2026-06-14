@@ -4,19 +4,17 @@ This module provides the RegisterModelsDistanceMaps class for aligning anatomica
 models using mask-based deformable registration. The workflow includes:
 1. Generate binary masks from moving and fixed models
 2. Generate ROI masks with dilation
-4. Progressive registration stages:
-   - rigid: ANTs rigid registration
-   - affine: ANTs rigid → affine registration
-   - deformable: ANTs rigid → affine → deformable (SyN) registration
-5. Optional ICON refinement at end
+3. Progressive registration stages:
+   - rigid: Greedy rigid registration
+   - affine: Greedy affine registration
+   - deformable: Greedy affine → ICON deformable registration
 
 The registration is particularly useful for aligning anatomical models where
 shape differences require deformable transformations beyond rigid/affine ICP.
 
 Key Features:
     - Automatic mask generation from PyVista models
-    - Multi-stage ANTs registration (rigid/affine/deformable)
-    - Optional ICON deep learning refinement
+    - Multi-stage Greedy/ICON registration (rigid/affine/deformable)
     - Automatic transform composition
     - Support for PyVista models
 
@@ -30,14 +28,14 @@ Example:
     >>> fixed_model = pv.read('patient_surface.stl')
     >>> reference_image = itk.imread('patient_ct.nii.gz')
     >>>
-    >>> # Run deformable registration with ICON refinement
+    >>> # Run deformable registration (Greedy affine + ICON deformable)
     >>> registrar = RegisterModelsDistanceMaps(
     ...     moving_model=moving_model,
     ...     fixed_model=fixed_model,
     ...     reference_image=reference_image,
     ...     roi_dilation_mm=20,
     ... )
-    >>> result = registrar.register(mode='deformable', use_ICON=True, icon_iterations=50)
+    >>> result = registrar.register(transform_type='Deformable', icon_iterations=50)
     >>>
     >>> # Access results
     >>> aligned_model = result['registered_model']
@@ -50,12 +48,12 @@ from typing import Optional
 import itk
 import pyvista as pv
 
-from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.labelmap_tools import LabelmapTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_ants import RegisterImagesANTS
-from physiomotion4d.register_images_icon import RegisterImagesICON
-from physiomotion4d.transform_tools import TransformTools
+from .contour_tools import ContourTools
+from .labelmap_tools import LabelmapTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .register_images_greedy import RegisterImagesGreedy
+from .register_images_icon import RegisterImagesICON
+from .transform_tools import TransformTools
 
 
 class RegisterModelsDistanceMaps(PhysioMotion4DBase):
@@ -63,18 +61,17 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
     This class provides mask-based alignment of 3D surface models with support for
     rigid, affine, and deformable transformation modes. The registration pipeline
-    generates masks from models, applies optional dilation, and uses ANTs for
-    progressive multi-stage registration with optional ICON refinement.
+    generates masks from models, applies optional dilation, and uses Greedy for
+    rigid/affine stages and ICON for deformable registration.
 
     **Registration Pipelines:**
-        - **None mode**: No ANTs registration
-        - **Rigid mode**: ANTs rigid registration
-        - **Affine mode**: ANTs rigid → affine registration
-        - **Deformable mode**: ANTs rigid → affine → deformable (SyN) registration
-        - **Optional**: ICON deep learning refinement after any mode
+        - **None mode**: No registration (identity transform)
+        - **Rigid mode**: Greedy rigid registration
+        - **Affine mode**: Greedy affine registration
+        - **Deformable mode**: Greedy affine → ICON deformable registration
 
     **Transform Convention:**
-        These are the underlying image-registration (ANTs/ICON) transforms, so
+        These are the underlying image-registration (Greedy/ICON) transforms, so
         they follow the image convention (see
         docs/developer/transform_conventions):
 
@@ -91,7 +88,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         roi_dilation_mm (float): Dilation amount in mm for ROI mask
         transform_tools (TransformTools): Transform utility instance
         contour_tools (ContourTools): Model utility instance
-        registrar_ANTS (RegisterImagesANTS): ANTs registration instance
+        registrar_Greedy (RegisterImagesGreedy): Greedy registration instance
         registrar_ICON (RegisterImagesICON): ICON registration instance
         forward_transform (itk.CompositeTransform): Optimized moving→fixed transform
         inverse_transform (itk.CompositeTransform): Optimized fixed→moving transform
@@ -107,15 +104,13 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         ... )
         >>>
         >>> # Run rigid registration
-        >>> result = registrar.register(mode='rigid')
+        >>> result = registrar.register(transform_type='Rigid')
         >>>
         >>> # Or run affine registration
-        >>> result = registrar.register(mode='affine')
+        >>> result = registrar.register(transform_type='Affine')
         >>>
-        >>> # Or run deformable with ICON refinement
-        >>> result = registrar.register(
-        ...     mode='deformable', use_ANTS=False, use_ICON=True, icon_iterations=50
-        ... )
+        >>> # Or run deformable (Greedy affine + ICON)
+        >>> result = registrar.register(transform_type='Deformable', icon_iterations=50)
         >>>
         >>> # Get aligned model and transforms
         >>> aligned_model = result['registered_model']
@@ -158,7 +153,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         self.labelmap_tools = LabelmapTools(log_level=log_level)
 
         # Registration instances
-        self.registrar_ANTS = RegisterImagesANTS(log_level=log_level)
+        self.registrar_Greedy = RegisterImagesGreedy(log_level=log_level)
         self.registrar_ICON = RegisterImagesICON(log_level=log_level)
         self.registrar_ICON.set_modality("ct")
         self.registrar_ICON.set_multi_modality(False)
@@ -230,7 +225,6 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
     def register(
         self,
         transform_type: str = "Deformable",
-        use_ICON: bool = False,
         icon_iterations: int = 50,
     ) -> dict:
         """Perform mask-based registration of moving model to fixed model.
@@ -238,24 +232,21 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         This method executes progressive multi-stage registration:
 
         **None transform type:**
-            1. No ANTs registration
+            1. No registration (identity transform)
 
         **Rigid transform type:**
-            1. ANTs rigid registration
+            1. Greedy rigid registration
 
         **Affine transform type:**
-            1. ANTs affine registration (includes rigid stage)
+            1. Greedy affine registration
 
         **Deformable transform type:**
-            1. ANTs SyN deformable registration (includes rigid + affine + deformable stages)
-
-        **Optional ICON refinement** (all transform type):
-            1. ICON deep learning registration for fine-tuning
+            1. Greedy affine registration
+            2. ICON deformable registration on the affine-pre-aligned masks
 
         Args:
             transform_type: Registration transform type - 'None', 'Rigid', 'Affine', or 'Deformable'. Default: 'Deformable'
-            use_ICON: Whether to apply ICON registration refinement after ANTs. Default: False
-            icon_iterations: Number of ICON optimization iterations if use_ICON=True. Default: 50
+            icon_iterations: Number of ICON optimization iterations for 'Deformable' mode. Default: 50
 
         Returns:
             Dictionary containing:
@@ -273,10 +264,8 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             >>> # Affine registration
             >>> result = registrar.register(transform_type='Affine')
             >>>
-            >>> # Deformable registration with ICON refinement
-            >>> result = registrar.register(
-            ...     transform_type='Deformable', use_ICON=True, icon_iterations=100
-            ... )
+            >>> # Deformable registration (Greedy affine + ICON)
+            >>> result = registrar.register(transform_type='Deformable', icon_iterations=100)
         """
         if transform_type not in ["None", "Rigid", "Affine", "Deformable"]:
             raise ValueError(
@@ -288,85 +277,83 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         # Step 1: Generate masks from models
         self._create_masks_from_models()
 
-        self.log_info(
-            "Performing ANTs %s registration...",
-            transform_type,
-        )
+        # Step 2: Greedy rigid or affine stage (skipped for None/Deformable uses Affine)
+        greedy_type = "Affine" if transform_type == "Deformable" else transform_type
 
-        inverse_transform_ANTS = None
-        forward_transform_ANTS = None
-        if transform_type != "None":
-            self.registrar_ANTS.set_fixed_image(self.fixed_mask_image)
-            self.registrar_ANTS.set_fixed_mask(self.fixed_mask_roi_image)
+        forward_transform_Greedy = None
+        inverse_transform_Greedy = None
+        if greedy_type != "None":
+            self.log_info("Performing Greedy %s registration...", greedy_type)
+            self.registrar_Greedy.set_fixed_image(self.fixed_mask_image)
+            self.registrar_Greedy.set_fixed_mask(self.fixed_mask_roi_image)
+            self.registrar_Greedy.set_transform_type(greedy_type)
+            self.registrar_Greedy.set_metric("MeanSquares")
 
-            self.registrar_ANTS.set_transform_type(transform_type)
-            self.registrar_ANTS.set_metric("MeanSquares")
-
-            result_ANTS = self.registrar_ANTS.register(
+            result_Greedy = self.registrar_Greedy.register(
                 moving_image=self.moving_mask_image,
                 moving_mask=self.moving_mask_roi_image,
             )
-            inverse_transform_ANTS = result_ANTS["inverse_transform"]
-            forward_transform_ANTS = result_ANTS["forward_transform"]
+            forward_transform_Greedy = result_Greedy["forward_transform"]
+            inverse_transform_Greedy = result_Greedy["inverse_transform"]
         else:
             identity_transform = itk.AffineTransform[itk.D, 3].New()
             identity_transform.SetIdentity()
-            inverse_transform_ANTS = identity_transform
-            forward_transform_ANTS = identity_transform
+            forward_transform_Greedy = identity_transform
+            inverse_transform_Greedy = identity_transform
 
-        # Initialize composite transforms
-        self.forward_transform = forward_transform_ANTS
-        self.inverse_transform = inverse_transform_ANTS
+        self.forward_transform = forward_transform_Greedy
+        self.inverse_transform = inverse_transform_Greedy
 
-        # Optional ICON refinement
-        if use_ICON:
+        # Step 3: ICON deformable stage (only for Deformable mode)
+        if transform_type == "Deformable":
             self.log_info(
-                "Performing ICON refinement registration (%d iterations)...",
+                "Performing ICON deformable registration (%d iterations)...",
                 icon_iterations,
             )
 
-            # Transform masks with ANTs result for ICON input
-            moving_mask_ANTS_transformed = self.transform_tools.transform_image(
+            # Pre-align moving image and ROI mask into the fixed grid using the Greedy affine result
+            moving_mask_affine_transformed = self.transform_tools.transform_image(
                 self.moving_mask_image,
-                forward_transform_ANTS,
+                forward_transform_Greedy,
                 self.reference_image,
                 interpolation_method="linear",
             )
+            moving_mask_roi_affine_transformed = self.transform_tools.transform_image(
+                self.moving_mask_roi_image,
+                forward_transform_Greedy,
+                self.reference_image,
+                interpolation_method="nearest",
+            )
 
-            # Configure ICON
+            # Configure and run ICON
             self.registrar_ICON.set_number_of_iterations(icon_iterations)
             self.registrar_ICON.set_fixed_image(self.fixed_mask_image)
             self.registrar_ICON.set_fixed_mask(self.fixed_mask_roi_image)
 
-            # ICON registration
             result_ICON = self.registrar_ICON.register(
-                moving_image=moving_mask_ANTS_transformed,
-                moving_mask=self.moving_mask_roi_image,
+                moving_image=moving_mask_affine_transformed,
+                moving_mask=moving_mask_roi_affine_transformed,
             )
-            inverse_transform_ICON = result_ICON["inverse_transform"]
             forward_transform_ICON = result_ICON["forward_transform"]
+            inverse_transform_ICON = result_ICON["inverse_transform"]
 
-            # Compose ANTs and ICON transforms
-            composed_forward = (
+            # Compose Greedy affine + ICON deformable
+            self.forward_transform = (
                 self.transform_tools.combine_displacement_field_transforms(
-                    forward_transform_ANTS,
+                    forward_transform_Greedy,
                     forward_transform_ICON,
                     reference_image=self.reference_image,
                     mode="compose",
                 )
             )
-
-            composed_inverse = (
+            self.inverse_transform = (
                 self.transform_tools.combine_displacement_field_transforms(
                     inverse_transform_ICON,
-                    inverse_transform_ANTS,
+                    inverse_transform_Greedy,
                     reference_image=self.reference_image,
                     mode="compose",
                 )
             )
-
-            self.forward_transform = composed_forward
-            self.inverse_transform = composed_inverse
 
         # Apply final transform to moving model
         self.log_info("Transforming moving model...")
@@ -376,7 +363,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             with_deformation_magnitude=True,
         )
 
-        self.log_info("%s mask-based registration complete!", transform_type.upper())
+        self.log_info("%s mask-based registration complete.", transform_type.upper())
 
         # Return results as dictionary
         return {

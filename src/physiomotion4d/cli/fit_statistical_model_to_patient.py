@@ -223,7 +223,7 @@ Examples:
     # Initialize workflow
     print("\nInitializing heart model to patient registration workflow...")
     try:
-        from physiomotion4d import WorkflowFitStatisticalModelToPatient
+        from .. import WorkflowFitStatisticalModelToPatient
 
         workflow = WorkflowFitStatisticalModelToPatient(
             template_model=template_model,

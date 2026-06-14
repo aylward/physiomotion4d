@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from physiomotion4d.data_download_tools import DataDownloadTools
+from ..data_download_tools import DataDownloadTools
 
 SLICER_HEART_CT = "Slicer-Heart-CT"
 

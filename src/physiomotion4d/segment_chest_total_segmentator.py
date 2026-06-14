@@ -15,7 +15,7 @@ import nibabel as nib
 import numpy as np
 from totalsegmentator.python_api import totalsegmentator
 
-from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
+from .segment_anatomy_base import SegmentAnatomyBase
 
 
 class SegmentChestTotalSegmentator(SegmentAnatomyBase):

@@ -2,19 +2,19 @@
 # %% [markdown]
 # # Registration-Based Correspondence
 #
-# This notebook aligns ICP-aligned models from step 2 to the average surface using **ANTs SyN (Symmetric Normalization)** deformable registration via mask-based registration.
+# This notebook aligns ICP-aligned models from step 2 to the average surface using **Greedy affine + ICON deformable** registration via mask-based registration.
 #
 # **Workflow:**
 # 1. Load ICP-aligned models from `kcl-heart-model/surfaces_aligned/`
 # 2. Load average surface (`average_surface.vtp`)
-# 3. Use `RegisterModelsDistanceMaps` to perform ANTs SyN deformable registration
+# 3. Use `RegisterModelsDistanceMaps` to perform Greedy affine + ICON deformable registration
 # 4. Save corresponded models to `kcl-heart-model/surfaces_aligned_corresponded/`
 # 5. Visualize before/after comparisons
 # 6. Analyze deformation magnitude and registration statistics
 #
 # **Method:**
-# - **ANTs SyN** provides diffeomorphic (smooth, invertible) deformation fields
-# - Progressive registration stages: rigid → affine → SyN deformable
+# - **Greedy** performs fast CPU-based affine pre-alignment
+# - **ICON** provides deep learning deformable registration on the affine-pre-aligned masks
 # - Mask-based approach focuses registration on the anatomical structures
 
 # %%
@@ -110,11 +110,9 @@ for vtk_file in vtk_files:
         roi_dilation_mm=20.0,  # Dilation for ROI mask
     )
 
-    # Perform ANTs SyN deformable registration
-    # This performs progressive multi-stage registration: rigid → affine → SyN deformable
+    # Perform Greedy affine + ICON deformable registration
     result = registrar.register(
-        transform_type="Deformable",  # Uses ANTs SyN (Symmetric Normalization)
-        use_ICON=False,  # Set to True for additional ICON deep learning refinement
+        transform_type="Deformable",
     )
 
     forward_transform = result["forward_transform"]
@@ -203,7 +201,7 @@ for case_id in example_ids:
     plotter.show_axes()
     plotter.camera_position = "iso"
 
-    # Right: After distance map registration (ICP + ANTs SyN)
+    # Right: After distance map registration (Greedy affine + ICON deformable)
     plotter.subplot(0, 1)
     plotter.add_mesh(
         fixed_model, color="lightblue", opacity=1.0, label="Average Surface"
@@ -212,7 +210,7 @@ for case_id in example_ids:
         after_mesh, color="green", opacity=1.0, label=f"Case {case_id} (Corresponded)"
     )
     plotter.add_text(
-        f"After Distance Map Registration (ANTs SyN)\nCase {case_id}",
+        f"After Distance Map Registration (Greedy + ICON)\nCase {case_id}",
         position="upper_left",
         font_size=10,
     )
@@ -329,7 +327,7 @@ else:
 # %% [markdown]
 # ## Summary
 #
-# This notebook performed mask-based deformable registration using **ANTs SyN (Symmetric Normalization)** to establish correspondence between the ICP-aligned models and the average surface.
+# This notebook performed mask-based deformable registration using **Greedy affine + ICON deformable** to establish correspondence between the ICP-aligned models and the average surface.
 #
 # **Next Steps:**
 # - Proceed to step 4: `4-surfaces_aligned_correspond_to_pca_inputs.ipynb` to prepare data for PCA analysis
@@ -337,10 +335,8 @@ else:
 # - The registration statistics show the deformation applied to each model
 #
 # **Registration Details:**
-# - The `RegisterModelsDistanceMaps` class uses **ANTs SyN** for progressive registration:
-#   1. Rigid alignment
-#   2. Affine transformation
-#   3. SyN deformable registration (diffeomorphic)
-# - Setting `use_ICON=True` in the `register()` call would add ICON deep learning refinement after SyN
+# - The `RegisterModelsDistanceMaps` class uses a two-stage pipeline:
+#   1. **Greedy affine** registration (fast CPU-based alignment)
+#   2. **ICON deformable** registration on the affine-pre-aligned masks (deep learning)
 # - The `roi_dilation_mm` parameter controls the dilation of the ROI mask (default 20mm)
-# - SyN registration provides smooth, invertible deformation fields for anatomical correspondence
+# - Composed Greedy + ICON transforms provide smooth, invertible deformation fields for anatomical correspondence

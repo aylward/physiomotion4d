@@ -17,7 +17,7 @@ from typing import Any, Literal, Optional, cast
 import itk
 import numpy as np
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from .physiomotion4d_base import PhysioMotion4DBase
 
 # Repo root: src/physiomotion4d/test_tools.py -> parent.parent.parent
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -464,7 +464,7 @@ class TestTools(PhysioMotion4DBase):
 
         import pyvista as pv
 
-        from physiomotion4d.usd_tools import USDTools
+        from .usd_tools import USDTools
 
         # On headless Linux runners VTK needs an X server or off-screen GL
         # context. If DISPLAY is already provided (e.g. xvfb-run wrapping

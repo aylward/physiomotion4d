@@ -17,7 +17,7 @@ import itk
 import numpy as np
 from itk import TubeTK as tube
 
-from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
+from .segment_anatomy_base import SegmentAnatomyBase
 
 
 class SegmentHeartSimpleware(SegmentAnatomyBase):

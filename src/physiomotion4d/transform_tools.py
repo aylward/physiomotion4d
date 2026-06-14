@@ -31,9 +31,9 @@ import vtk
 from numpy.typing import NDArray
 from pxr import Gf, Sdf, Usd, UsdGeom
 
-from physiomotion4d.image_tools import ImageTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.vtk_to_usd import add_framing_camera
+from .image_tools import ImageTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .vtk_to_usd import add_framing_camera
 
 FloatArray: TypeAlias = NDArray[np.float32] | NDArray[np.float64]
 

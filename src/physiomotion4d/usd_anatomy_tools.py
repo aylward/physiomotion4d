@@ -34,7 +34,7 @@ from typing import Any, Mapping
 
 from pxr import Sdf, UsdGeom, UsdShade
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from .physiomotion4d_base import PhysioMotion4DBase
 
 # Default OmniSurface render parameters keyed by group name (matching
 # :class:`physiomotion4d.AnatomyTaxonomy.group_names`) and by organ-level

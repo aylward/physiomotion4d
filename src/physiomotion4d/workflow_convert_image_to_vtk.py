@@ -32,10 +32,10 @@ import itk
 import numpy as np
 import pyvista as pv
 
-from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
-from physiomotion4d.usd_anatomy_tools import USDAnatomyTools
+from .contour_tools import ContourTools
+from .physiomotion4d_base import PhysioMotion4DBase
+from .segment_anatomy_base import SegmentAnatomyBase
+from .usd_anatomy_tools import USDAnatomyTools
 
 #: Ordered tuple of anatomy group names matching :meth:`SegmentAnatomyBase.segment` keys.
 ANATOMY_GROUPS: tuple[str, ...] = (
@@ -148,7 +148,7 @@ class WorkflowConvertImageToVTK(PhysioMotion4DBase):
     def _create_segmenter(self) -> SegmentAnatomyBase:
         """Instantiate the chosen segmentation backend (lazy import)."""
         if self.segmentation_method_name == "ChestTotalSegmentator":
-            from physiomotion4d.segment_chest_total_segmentator import (
+            from .segment_chest_total_segmentator import (
                 SegmentChestTotalSegmentator,
             )
 
@@ -157,7 +157,7 @@ class WorkflowConvertImageToVTK(PhysioMotion4DBase):
             "HeartSimpleware",
             "HeartSimplewareTrimmedBranches",
         ):
-            from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
+            from .segment_heart_simpleware import SegmentHeartSimpleware
 
             segmenter = SegmentHeartSimpleware(log_level=self.log_level)
             segmenter.set_trim_branches(

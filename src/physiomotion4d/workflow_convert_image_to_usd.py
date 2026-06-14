@@ -15,18 +15,18 @@ import itk
 import numpy as np
 import pyvista as pv
 
-from physiomotion4d import ConvertVTKToUSD
-from physiomotion4d.contour_tools import ContourTools
-from physiomotion4d.convert_image_4d_to_3d import ConvertImage4DTo3D
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_images_base import RegisterImagesBase
-from physiomotion4d.register_images_greedy import RegisterImagesGreedy
-from physiomotion4d.register_images_icon import RegisterImagesICON
-from physiomotion4d.segment_anatomy_base import SegmentAnatomyBase
-from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
-from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
-from physiomotion4d.transform_tools import TransformTools
-from physiomotion4d.usd_anatomy_tools import USDAnatomyTools
+from .contour_tools import ContourTools
+from .convert_image_4d_to_3d import ConvertImage4DTo3D
+from .convert_vtk_to_usd import ConvertVTKToUSD
+from .physiomotion4d_base import PhysioMotion4DBase
+from .register_images_base import RegisterImagesBase
+from .register_images_greedy import RegisterImagesGreedy
+from .register_images_icon import RegisterImagesICON
+from .segment_anatomy_base import SegmentAnatomyBase
+from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
+from .segment_heart_simpleware import SegmentHeartSimpleware
+from .transform_tools import TransformTools
+from .usd_anatomy_tools import USDAnatomyTools
 
 #: Supported segmentation backend identifiers.
 SEGMENTATION_METHODS: tuple[str, ...] = (

@@ -28,8 +28,8 @@ from typing import Optional
 
 import itk
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.register_time_series_images import RegisterTimeSeriesImages
+from .physiomotion4d_base import PhysioMotion4DBase
+from .register_time_series_images import RegisterTimeSeriesImages
 
 
 class WorkflowReconstructHighres4DCT(PhysioMotion4DBase):

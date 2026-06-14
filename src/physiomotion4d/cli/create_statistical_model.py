@@ -138,7 +138,7 @@ Examples:
     # Run workflow
     print("\nInitializing create statistical model workflow...")
     try:
-        from physiomotion4d import WorkflowCreateStatisticalModel
+        from .. import WorkflowCreateStatisticalModel
 
         workflow = WorkflowCreateStatisticalModel(
             sample_meshes=sample_meshes,

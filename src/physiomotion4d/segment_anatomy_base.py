@@ -12,8 +12,8 @@ import itk
 import numpy as np
 from itk import TubeTK as tube
 
-from physiomotion4d.anatomy_taxonomy import AnatomyTaxonomy
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from .anatomy_taxonomy import AnatomyTaxonomy
+from .physiomotion4d_base import PhysioMotion4DBase
 
 
 class SegmentAnatomyBase(PhysioMotion4DBase):

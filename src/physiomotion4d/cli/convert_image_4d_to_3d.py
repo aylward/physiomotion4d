@@ -70,7 +70,7 @@ Examples
         print(f"Error: input image not found: {args.input_image}")
         return 1
     try:
-        from physiomotion4d import ConvertImage4DTo3D
+        from .. import ConvertImage4DTo3D
 
         converter = ConvertImage4DTo3D()
         print(f"Loading 4D image: {args.input_image}")

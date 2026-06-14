@@ -12,10 +12,10 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from physiomotion4d.convert_vtk_to_usd import ConvertVTKToUSD
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.usd_anatomy_tools import USDAnatomyTools
-from physiomotion4d.usd_tools import USDTools
+from .convert_vtk_to_usd import ConvertVTKToUSD
+from .physiomotion4d_base import PhysioMotion4DBase
+from .usd_anatomy_tools import USDAnatomyTools
+from .usd_tools import USDTools
 
 AppearanceKind = Literal["solid", "anatomy", "colormap"]
 

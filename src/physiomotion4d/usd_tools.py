@@ -21,8 +21,8 @@ import numpy as np
 import pyvista as pvtk
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
-from physiomotion4d.vtk_to_usd import add_framing_camera
+from .physiomotion4d_base import PhysioMotion4DBase
+from .vtk_to_usd import add_framing_camera
 
 
 class USDTools(PhysioMotion4DBase):

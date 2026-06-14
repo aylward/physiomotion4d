@@ -51,9 +51,9 @@ This experiment follows a fully automated multi-step process. Each step is a
    - Prepares aligned data for correspondence computation
 
 3. **`3-registration_based_correspondence.py`**
-   - Establishes point correspondences across the population using ANTs SyN deformable registration
+   - Establishes point correspondences across the population using Greedy affine + ICON deformable registration
    - Uses mask-based distance map registration via `RegisterModelsDistanceMaps`
-   - Performs diffeomorphic (smooth, invertible) deformation to the average surface
+   - Greedy affine pre-aligns masks; ICON deep learning refines with a deformable field
    - Critical step for meaningful PCA analysis
 
 4. **`4-surfaces_aligned_correspond_to_pca_inputs.py`**
@@ -75,15 +75,15 @@ This experiment uses a fully automated approach combining:
 
 Instead of traditional mesh parameterization methods (e.g., SPHARM-PDM), this pipeline uses **deformable image registration** to establish correspondences:
 
-- **ANTs SyN (Symmetric Normalization)** performs diffeomorphic registration
+- **Greedy affine** (PICSL Greedy) performs fast CPU-based affine pre-alignment
+- **ICON deformable** applies deep learning registration on the affine-pre-aligned masks
 - Distance maps from surface meshes create continuous fields for registration
-- Progressive registration stages: rigid → affine → SyN deformable
 - Mask-based approach focuses registration on anatomical structures
 
 **Advantages:**
 - Fully automated (no manual parameter tuning)
 - Handles complex topologies naturally
-- Diffeomorphic guarantees smooth, invertible deformations
+- Composed Greedy + ICON transforms provide smooth, invertible deformation fields
 - Integrates seamlessly with medical imaging pipelines
 
 ### PCA Computation
@@ -108,12 +108,12 @@ cd experiments/Heart-Create_Statistical_Model/
 # in VS Code or Cursor via the `# %%` cell markers):
 python 1-input_meshes_to_input_surfaces.py     # Extract surfaces from volumetric meshes
 python 2-input_surfaces_to_surfaces_aligned.py # Rigid ICP alignment + compute average
-python 3-registration_based_correspondence.py  # ANTs SyN deformable correspondence
+python 3-registration_based_correspondence.py  # Greedy affine + ICON deformable correspondence
 python 4-surfaces_aligned_correspond_to_pca_inputs.py  # Prepare PCA input matrices
 python 5-compute_pca_model.py                  # Compute PCA and export JSON model
 ```
 
-**Total Runtime:** Approximately 2-4 hours depending on hardware (20 heart meshes, ANTs registration is computationally intensive).
+**Total Runtime:** Approximately 1-3 hours depending on hardware (20 heart meshes; Greedy affine is fast on CPU, ICON requires a GPU for reasonable speed).
 
 ## Outputs
 
@@ -167,7 +167,7 @@ registered_mesh = workflow.run_workflow()
 - VS Code or Cursor with the Python extension for cell-by-cell execution
   (optional; scripts also run end-to-end as plain Python)
 - ITK, VTK, PyVista (included with PhysioMotion4D)
-- ANTs (Advanced Normalization Tools) - installed automatically with PhysioMotion4D
+- picsl-greedy and ICON (included with PhysioMotion4D)
 - scikit-learn for PCA computation
 
 ### Data
@@ -176,10 +176,10 @@ registered_mesh = workflow.run_workflow()
 - ~2GB for final outputs
 
 ### Compute
-- CPU: Multi-core processor (8+ cores recommended for ANTs registration)
+- CPU: Multi-core processor (4+ cores recommended for Greedy affine registration)
 - RAM: 16GB minimum (32GB recommended)
-- GPU: Not required for this experiment
-- Time: ~2-4 hours total (ANTs deformable registration is computationally intensive)
+- GPU: Recommended for ICON deformable registration (CUDA-capable GPU)
+- Time: ~1-3 hours total (Greedy is fast; ICON speed depends on GPU availability)
 
 ## Citation
 
@@ -187,8 +187,8 @@ If you use this experiment or the KCL dataset, please cite:
 
 > Rodero et al. (2021), "Linking statistical shape models and simulated function in the healthy adult human heart". *PLOS Computational Biology*. DOI: [10.1371/journal.pcbi.1008851](https://doi.org/10.1371/journal.pcbi.1008851)
 
-For ANTs registration:
-> Avants BB, et al. (2011). "A reproducible evaluation of ANTs similarity metric performance in brain image registration". *NeuroImage*. DOI: [10.1016/j.neuroimage.2010.09.025](https://doi.org/10.1016/j.neuroimage.2010.09.025)
+For ICON registration:
+> Greer et al. (2021). "ICON: Learning Regular Maps Through Inverse Consistency". *ICCV*. DOI: [10.1109/ICCV48922.2021.00129](https://doi.org/10.1109/ICCV48922.2021.00129)
 
 ## Related Experiments
 
@@ -199,7 +199,7 @@ For ANTs registration:
 ## Support and Resources
 
 - **KCL Dataset**: [https://zenodo.org/records/4590294](https://zenodo.org/records/4590294)
-- **ANTs Documentation**: [https://github.com/ANTsX/ANTs](https://github.com/ANTsX/ANTs)
+- **Greedy Documentation**: [https://greedy.readthedocs.io/](https://greedy.readthedocs.io/)
 - **PhysioMotion4D Documentation**: See main repository README and API documentation
 - **Issues**: Report bugs or request features on the PhysioMotion4D GitHub repository
 
@@ -210,27 +210,25 @@ For ANTs registration:
 - Check `data/KCL-Heart-Model/README.md` for download instructions
 - Verify all 20 heart mesh files (`.vtk` format) are present
 
-### ANTs Registration Taking Too Long
-- ANTs SyN registration is computationally intensive (5-15 minutes per subject)
-- Total time for 20 subjects: 2-4 hours is normal
-- Consider using a machine with more CPU cores
-- Progress is saved incrementally - can resume if interrupted
+### Registration Taking Too Long
+- Greedy affine is fast (< 1 minute per subject on CPU)
+- ICON deformable is GPU-accelerated; without a GPU it falls back to CPU and will be significantly slower
+- Total time for 20 subjects: 1-3 hours depending on GPU availability
 
 ### Memory Issues
 - Close other applications to free RAM
-- ANTs registration can use 4-8GB per process
+- ICON can use 4-8GB GPU VRAM; reduce batch size or iterations if needed
 - Process fewer meshes initially to test pipeline
-- Use a machine with more RAM (32GB+ recommended)
 
 ### Correspondence Quality Issues
 - Check alignment quality from step 2 (ICP should produce good initial alignment)
 - Verify average surface looks reasonable before step 3
-- ANTs parameters are pre-tuned for cardiac anatomy
-- If registration fails, check input mesh quality and topology
+- If Greedy affine fails, check input mesh quality and topology
+- If ICON deformable quality is poor, increase `icon_iterations` in the `register()` call
 
 ### Import Errors
 - Ensure all PhysioMotion4D dependencies are installed
-- Check that ANTs is available: `python -c "import ants; print(ants.__version__)"`
+- Check Greedy is available: `python -c "from picsl_greedy import Greedy3D; print('ok')"`
 - Reinstall environment if needed: `pip install -e .` in repository root
 
 ---

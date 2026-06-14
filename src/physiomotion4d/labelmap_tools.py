@@ -13,7 +13,7 @@ from typing import Optional
 import itk
 import numpy as np
 
-from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from .physiomotion4d_base import PhysioMotion4DBase
 
 
 class LabelmapTools(PhysioMotion4DBase):
