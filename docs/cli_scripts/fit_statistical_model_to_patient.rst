@@ -16,8 +16,8 @@ The registration pipeline consists of four stages:
 
 1. **ICP Alignment**: Rigid/affine alignment using surface matching
 2. **PCA Registration** (optional): Statistical shape model fitting
-3. **Mask-to-Mask Registration**: Greedy affine + ICON deformable registration using distance maps
-4. **Mask-to-Image Refinement** (optional): Final intensity-based refinement
+3. **Labelmap-to-Labelmap Registration**: Greedy affine + ICON deformable registration using distance maps
+4. **Labelmap-to-Image Refinement** (optional): Final intensity-based refinement
 
 Installation
 ============
@@ -84,7 +84,7 @@ Optional inputs:
 
 ``--template-labelmap PATH``
    Path to template labelmap image (.nii.gz, .nrrd, .mha). Required only when
-   ``--mask-to-image`` is set.
+   ``--labelmap-to-image`` is set.
 
 See :class:`physiomotion4d.WorkflowFitStatisticalModelToPatient` for API documentation.
 
@@ -112,16 +112,16 @@ PCA Registration Options
 Registration Configuration
 ---------------------------
 
-``--no-mask-to-mask``
-   Disable mask-to-mask deformable registration (default: enabled)
+``--no-labelmap-to-labelmap``
+   Disable labelmap-to-labelmap deformable registration (default: enabled)
 
-``--mask-to-image``
-   Enable mask-to-image refinement registration. Requires
+``--labelmap-to-image``
+   Enable labelmap-to-image refinement registration. Requires
    ``--template-labelmap`` and template label IDs. Disabled by default.
 
 ``--use-ICON-refinement``
-   Enable ICON deep learning refinement in the mask-to-image stage (Stage 4).
-   The mask-to-mask stage always uses Greedy affine + ICON deformable.
+   Enable ICON deep learning refinement in the labelmap-to-image stage (Stage 4).
+   The labelmap-to-labelmap stage always uses Greedy affine + ICON deformable.
    Default: disabled
 
 Output Options
@@ -180,7 +180,7 @@ Intermediate Results
 
 * ``{prefix}_icp_surface.vtp`` - Result after ICP alignment
 * ``{prefix}_pca_surface.vtp`` - Result after PCA fitting (if used)
-* ``{prefix}_m2m_surface.vtp`` - Result after mask-to-mask registration
+* ``{prefix}_l2l_surface.vtp`` - Result after labelmap-to-labelmap registration
 
 See Also
 ========

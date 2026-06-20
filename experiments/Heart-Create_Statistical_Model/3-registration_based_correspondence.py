@@ -107,7 +107,7 @@ for vtk_file in vtk_files:
         moving_model=moving_model,
         fixed_model=fixed_model,
         reference_image=reference_image,
-        roi_dilation_mm=20.0,  # Dilation for ROI mask
+        mask_dilation_mm=20.0,  # Dilation for binary registration mask
     )
 
     # Perform Greedy affine + ICON deformable registration
@@ -338,5 +338,5 @@ else:
 # - The `RegisterModelsDistanceMaps` class uses a two-stage pipeline:
 #   1. **Greedy affine** registration (fast CPU-based alignment)
 #   2. **ICON deformable** registration on the affine-pre-aligned masks (deep learning)
-# - The `roi_dilation_mm` parameter controls the dilation of the ROI mask (default 20mm)
+# - The `mask_dilation_mm` parameter controls the dilation of the binary registration mask (default 20mm)
 # - Composed Greedy + ICON transforms provide smooth, invertible deformation fields for anatomical correspondence

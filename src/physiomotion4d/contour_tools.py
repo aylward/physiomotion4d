@@ -32,20 +32,18 @@ class ContourTools(PhysioMotion4DBase):
 
     def extract_contours(
         self,
-        mask_image: itk.image,
+        labelmap_image: itk.image,
     ) -> pv.PolyData:
         """
-        Make contours from a mask image.
+        Make contours from a labelmap image.
 
         Args:
-            mask_image (itk.image): The mask image to create contours from
-            output_file (str, optional): If provided, save the contours to this VTP
-                file
+            labelmap_image (itk.image): The labelmap image to create contours from
 
         Returns:
             pv.PolyData: The contours as a PyVista PolyData object
         """
-        labels = pv.wrap(itk.vtk_image_from_image(mask_image))
+        labels = pv.wrap(itk.vtk_image_from_image(labelmap_image))
         contours = cast(
             pv.PolyData,
             labels.contour_labels(
@@ -252,6 +250,32 @@ class ContourTools(PhysioMotion4DBase):
 
         return mask_image
 
+    def create_labelmap_from_meshes(
+        self,
+        meshes: list[pv.DataSet | pv.UnstructuredGrid],
+        reference_image: itk.Image,
+    ) -> itk.Image:
+        """
+        Create a labelmap from a list of meshes.
+        """
+        labelmap_arr = np.zeros(
+            (
+                reference_image.GetLargestPossibleRegion().GetSize()[2],
+                reference_image.GetLargestPossibleRegion().GetSize()[1],
+                reference_image.GetLargestPossibleRegion().GetSize()[0],
+            ),
+            dtype=np.uint8,
+        )
+        for i, mesh in enumerate(meshes):
+            mask_image = self.create_mask_from_mesh(mesh, reference_image)
+            mask_arr = itk.GetArrayFromImage(mask_image)
+            labelmap_arr[mask_arr > 0] = i + 1
+
+        labelmap_image = itk.GetImageFromArray(labelmap_arr)
+        labelmap_image.CopyInformation(reference_image)
+
+        return labelmap_image
+
     def create_distance_map(
         self,
         mesh: pv.DataSet | pv.UnstructuredGrid,
@@ -267,9 +291,9 @@ class ContourTools(PhysioMotion4DBase):
         points = mesh.points
 
         size = reference_image.GetLargestPossibleRegion().GetSize()
-        size = (size[2], size[1], size[0])
 
-        tmp_arr = np.zeros(size, dtype=np.int32)
+        # NumPy convention is (z, y, x); ITK GetSize() returns (x, y, z)
+        tmp_arr = np.zeros((size[2], size[1], size[0]), dtype=np.int32)
         itk_point = itk.Point[itk.D, 3]()
         point_count = 0
         for point in points:
@@ -288,6 +312,22 @@ class ContourTools(PhysioMotion4DBase):
                 continue
             tmp_arr[indx[2], indx[1], indx[0]] = 1
             point_count += 1
+
+        self.log_info(
+            "Distance map: %d/%d surface points within reference image",
+            point_count,
+            len(points),
+        )
+        if point_count == 0:
+            self.log_warning(
+                "No surface points fall within the reference image! "
+                "Distance map will be constant. "
+                "Mesh bounds: %s  Image origin: %s  Image size: %s  Image spacing: %s",
+                str(mesh.bounds),
+                str(reference_image.GetOrigin()),
+                str(size),
+                str(reference_image.GetSpacing()),
+            )
 
         tmp_binary_image = itk.GetImageFromArray(tmp_arr.astype(np.uint8))
         tmp_binary_image.CopyInformation(reference_image)

@@ -55,8 +55,8 @@ Primary Workflows
 
 ``WorkflowFitStatisticalModelToPatient``
    Fits a template/statistical model to patient-specific surfaces with ICP,
-   optional PCA fitting, mask-to-mask registration, and optional image
-   refinement.
+   optional PCA fitting, labelmap-to-labelmap registration, and optional
+   labelmap-to-image refinement.
 
 ``WorkflowReconstructHighres4DCT``
    Reconstructs higher-resolution 4D CT frames from a time series and a fixed

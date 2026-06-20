@@ -221,6 +221,8 @@ show_error_codes = true
 module = [
     "ants",
     "cupy",
+    "cupy_backends",
+    "cupy_backends.*",
     "icon_registration",
     "icon_registration.*",
     "itk",
@@ -269,6 +271,12 @@ module = [
     "tutorial_09_physicsnemo_mesh_stage_model",
 ]
 disable_error_code = ["import-not-found", "import-untyped"]
+
+[[tool.mypy.overrides]]
+# torch/icon_registration/unigradicon are lazy-loaded at runtime; string
+# forward-reference annotations like "torch.Size" are intentional.
+module = ["physiomotion4d.register_images_icon"]
+ignore_errors = true
 
 [tool.pyright]
 # Third-party packages (e.g. pyvista) are in dependencies but may have no stubs;
@@ -398,6 +406,8 @@ ignore = [
 "test_*.py" = ["S101", "PLR2004", "ARG001", "ARG002"]
 "tests/*.py" = ["S101", "PLR2004", "ARG001", "ARG002"]
 "experiments/**/*.py" = ["T201", "S101"]
+# torch/icon_registration are lazy-loaded at runtime; forward-reference strings are intentional
+"src/physiomotion4d/register_images_icon.py" = ["F821"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["physiomotion4d"]

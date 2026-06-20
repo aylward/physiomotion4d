@@ -19,11 +19,10 @@ Main Components:
 
 __version__ = "2026.05.9"
 
+import importlib.util as _importlib_util
 import warnings as _warnings
 
-try:
-    import cupy as _cupy  # noqa: F401
-except ImportError:
+if _importlib_util.find_spec("cupy") is None:
     _warnings.warn(
         "CuPy is not installed — GPU acceleration is unavailable and processing "
         "will be slow. Re-install with uv to get CuPy and CUDA-enabled PyTorch "

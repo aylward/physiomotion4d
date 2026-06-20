@@ -14,15 +14,8 @@ are used to track anatomical motion over time.
 import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TypeAlias, cast
+from typing import Type, TypeAlias, cast
 
-try:
-    import cupy as cp  # optional (GPU)
-except (ImportError, OSError):
-    # ImportError: cupy not installed or CUDA libraries missing/mismatched.
-    # OSError: driver/library load failure on some platforms.
-    # In all cases fall back to CPU (NumPy) paths.
-    cp = None
 import itk
 import numpy as np
 import pyvista as pv
@@ -369,13 +362,26 @@ class TransformTools(PhysioMotion4DBase):
         new_mesh.points = np.asarray(new_pnts, dtype=float).reshape(-1, 3)
 
         if with_deformation_magnitude:
+            try:
+                import cupy as cp  # noqa: PLC0415
+            except ImportError:
+                cp = None
             if cp is not None:
-                new_pnts_cp = cp.array(new_pnts)
-                pnts_cp = cp.array(pnts)
-                new_mesh.point_data["DeformationMagnitude"] = cp.linalg.norm(
-                    new_pnts_cp - pnts_cp, axis=1
-                ).get()
-            else:
+                try:
+                    import cupy_backends.cuda.api.runtime as _cuda_rt  # noqa: PLC0415
+
+                    _CUDARuntimeError: Type[BaseException] = _cuda_rt.CUDARuntimeError
+                except ImportError:
+                    _CUDARuntimeError = OSError
+                try:
+                    new_pnts_cp = cp.array(new_pnts)
+                    pnts_cp = cp.array(pnts)
+                    new_mesh.point_data["DeformationMagnitude"] = cp.linalg.norm(
+                        new_pnts_cp - pnts_cp, axis=1
+                    ).get()
+                except (OSError, _CUDARuntimeError):
+                    cp = None
+            if cp is None:
                 new_mesh.point_data["DeformationMagnitude"] = np.linalg.norm(
                     np.asarray(new_pnts) - np.asarray(pnts), axis=1
                 )

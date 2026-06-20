@@ -36,12 +36,12 @@ Examples:
     --pca-number-of-modes 10 \\
     --output-dir ./results
 
-  # Enable mask-to-image refinement (requires template labelmap and label IDs)
+  # Enable labelmap-to-image refinement (requires template labelmap and label IDs)
   %(prog)s \\
     --template-model heart_model.vtu \\
     --patient-models lv.vtp rv.vtp myo.vtp \\
     --patient-image patient_ct.nii.gz \\
-    --mask-to-image \\
+    --labelmap-to-image \\
     --template-labelmap heart_labelmap.nii.gz \\
     --template-labelmap-muscle-ids 1 2 3 \\
     --template-labelmap-chamber-ids 4 5 6 \\
@@ -76,7 +76,7 @@ Examples:
     )
     parser.add_argument(
         "--template-labelmap",
-        help="Path to template labelmap image (.nii.gz, .nrrd, .mha). Required when --mask-to-image is set.",
+        help="Path to template labelmap image (.nii.gz, .nrrd, .mha). Required when --labelmap-to-image is set.",
     )
     parser.add_argument(
         "--output-dir", required=True, help="Output directory for results"
@@ -119,18 +119,18 @@ Examples:
 
     # Registration configuration
     parser.add_argument(
-        "--no-mask-to-mask",
-        dest="use_mask_to_mask",
+        "--no-labelmap-to-labelmap",
+        dest="use_labelmap_to_labelmap",
         action="store_false",
         default=True,
-        help="Disable mask-to-mask deformable registration",
+        help="Disable labelmap-to-labelmap deformable registration",
     )
     parser.add_argument(
-        "--mask-to-image",
-        dest="use_mask_to_image",
+        "--labelmap-to-image",
+        dest="use_labelmap_to_image",
         action="store_true",
         default=False,
-        help="Enable mask-to-image refinement (requires --template-labelmap and label IDs)",
+        help="Enable labelmap-to-image refinement (requires --template-labelmap and label IDs)",
     )
     parser.add_argument(
         "--use-ICON-refinement",
@@ -163,9 +163,11 @@ Examples:
         print(f"Error: Patient image not found: {args.patient_image}")
         return 1
 
-    if args.use_mask_to_image:
+    if args.use_labelmap_to_image:
         if args.template_labelmap is None:
-            print("Error: --template-labelmap is required when --mask-to-image is set.")
+            print(
+                "Error: --template-labelmap is required when --labelmap-to-image is set."
+            )
             return 1
         if not os.path.exists(args.template_labelmap):
             print(f"Error: Template labelmap not found: {args.template_labelmap}")
@@ -238,16 +240,20 @@ Examples:
                 pca_model=pca_model,
                 pca_number_of_modes=args.pca_number_of_modes,
             )
-        if args.use_mask_to_mask:
-            workflow.set_use_mask_to_mask_registration(args.use_mask_to_mask)
-        if args.use_mask_to_image:
-            workflow.set_use_mask_to_image_registration(
+
+        workflow.set_use_labelmap_to_labelmap_registration(
+            args.use_labelmap_to_labelmap
+        )
+
+        if args.use_labelmap_to_image:
+            workflow.set_use_labelmap_to_image_registration(
                 True,
                 template_labelmap=template_labelmap,
                 template_labelmap_organ_mesh_ids=args.template_labelmap_muscle_ids,
                 template_labelmap_organ_extra_ids=args.template_labelmap_chamber_ids,
                 template_labelmap_background_ids=args.template_labelmap_background_ids,
             )
+
     except (ValueError, RuntimeError, OSError) as e:
         print(f"Error initializing workflow: {e}")
         traceback.print_exc()
@@ -282,17 +288,21 @@ Examples:
         print(f"  Registered surface: {output_surface_file}")
 
         # Save registered labelmap if available
-        if workflow.m2i_template_labelmap is not None:
+        if workflow.l2i_template_labelmap is not None:
             output_labelmap_file = os.path.join(
                 args.output_dir, f"{args.output_prefix}_labelmap.nii.gz"
             )
-            itk.imwrite(workflow.m2i_template_labelmap, output_labelmap_file)
+            itk.imwrite(
+                workflow.l2i_template_labelmap, output_labelmap_file, compression=True
+            )
             print(f"  Registered labelmap: {output_labelmap_file}")
-        elif workflow.m2m_template_labelmap is not None:
+        elif workflow.l2l_template_labelmap is not None:
             output_labelmap_file = os.path.join(
                 args.output_dir, f"{args.output_prefix}_labelmap.nii.gz"
             )
-            itk.imwrite(workflow.m2m_template_labelmap, output_labelmap_file)
+            itk.imwrite(
+                workflow.l2l_template_labelmap, output_labelmap_file, compression=True
+            )
             print(f"  Registered labelmap: {output_labelmap_file}")
 
         # Save intermediate results if available
@@ -310,12 +320,12 @@ Examples:
             workflow.pca_template_model_surface.save(output_pca_file)
             print(f"  PCA result: {output_pca_file}")
 
-        if workflow.m2m_template_model_surface is not None:
-            output_m2m_file = os.path.join(
-                args.output_dir, f"{args.output_prefix}_m2m_surface.vtp"
+        if workflow.l2l_template_model_surface is not None:
+            output_l2l_file = os.path.join(
+                args.output_dir, f"{args.output_prefix}_l2l_surface.vtp"
             )
-            workflow.m2m_template_model_surface.save(output_m2m_file)
-            print(f"  Mask-to-mask result: {output_m2m_file}")
+            workflow.l2l_template_model_surface.save(output_l2l_file)
+            print(f"  Labelmap-to-labelmap result: {output_l2l_file}")
 
         print("\n" + "=" * 70)
         print("Registration completed successfully!")

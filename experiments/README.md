@@ -149,9 +149,9 @@ to handle diverse cases.
 
 **Technologies:**
 - ICP (Iterative Closest Point) registration for initial alignment
-- Mask-based deformable registration for anatomical fitting
+- Labelmap-based deformable registration for anatomical fitting
 - PCA (Principal Component Analysis) shape modeling for shape constraints
-- Three-stage registration pipeline (ICP → Mask-to-Mask → Mask-to-Image)
+- Three-stage registration pipeline (ICP → Labelmap-to-Labelmap → Labelmap-to-Image)
 - Computationally intensive (>1 hour on typical PC)
 
 **Prerequisites:**

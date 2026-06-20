@@ -260,7 +260,7 @@ if __name__ == "__main__":
                 pca_number_of_modes=0,
                 pca_uses_surface=True,
             )
-            workflow.set_use_mask_to_mask_registration(False)
+            workflow.set_use_labelmap_to_labelmap_registration(False)
 
             result = workflow.run_workflow()
             fitted_surface = result["registered_template_model_surface"]

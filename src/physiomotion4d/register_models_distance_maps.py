@@ -1,9 +1,9 @@
-"""Mask-based model-to-model registration for anatomical models.
+"""Distance-map-based model-to-model registration for anatomical models.
 
 This module provides the RegisterModelsDistanceMaps class for aligning anatomical
-models using mask-based deformable registration. The workflow includes:
-1. Generate binary masks from moving and fixed models
-2. Generate ROI masks with dilation
+models using distance-map-based deformable registration. The workflow includes:
+1. Generate distance maps from moving and fixed models
+2. Generate binary registration masks with dilation
 3. Progressive registration stages:
    - rigid: Greedy rigid registration
    - affine: Greedy affine registration
@@ -33,7 +33,7 @@ Example:
     ...     moving_model=moving_model,
     ...     fixed_model=fixed_model,
     ...     reference_image=reference_image,
-    ...     roi_dilation_mm=20,
+    ...     mask_dilation_mm=20,
     ... )
     >>> result = registrar.register(transform_type='Deformable', icon_iterations=50)
     >>>
@@ -57,12 +57,12 @@ from .transform_tools import TransformTools
 
 
 class RegisterModelsDistanceMaps(PhysioMotion4DBase):
-    """Register anatomical models using mask-based deformable registration.
+    """Register anatomical models using distance-map-based deformable registration.
 
-    This class provides mask-based alignment of 3D surface models with support for
-    rigid, affine, and deformable transformation modes. The registration pipeline
-    generates masks from models, applies optional dilation, and uses Greedy for
-    rigid/affine stages and ICON for deformable registration.
+    This class provides distance-map-based alignment of 3D surface models with support
+    for rigid, affine, and deformable transformation modes. The registration pipeline
+    generates signed distance maps from models, applies optional binary mask dilation,
+    and uses Greedy for rigid/affine stages and ICON for deformable registration.
 
     **Registration Pipelines:**
         - **None mode**: No registration (identity transform)
@@ -85,7 +85,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         moving_model (pv.PolyData): Surface model to be aligned
         fixed_model (pv.PolyData): Target surface model
         reference_image (itk.Image): Reference image for coordinate frame
-        roi_dilation_mm (float): Dilation amount in mm for ROI mask
+        mask_dilation_mm (float): Dilation amount in mm for binary registration masks
         transform_tools (TransformTools): Transform utility instance
         contour_tools (ContourTools): Model utility instance
         registrar_Greedy (RegisterImagesGreedy): Greedy registration instance
@@ -100,7 +100,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         ...     moving_model=model_surface,
         ...     fixed_model=patient_surface,
         ...     reference_image=patient_ct,
-        ...     roi_dilation_mm=20,
+        ...     mask_dilation_mm=20,
         ... )
         >>>
         >>> # Run rigid registration
@@ -122,18 +122,18 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         moving_model: pv.PolyData,
         fixed_model: pv.PolyData,
         reference_image: itk.Image,
-        roi_dilation_mm: float = 20,
+        mask_dilation_mm: float = 20,
         log_level: int | str = logging.INFO,
     ):
-        """Initialize mask-based model registration.
+        """Initialize distance-map-based model registration.
 
         Args:
             moving_model: PyVista surface model to be aligned to fixed model
             fixed_model: PyVista target surface model
             reference_image: ITK image providing coordinate frame (origin, spacing, direction)
                 for mask generation. Typically the patient CT/MRI image.
-            roi_dilation_mm: Dilation amount in millimeters for ROI mask generation.
-                Default: 20mm
+            mask_dilation_mm: Dilation amount in millimeters for binary registration
+                mask generation. Default: 20mm
             log_level: Logging level (default: logging.INFO)
 
         Note:
@@ -145,7 +145,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         self.moving_model = moving_model
         self.fixed_model = fixed_model
         self.reference_image = reference_image
-        self.roi_dilation_mm = roi_dilation_mm
+        self.mask_dilation_mm = mask_dilation_mm
 
         # Utilities
         self.transform_tools = TransformTools()
@@ -158,11 +158,11 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         self.registrar_ICON.set_modality("ct")
         self.registrar_ICON.set_multi_modality(False)
 
-        # Generated masks (will be created during registration)
+        # Generated distance maps and binary registration masks (created during registration)
+        self.fixed_distance_map_image: Optional[itk.Image] = None
         self.fixed_mask_image: Optional[itk.Image] = None
-        self.fixed_mask_roi_image: Optional[itk.Image] = None
+        self.moving_distance_map_image: Optional[itk.Image] = None
         self.moving_mask_image: Optional[itk.Image] = None
-        self.moving_mask_roi_image: Optional[itk.Image] = None
 
         # Registration results
         self.forward_transform: Optional[itk.CompositeTransform] = None  # Moving→fixed
@@ -170,20 +170,20 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         self.registered_model: Optional[pv.PolyData] = None
 
     def _create_masks_from_models(self) -> None:
-        """Generate binary mask images from moving and fixed models.
+        """Generate distance maps and binary registration masks from moving and fixed models.
 
         Creates:
-            - fixed_mask_image: Binary mask from fixed model
-            - fixed_mask_roi_image: Dilated ROI mask from fixed model
-            - moving_mask_image: Binary mask from moving model
-            - moving_mask_roi_image: Dilated ROI mask from moving model
+            - fixed_distance_map_image: Signed distance map from fixed model
+            - fixed_mask_image: Dilated binary registration mask from fixed model
+            - moving_distance_map_image: Signed distance map from moving model
+            - moving_mask_image: Dilated binary registration mask from moving model
 
         Uses self.reference_image for coordinate frame (origin, spacing, direction).
         """
-        self.log_info("Generating binary masks from models...")
+        self.log_info("Generating distance maps and registration masks from models...")
 
-        # Create fixed mask
-        self.fixed_mask_image = self.contour_tools.create_distance_map(
+        # Create fixed distance map
+        self.fixed_distance_map_image = self.contour_tools.create_distance_map(
             self.fixed_model,
             self.reference_image,
             squared_distance=True,
@@ -192,17 +192,20 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             norm_to_max_distance=50.0,
         )
 
-        # Create fixed ROI mask with dilation
-        self.log_info("Dilating fixed mask by %.1fmm for ROI...", self.roi_dilation_mm)
-        mask = self.contour_tools.create_mask_from_mesh(
+        # Create fixed binary registration mask with dilation
+        self.log_info(
+            "Dilating fixed mask by %.1fmm for registration mask...",
+            self.mask_dilation_mm,
+        )
+        binary_mask = self.contour_tools.create_mask_from_mesh(
             self.fixed_model, self.reference_image
         )
-        self.fixed_mask_roi_image = self.labelmap_tools.convert_labelmap_to_mask(
-            mask, dilation_in_mm=self.roi_dilation_mm
+        self.fixed_mask_image = self.labelmap_tools.convert_labelmap_to_mask(
+            binary_mask, dilation_in_mm=self.mask_dilation_mm
         )
 
-        # Create moving mask
-        self.moving_mask_image = self.contour_tools.create_distance_map(
+        # Create moving distance map
+        self.moving_distance_map_image = self.contour_tools.create_distance_map(
             self.moving_model,
             self.reference_image,
             squared_distance=True,
@@ -211,16 +214,19 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             norm_to_max_distance=50.0,
         )
 
-        # Create moving ROI mask with dilation
-        self.log_info("Dilating moving mask by %.1fmm for ROI...", self.roi_dilation_mm)
-        mask = self.contour_tools.create_mask_from_mesh(
+        # Create moving binary registration mask with dilation
+        self.log_info(
+            "Dilating moving mask by %.1fmm for registration mask...",
+            self.mask_dilation_mm,
+        )
+        binary_mask = self.contour_tools.create_mask_from_mesh(
             self.moving_model, self.reference_image
         )
-        self.moving_mask_roi_image = self.labelmap_tools.convert_labelmap_to_mask(
-            mask, dilation_in_mm=self.roi_dilation_mm
+        self.moving_mask_image = self.labelmap_tools.convert_labelmap_to_mask(
+            binary_mask, dilation_in_mm=self.mask_dilation_mm
         )
 
-        self.log_info("Mask generation complete")
+        self.log_info("Distance map and mask generation complete")
 
     def register(
         self,
@@ -272,9 +278,9 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
                 f"Invalid transform type '{transform_type}'. Must be 'None', 'Rigid', 'Affine', or 'Deformable'."
             )
 
-        self.log_section("%s Mask-based Registration", transform_type.upper())
+        self.log_section("%s Distance-Map-based Registration", transform_type.upper())
 
-        # Step 1: Generate masks from models
+        # Step 1: Generate distance maps and registration masks from models
         self._create_masks_from_models()
 
         # Step 2: Greedy rigid or affine stage (skipped for None/Deformable uses Affine)
@@ -284,14 +290,14 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
         inverse_transform_Greedy = None
         if greedy_type != "None":
             self.log_info("Performing Greedy %s registration...", greedy_type)
-            self.registrar_Greedy.set_fixed_image(self.fixed_mask_image)
-            self.registrar_Greedy.set_fixed_mask(self.fixed_mask_roi_image)
+            self.registrar_Greedy.set_fixed_image(self.fixed_distance_map_image)
+            self.registrar_Greedy.set_fixed_mask(self.fixed_mask_image)
             self.registrar_Greedy.set_transform_type(greedy_type)
             self.registrar_Greedy.set_metric("MeanSquares")
 
             result_Greedy = self.registrar_Greedy.register(
-                moving_image=self.moving_mask_image,
-                moving_mask=self.moving_mask_roi_image,
+                moving_image=self.moving_distance_map_image,
+                moving_mask=self.moving_mask_image,
             )
             forward_transform_Greedy = result_Greedy["forward_transform"]
             inverse_transform_Greedy = result_Greedy["inverse_transform"]
@@ -311,15 +317,17 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
                 icon_iterations,
             )
 
-            # Pre-align moving image and ROI mask into the fixed grid using the Greedy affine result
+            # Pre-align moving distance map and binary mask into the fixed grid using the Greedy affine result
+            moving_distance_map_affine_transformed = (
+                self.transform_tools.transform_image(
+                    self.moving_distance_map_image,
+                    forward_transform_Greedy,
+                    self.reference_image,
+                    interpolation_method="linear",
+                )
+            )
             moving_mask_affine_transformed = self.transform_tools.transform_image(
                 self.moving_mask_image,
-                forward_transform_Greedy,
-                self.reference_image,
-                interpolation_method="linear",
-            )
-            moving_mask_roi_affine_transformed = self.transform_tools.transform_image(
-                self.moving_mask_roi_image,
                 forward_transform_Greedy,
                 self.reference_image,
                 interpolation_method="nearest",
@@ -327,29 +335,35 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
 
             # Configure and run ICON
             self.registrar_ICON.set_number_of_iterations(icon_iterations)
-            self.registrar_ICON.set_fixed_image(self.fixed_mask_image)
-            self.registrar_ICON.set_fixed_mask(self.fixed_mask_roi_image)
+            self.registrar_ICON.set_fixed_image(self.fixed_distance_map_image)
+            self.registrar_ICON.set_fixed_mask(self.fixed_mask_image)
 
             result_ICON = self.registrar_ICON.register(
-                moving_image=moving_mask_affine_transformed,
-                moving_mask=moving_mask_roi_affine_transformed,
+                moving_image=moving_distance_map_affine_transformed,
+                moving_mask=moving_mask_affine_transformed,
             )
             forward_transform_ICON = result_ICON["forward_transform"]
             inverse_transform_ICON = result_ICON["inverse_transform"]
 
-            # Compose Greedy affine + ICON deformable
+            # Compose Greedy affine + ICON deformable.
+            # ICON runs on images already resampled to the patient (fixed) grid,
+            # so its transforms are deformations within patient space.
+            # Forward (fixed→moving for image pull-back): apply ICON first
+            # (patient-space δ), then Greedy (patient→ICP-template).
+            # Inverse (moving→fixed for point push-forward): apply Greedy first
+            # (ICP-template→patient), then ICON (patient-space refinement).
             self.forward_transform = (
                 self.transform_tools.combine_displacement_field_transforms(
-                    forward_transform_Greedy,
                     forward_transform_ICON,
+                    forward_transform_Greedy,
                     reference_image=self.reference_image,
                     mode="compose",
                 )
             )
             self.inverse_transform = (
                 self.transform_tools.combine_displacement_field_transforms(
-                    inverse_transform_ICON,
                     inverse_transform_Greedy,
+                    inverse_transform_ICON,
                     reference_image=self.reference_image,
                     mode="compose",
                 )
@@ -363,7 +377,9 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             with_deformation_magnitude=True,
         )
 
-        self.log_info("%s mask-based registration complete.", transform_type.upper())
+        self.log_info(
+            "%s distance-map-based registration complete.", transform_type.upper()
+        )
 
         # Return results as dictionary
         return {

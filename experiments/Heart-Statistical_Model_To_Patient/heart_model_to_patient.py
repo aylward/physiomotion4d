@@ -145,7 +145,7 @@ if __name__ == "__main__":
     registrar.set_use_pca_registration(
         True, pca_model=pca_model, pca_number_of_modes=pca_n_modes
     )
-    registrar.set_use_mask_to_image_registration(
+    registrar.set_use_labelmap_to_image_registration(
         True,
         template_labelmap=template_labelmap,
         template_labelmap_organ_mesh_ids=[1],
@@ -153,8 +153,8 @@ if __name__ == "__main__":
         template_labelmap_background_ids=[6],
     )
 
-    registrar.set_mask_dilation_mm(0)
-    registrar.set_roi_dilation_mm(25)
+    registrar.set_labelmap_dilation_mm(0)
+    registrar.set_mask_dilation_mm(25)
 
     patient_image = registrar.patient_image
     itk.imwrite(
@@ -184,37 +184,37 @@ if __name__ == "__main__":
     itk.imwrite(pca_labelmap, str(output_dir / "pca_labelmap.mha"), compression=True)
 
     # %% [markdown]
-    # ## Mask Alignment
+    # ## Labelmap Alignment
 
     # %%
     # Perform deformable registration
-    print("Starting deformable mask-to-mask registration...")
+    print("Starting deformable labelmap-to-labelmap registration...")
 
-    m2m_results = registrar.register_mask_to_mask()
-    m2m_inverse_transform = m2m_results["inverse_transform"]
-    m2m_forward_transform = m2m_results["forward_transform"]
-    m2m_model_surface = m2m_results["registered_template_model_surface"]
-    m2m_labelmap = m2m_results["registered_template_labelmap"]
+    l2l_results = registrar.register_labelmap_to_labelmap()
+    l2l_inverse_transform = l2l_results["inverse_transform"]
+    l2l_forward_transform = l2l_results["forward_transform"]
+    l2l_model_surface = l2l_results["registered_template_model_surface"]
+    l2l_labelmap = l2l_results["registered_template_labelmap"]
 
     print("Registration complete!")
 
-    m2m_model_surface.save(str(output_dir / "m2m_model_surface.vtp"))
-    itk.imwrite(m2m_labelmap, str(output_dir / "m2m_labelmap.mha"), compression=True)
+    l2l_model_surface.save(str(output_dir / "l2l_model_surface.vtp"))
+    itk.imwrite(l2l_labelmap, str(output_dir / "l2l_labelmap.mha"), compression=True)
 
     # %%
     print("Starting deformable registration...")
     print("This may take several minutes depending on GPU availability.")
 
-    m2i_results = registrar.register_labelmap_to_image()
-    m2i_inverse_transform = m2i_results["inverse_transform"]
-    m2i_forward_transform = m2i_results["forward_transform"]
-    m2i_surface = m2i_results["registered_template_model_surface"]
-    m2i_labelmap = m2i_results["registered_template_labelmap"]
+    l2i_results = registrar.register_labelmap_to_image()
+    l2i_inverse_transform = l2i_results["inverse_transform"]
+    l2i_forward_transform = l2i_results["forward_transform"]
+    l2i_surface = l2i_results["registered_template_model_surface"]
+    l2i_labelmap = l2i_results["registered_template_labelmap"]
     print("\nRegistration complete!")
 
     # Save registration results to output folder
-    m2i_surface.save(str(output_dir / "m2i_model_surface.vtp"))
-    itk.imwrite(m2i_labelmap, str(output_dir / "m2i_labelmap.mha"), compression=True)
+    l2i_surface.save(str(output_dir / "l2i_model_surface.vtp"))
+    itk.imwrite(l2i_labelmap, str(output_dir / "l2i_labelmap.mha"), compression=True)
 
     # %%
     tmp_p = itk.Point[itk.D, 3]()
@@ -241,16 +241,16 @@ if __name__ == "__main__":
     print(f"PCA transform time: {time.time() - start_time} seconds", flush=True)
 
     start_time = time.time()
-    tmp_p = registrar.m2m_inverse_transform.TransformPoint(tmp_p)
-    print(f"M2M inverse transform time: {time.time() - start_time} seconds", flush=True)
+    tmp_p = registrar.l2l_inverse_transform.TransformPoint(tmp_p)
+    print(f"L2L inverse transform time: {time.time() - start_time} seconds", flush=True)
 
     start_time = time.time()
-    tmp_p = registrar.m2i_inverse_transform.TransformPoint(tmp_p)
-    print(f"M2I inverse transform time: {time.time() - start_time} seconds", flush=True)
+    tmp_p = registrar.l2i_inverse_transform.TransformPoint(tmp_p)
+    print(f"L2I inverse transform time: {time.time() - start_time} seconds", flush=True)
 
     # %%
     # Verify registration using the transform member function
-    surface_transformed = registrar.m2i_template_model_surface
+    surface_transformed = registrar.l2i_template_model_surface
     surface_transformed.save(str(output_dir / "registered_template_surface.vtp"))
 
     model_transformed = registrar.transform_model()
@@ -265,8 +265,8 @@ if __name__ == "__main__":
     registered_surface = registrar.registered_template_model_surface
     icp_surface = registrar.icp_template_model_surface
     pca_surface = registrar.pca_template_model_surface
-    m2m_surface = registrar.m2m_template_model_surface
-    m2i_surface = registrar.m2i_template_model_surface
+    l2l_surface = registrar.l2l_template_model_surface
+    l2i_surface = registrar.l2i_template_model_surface
 
     # Create side-by-side comparison
     plotter = pv.Plotter(shape=(1, 2))
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     # After deformable registration
     plotter.subplot(0, 1)
     plotter.add_mesh(patient_surface, color="red", opacity=0.5, label="Patient")
-    plotter.add_mesh(m2i_surface, color="blue", opacity=1.0, label="Registered")
+    plotter.add_mesh(l2i_surface, color="blue", opacity=1.0, label="Registered")
     plotter.add_title("Final Registration")
 
     plotter.link_views()

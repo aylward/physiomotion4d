@@ -1,3 +1,4 @@
+# ruff: noqa: F821  -- torch/icon_registration lazy-loaded; "torch.Size" annotations are intentional
 """Icon-based image registration implementation.
 
 This module provides the RegisterImagesICON class, a concrete implementation of
@@ -12,19 +13,35 @@ deformable registration with mass preservation constraints.
 import logging
 from typing import Optional, Union
 
-import icon_registration as icon
-import icon_registration.itk_wrapper
 import itk
 import numpy as np
-import torch
-import torch.nn.functional as F
-from unigradicon import get_multigradicon, get_unigradicon
-from unigradicon import preprocess as unigradicon_preprocess
 
 from .register_images_base import RegisterImagesBase
 from .transform_tools import TransformTools
 
 DEFAULT_FINETUNE_LEARNING_RATE = 2e-5
+
+
+def _load_icon():
+    """Lazy-load icon_registration, torch, and unigradicon to avoid
+    initializing GPU/CUDA resources at import time, which interferes with
+    TubeTK's memory allocator on Windows."""
+    import icon_registration as icon
+    import icon_registration.itk_wrapper
+    import torch
+    import torch.nn.functional as F
+    from unigradicon import get_multigradicon, get_unigradicon
+    from unigradicon import preprocess as unigradicon_preprocess
+
+    return (
+        icon,
+        icon.itk_wrapper,
+        torch,
+        F,
+        get_multigradicon,
+        get_unigradicon,
+        unigradicon_preprocess,
+    )
 
 
 class RegisterImagesICON(RegisterImagesBase):
@@ -158,7 +175,7 @@ class RegisterImagesICON(RegisterImagesBase):
         Example:
             >>> preprocessed_image = registrar.preprocess(raw_image, modality='ct')
         """
-        # Placeholder implementation - override in subclass if needed
+        _, _, _, _, _, _, unigradicon_preprocess = _load_icon()
         return unigradicon_preprocess(image, modality=modality)
 
     def registration_method(
@@ -245,9 +262,10 @@ class RegisterImagesICON(RegisterImagesBase):
         inverse_transform = None
         forward_transform = None
         loss_artifacts = None
+        _, icon_itk_wrapper, _, _, _, _, _ = _load_icon()
         if fixed_effective_mask is not None and moving_effective_mask is not None:
             inverse_transform, forward_transform, loss_artifacts = (
-                icon_registration.itk_wrapper.register_pair_with_mask(
+                icon_itk_wrapper.register_pair_with_mask(
                     self.net,
                     self.fixed_image_pre,
                     new_moving_image_pre,
@@ -259,7 +277,7 @@ class RegisterImagesICON(RegisterImagesBase):
             )
         else:
             inverse_transform, forward_transform, loss_artifacts = (
-                icon_registration.itk_wrapper.register_pair(
+                icon_itk_wrapper.register_pair(
                     self.net,
                     self.fixed_image_pre,
                     new_moving_image_pre,
@@ -301,6 +319,7 @@ class RegisterImagesICON(RegisterImagesBase):
         """
         if self.net is not None:
             return
+        icon, _, _, _, get_multigradicon, get_unigradicon, _ = _load_icon()
         if self.use_multi_modality:
             self.net = get_multigradicon(
                 loss_fn=icon.LNCC(sigma=5),
@@ -315,8 +334,8 @@ class RegisterImagesICON(RegisterImagesBase):
             )
 
     def _image_to_resized_tensor(
-        self, image: itk.Image, shape: torch.Size
-    ) -> torch.Tensor:
+        self, image: itk.Image, shape: "torch.Size"
+    ) -> "torch.Tensor":
         """Convert an itk image to a torch tensor resized to the net's input grid.
 
         Mirrors the trilinear preprocessing path used by
@@ -329,6 +348,7 @@ class RegisterImagesICON(RegisterImagesBase):
               are not supported, matching ICON's own preprocessing.
             - 4D series must be split into 3D timepoints by the caller.
         """
+        icon, _, torch, F, _, _, _ = _load_icon()
         arr = np.array(image)
         tensor = torch.Tensor(arr).to(icon.config.device)[None, None]
         return F.interpolate(
@@ -336,8 +356,8 @@ class RegisterImagesICON(RegisterImagesBase):
         )
 
     def _mask_to_resized_tensor(
-        self, mask: itk.Image, shape: torch.Size
-    ) -> torch.Tensor:
+        self, mask: itk.Image, shape: "torch.Size"
+    ) -> "torch.Tensor":
         """Convert an itk mask image to a torch tensor resized via nearest-neighbor.
 
         Mirrors the mask preprocessing used by
@@ -351,6 +371,7 @@ class RegisterImagesICON(RegisterImagesBase):
               not supported.
             - ``mode='nearest'`` preserves label identities.
         """
+        icon, _, torch, F, _, _, _ = _load_icon()
         arr = np.array(mask)
         tensor = torch.Tensor(arr).to(icon.config.device)[None, None]
         return F.interpolate(tensor, size=shape[2:], mode="nearest")

@@ -13,7 +13,6 @@ import tempfile
 import itk
 import nibabel as nib
 import numpy as np
-from totalsegmentator.python_api import totalsegmentator
 
 from .segment_anatomy_base import SegmentAnatomyBase
 
@@ -237,6 +236,8 @@ class SegmentChestTotalSegmentator(SegmentAnatomyBase):
             >>> labelmap = segmenter.segmentation_method(preprocessed_ct)
         """
         with tempfile.TemporaryDirectory() as tmp_dir:
+            from totalsegmentator.python_api import totalsegmentator  # noqa: PLC0415
+
             # ITK and Nibabel use different coordinate systems (LPS vs RAS).
             # The safest conversion is via a temporary file. This approach
             # still reduces I/O compared to the original implementation.

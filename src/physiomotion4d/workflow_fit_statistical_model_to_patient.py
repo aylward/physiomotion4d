@@ -5,18 +5,18 @@ anatomical models to patient-specific imaging data and surface models.
 The workflow includes:
 1. Rough alignment using ICP (RegisterModelsICP)
 1.5. Optional PCA-based registration (RegisterModelsPCA) if PCA data provided
-2. Mask-based deformable registration (RegisterModelsDistanceMaps)
-3. Optional final mask-to-image refinement using Icon
+2. Labelmap-based deformable registration (RegisterModelsDistanceMaps)
+3. Optional final labelmap-to-image refinement using Icon
 
 The registration is particularly useful for cardiac modeling where a generic heart model
 needs to be fitted to patient-specific imaging data.
 
 Key Features:
-    - Automatic mask generation if not provided by user
+    - Automatic labelmap generation if not provided by user
     - Modular design using RegisterModelsICP, RegisterModelsPCA, and
         RegisterModelsDistanceMaps
     - Multi-stage registration pipeline:
-        ICP → (optional PCA) → mask-to-mask → mask-to-image
+        ICP → (optional PCA) → labelmap-to-labelmap → labelmap-to-image
     - Optional PCA-based shape fitting
     - Support for multi-label anatomical structures
     - Optional Icon-based final refinement
@@ -41,57 +41,79 @@ from .transform_tools import TransformTools
 from .workflow_convert_image_to_vtk import WorkflowConvertImageToVTK
 
 
-def _load_tubetk() -> Any:
-    """Load TubeTK lazily for operations that require its filters."""
-    from itk import TubeTK as ttk
-
-    return ttk
-
-
 def _image_has_isotropic_spacing(image: itk.Image) -> bool:
     """Return whether all image spacing values match within numeric tolerance."""
     spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
     return bool(np.allclose(spacing, spacing[0]))
 
 
+def _make_isotropic_image(image: itk.Image) -> itk.Image:
+    """Resample *image* to isotropic spacing using the finest voxel pitch.
+
+    Equivalent to TubeTK's ResampleImage.SetMakeHighResIso(True), implemented
+    with standard ITK ResampleImageFilter so that TubeTK is not needed here.
+    """
+    spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
+    size = np.asarray(image.GetLargestPossibleRegion().GetSize(), dtype=np.int64)
+
+    min_spacing = float(spacing.min())
+    new_spacing = [min_spacing] * 3
+    # Ceiling to avoid clipping the image boundary.
+    new_size = [int(np.ceil(size[i] * spacing[i] / min_spacing)) for i in range(3)]
+
+    ImageType = type(image)
+    interpolator = itk.LinearInterpolateImageFunction[ImageType, itk.D].New()
+    resampler = itk.ResampleImageFilter[ImageType, ImageType].New()
+    resampler.SetInput(image)
+    resampler.SetInterpolator(interpolator)
+    resampler.SetOutputSpacing(new_spacing)
+    resampler.SetSize(new_size)
+    resampler.SetOutputOrigin(image.GetOrigin())
+    resampler.SetOutputDirection(image.GetDirection())
+    resampler.Update()
+    result = resampler.GetOutput()
+    result.DisconnectPipeline()
+    return result
+
+
 class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
-    """Register anatomical models using multi-stage ICP, mask-based, and image-based
+    """Register anatomical models using multi-stage ICP, labelmap-based, and image-based
         registration.
 
     This class provides a flexible workflow for registering generic anatomical models
     (e.g., cardiac models) to patient-specific surface models and images. The
     registration pipeline combines:
     - Initial model alignment using RegisterModelsICP (centroid + affine ICP)
-    - Mask-based deformable registration using RegisterModelsDistanceMaps (Greedy/ICON)
-    - Optional final mask-to-image refinement using Icon registration
+    - Labelmap-based deformable registration using RegisterModelsDistanceMaps (Greedy/ICON)
+    - Optional final labelmap-to-image refinement using Icon registration
 
     **Registration Pipeline:**
         1. **ICP Alignment**: Rough affine alignment using RegisterModelsICP
         2. **PCA Registration**: Performs PCA-based shape fitting using
             RegisterModelsPCA
-        3. **Mask-to-Mask**: Deformable registration using RegisterModelsDistanceMaps
-        4. **Mask-to-Image**: Final refinement
+        3. **Labelmap-to-Labelmap**: Deformable registration using RegisterModelsDistanceMaps
+        4. **Labelmap-to-Image**: Final refinement
 
-    **Mask Configuration:**
-        Masks are automatically generated from models if not provided by the user
-        via set_masks(). Auto-generated masks use mask_dilation_mm parameter.
+    **Labelmap Configuration:**
+        Labelmaps are automatically generated from models if not provided by the user
+        via set_labelmaps(). Auto-generated labelmaps use labelmap_dilation_mm parameter.
 
     Attributes:
         template_model (pv.DataSet): Generic anatomical model to be registered
         template_model_surface (pv.PolyData): Surface extracted from
             template_model_surface
-        template_model_mask (itk.Image): Binary/multi-label mask for model model
-        template_model_roi (itk.Image): ROI mask for model model
+        template_model_labelmap (itk.Image): Multi-label labelmap for template model
+        template_model_mask (itk.Image): Binary mask for template model registration region
         patient_models (list of pv.DataSet): Patient-specific models
         patient_model_surface (pv.PolyData): Primary patient model surface (first in
             list)
         combined_patient_model (pv.PolyData): Merged patient models before surface
             extraction; used when pca_uses_surface=False.
         patient_image (itk.Image): Reference image providing coordinate frame
-        patient_mask (itk.Image): Binary/multi-label mask for patient model
-        patient_roi (itk.Image): ROI mask for patient model
-        mask_dilation_mm (float): Dilation for mask generation
-        roi_dilation_mm (float): Dilation for ROI mask
+        patient_labelmap (itk.Image): Multi-label labelmap for patient model
+        patient_mask (itk.Image): Binary mask for patient registration region
+        labelmap_dilation_mm (float): Dilation for labelmap generation
+        mask_dilation_mm (float): Dilation for binary mask generation
         transform_tools (TransformTools): Transform utilities
         registrar_ICON (RegisterImagesICON): ICON registration instance
         registrar_Greedy (RegisterImagesGreedy): Greedy registration instance
@@ -107,15 +129,15 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             (if PCA used)
         pca_template_model_surface: template model surface after PCA registration (if
             PCA used)
-        m2m_forward_transform: Mask-to-mask forward transform
-        m2m_inverse_transform: Mask-to-mask inverse transform
-        m2m_template_model_surface: template model surface after mask-to-mask
+        l2l_forward_transform: Labelmap-to-labelmap forward transform
+        l2l_inverse_transform: Labelmap-to-labelmap inverse transform
+        l2l_template_model_surface: template model surface after labelmap-to-labelmap
             registration
-        m2i_forward_transform: Mask-to-image forward transform
-        m2i_inverse_transform: Mask-to-image inverse transform
-        m2i_template_model_surface: template model surface after mask-to-image
+        l2i_forward_transform: Labelmap-to-image forward transform
+        l2i_inverse_transform: Labelmap-to-image inverse transform
+        l2i_template_model_surface: template model surface after labelmap-to-image
             registration
-        m2i_template_labelmap: template labelmap after mask-to-image registration
+        l2i_template_labelmap: template labelmap after labelmap-to-image registration
         registered_template_model: Final registered model
         registered_template_model_surface: Final registered model surface
 
@@ -125,11 +147,11 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         ...     template_model=heart_model,
         ...     patient_models=[lv_model, mc_model, rv_model],
         ... )
-        >>> registrar.set_roi_dilation_mm(20)
+        >>> registrar.set_mask_dilation_mm(20)
         >>> # To enable PCA registration, call before run_workflow():
         >>> # registrar.set_use_pca_registration(True, pca_model=pca_model_dict, pca_number_of_modes=10)
-        >>> # To enable mask-to-image refinement:
-        >>> # registrar.set_use_mask_to_image_registration(True, template_labelmap, organ_mesh_ids, organ_extra_ids, background_ids)
+        >>> # To enable labelmap-to-image refinement:
+        >>> # registrar.set_use_labelmap_to_image_registration(True, template_labelmap, organ_mesh_ids, organ_extra_ids, background_ids)
         >>> result = registrar.run_workflow()
     """
 
@@ -205,11 +227,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         if patient_image is not None:
             self.patient_image = patient_image
             if not _image_has_isotropic_spacing(self.patient_image):
-                ttk = _load_tubetk()
-                resampler = ttk.ResampleImage.New(Input=self.patient_image)
-                resampler.SetMakeHighResIso(True)
-                resampler.Update()
-                self.patient_image = resampler.GetOutput()
+                self.patient_image = _make_isotropic_image(self.patient_image)
         else:
             self.patient_image = self.contour_tools.create_reference_image(
                 mesh=self.patient_model_surface,
@@ -220,22 +238,22 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
         self.registrar_Greedy = RegisterImagesGreedy()
         self.registrar_Greedy.set_number_of_iterations([5, 2, 5])
-        # Icon registration for final mask-to-image step
+        # Icon registration for final labelmap-to-image step
         self.registrar_ICON = RegisterImagesICON()
         self.registrar_ICON.set_modality("ct")
         self.registrar_ICON.set_mass_preservation(False)
         self.registrar_ICON.set_multi_modality(True)
         self.registrar_ICON.set_number_of_iterations(50)
 
-        # Mask configuration (auto-generated)
+        # Labelmap/mask configuration (auto-generated)
+        self.template_model_labelmap = None
+        self.patient_labelmap = None
         self.template_model_mask = None
         self.patient_mask = None
-        self.template_model_roi = None
-        self.patient_roi = None
 
-        # Parameters for mask generation and processing
-        self.mask_dilation_mm: float = 0.0  # For auto-generated mask dilation
-        self.roi_dilation_mm: float = 25.0  # For ROI mask generation
+        # Parameters for labelmap and mask generation
+        self.labelmap_dilation_mm: float = 0.0  # For auto-generated labelmap dilation
+        self.mask_dilation_mm: float = 25.0  # For binary registration mask generation
 
         # Stage 1: ICP alignment results
         self.icp_registrar: Optional[RegisterModelsICP] = None
@@ -258,19 +276,19 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.pca_template_labelmap: Optional[itk.Image] = None
         self.pca_uses_surface: bool = False
 
-        # Stage 2: Mask-to-mask registration results
-        self.use_m2m_registration = True
-        self.m2m_inverse_transform: Optional[itk.Transform] = None
-        self.m2m_forward_transform: Optional[itk.Transform] = None
-        self.m2m_template_model_surface: Optional[pv.PolyData] = None
-        self.m2m_template_labelmap: Optional[itk.Image] = None
+        # Stage 2: Labelmap-to-labelmap registration results
+        self.use_l2l_registration = True
+        self.l2l_inverse_transform: Optional[itk.Transform] = None
+        self.l2l_forward_transform: Optional[itk.Transform] = None
+        self.l2l_template_model_surface: Optional[pv.PolyData] = None
+        self.l2l_template_labelmap: Optional[itk.Image] = None
 
-        # Stage 3: Mask-to-image registration results (disabled by default; enable via set_use_mask_to_image_registration(True, template_labelmap, ...))
-        self.use_m2i_registration = False
-        self.m2i_inverse_transform: Optional[itk.Transform] = None
-        self.m2i_forward_transform: Optional[itk.Transform] = None
-        self.m2i_template_model_surface: Optional[pv.PolyData] = None
-        self.m2i_template_labelmap: Optional[itk.Image] = None
+        # Stage 3: Labelmap-to-image registration results (disabled by default; enable via set_use_labelmap_to_image_registration(True, template_labelmap, ...))
+        self.use_l2i_registration = False
+        self.l2i_inverse_transform: Optional[itk.Transform] = None
+        self.l2i_forward_transform: Optional[itk.Transform] = None
+        self.l2i_template_model_surface: Optional[pv.PolyData] = None
+        self.l2i_template_labelmap: Optional[itk.Image] = None
 
         self.use_ICON_registration_refinement = False
 
@@ -279,102 +297,23 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.registered_template_model_surface: Optional[pv.PolyData] = None
         self.registered_template_labelmap: Optional[itk.Image] = None
 
-    def _auto_generate_mask(
-        self, models: list[pv.DataSet], dilate_mm: Optional[float] = None
-    ) -> itk.Image:
-        """Auto-generate binary masks from models.
+    def set_labelmap_dilation_mm(self, labelmap_dilation_mm: float) -> None:
+        """Set dilation amount for auto-generated labelmaps.
 
-        Creates binary masks from list of models, with dilation
-        according to mask_dilation_mm parameter.
+        Args:
+            labelmap_dilation_mm: Dilation amount in millimeters applied when
+                auto-generating multi-label labelmaps from models. Default: 0mm
         """
-        self.log_info(
-            f"Auto-generating masks from models (dilation:{self.mask_dilation_mm}mm)..."
-        )
-
-        # Generate patient mask (single model or multi-label)
-        if len(models) == 1:
-            mask = self.contour_tools.create_mask_from_mesh(
-                models[0],
-                self.patient_image,
-            )
-        else:
-            # Create multi-label mask
-            first_mask = self.contour_tools.create_mask_from_mesh(
-                models[0],
-                self.patient_image,
-            )
-            mask_arr = np.zeros_like(itk.GetArrayFromImage(first_mask), dtype=np.uint8)
-            for i, model in enumerate(models):
-                if i == 0:
-                    mask = first_mask
-                else:
-                    mask = self.contour_tools.create_mask_from_mesh(
-                        model,
-                        self.patient_image,
-                    )
-                cur_mask = itk.GetArrayFromImage(mask)
-                mask_arr[cur_mask > 0] = i + 1
-            mask = itk.GetImageFromArray(mask_arr.astype(np.uint8))
-            mask.CopyInformation(self.patient_image)
-
-        # Apply dilation if requested
-        if dilate_mm is None:
-            dilate_mm = self.mask_dilation_mm
-        if dilate_mm > 0:
-            mask = self.labelmap_tools.convert_labelmap_to_mask(
-                mask, dilation_in_mm=dilate_mm
-            )
-
-        self.log_info("Masks auto-generated successfully.")
-
-        return mask
-
-    def _auto_generate_roi_mask(
-        self, mask: itk.Image, dilate_mm: Optional[float] = None
-    ) -> itk.Image:
-        """Auto-generate ROI mask from existing masks with dilation.
-
-        Uses self.roi_dilation_mm for dilation amount.
-
-        Note:
-            Requires masks to exist (auto-generated or user-provided).
-        """
-        self.log_info(
-            f"Auto-generating ROI masks (dilation: {self.roi_dilation_mm}mm)..."
-        )
-
-        if dilate_mm is None:
-            dilate_mm = self.roi_dilation_mm
-
-        # Generate model ROI mask
-        roi = None
-        if dilate_mm > 0:
-            roi = self.labelmap_tools.convert_labelmap_to_mask(
-                mask, dilation_in_mm=dilate_mm
-            )
-        else:
-            roi = mask
-
-        self.log_info("ROI masks auto-generated successfully.")
-        return roi
+        self.labelmap_dilation_mm = labelmap_dilation_mm
 
     def set_mask_dilation_mm(self, mask_dilation_mm: float) -> None:
-        """Set mask dilation amount for auto-generated masks.
+        """Set dilation amount for binary registration masks.
 
         Args:
-            mask_dilation_mm: Dilation amount in millimeters for mask generation.
-                Default: 5mm
+            mask_dilation_mm: Dilation amount in millimeters for binary registration
+                mask generation. Default: 25mm
         """
         self.mask_dilation_mm = mask_dilation_mm
-
-    def set_roi_dilation_mm(self, roi_dilation_mm: float) -> None:
-        """Set ROI mask dilation amount.
-
-        Args:
-            roi_dilation_mm: Dilation amount in millimeters for ROI mask generation.
-                Default: 20mm
-        """
-        self.roi_dilation_mm = roi_dilation_mm
 
     def set_use_pca_registration(
         self,
@@ -411,32 +350,32 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             self.pca_number_of_modes = 0
         self.use_pca_registration = use_pca_registration
 
-    def set_use_mask_to_mask_registration(
-        self, use_mask_to_mask_registration: bool
+    def set_use_labelmap_to_labelmap_registration(
+        self, use_labelmap_to_labelmap_registration: bool
     ) -> None:
-        """Set whether to use mask-to-mask registration.
+        """Set whether to use labelmap-to-labelmap registration.
 
         Args:
-            use_mask_to_mask_registration: Whether to use mask-to-mask registration.
-                Default: True
+            use_labelmap_to_labelmap_registration: Whether to use labelmap-to-labelmap
+                deformable registration. Default: True
         """
-        self.use_m2m_registration = use_mask_to_mask_registration
+        self.use_l2l_registration = use_labelmap_to_labelmap_registration
 
-    def set_use_mask_to_image_registration(
+    def set_use_labelmap_to_image_registration(
         self,
-        use_mask_to_image_registration: bool,
+        use_labelmap_to_image_registration: bool,
         template_labelmap: Optional[itk.Image] = None,
         template_labelmap_organ_mesh_ids: Optional[list[int]] = None,
         template_labelmap_organ_extra_ids: Optional[list[int]] = None,
         template_labelmap_background_ids: Optional[list[int]] = None,
     ) -> None:
-        """Set whether to use mask-to-image registration.
+        """Set whether to use labelmap-to-image registration.
 
         When enabling (True), a template labelmap and label IDs must be provided
         so the workflow can propagate and refine the labelmap to the patient image.
 
         Args:
-            use_mask_to_image_registration: Whether to use mask-to-image registration.
+            use_labelmap_to_image_registration: Whether to use labelmap-to-image registration.
             template_labelmap: Required when use is True. Template labelmap in template
                 model space (same geometry as template_model).
             template_labelmap_organ_mesh_ids: Required when use is True. Label IDs for
@@ -450,31 +389,31 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             ValueError: If use is True and any of template_labelmap or the id lists
                 is None or missing.
         """
-        if use_mask_to_image_registration:
+        if use_labelmap_to_image_registration:
             if template_labelmap is None:
                 raise ValueError(
-                    "When enabling mask-to-image registration, template_labelmap must be provided."
+                    "When enabling labelmap-to-image registration, template_labelmap must be provided."
                 )
             if template_labelmap_organ_mesh_ids is None:
                 raise ValueError(
-                    "When enabling mask-to-image registration, "
+                    "When enabling labelmap-to-image registration, "
                     "template_labelmap_organ_mesh_ids must be provided."
                 )
             if template_labelmap_organ_extra_ids is None:
                 raise ValueError(
-                    "When enabling mask-to-image registration, "
+                    "When enabling labelmap-to-image registration, "
                     "template_labelmap_organ_extra_ids must be provided."
                 )
             if template_labelmap_background_ids is None:
                 raise ValueError(
-                    "When enabling mask-to-image registration, "
+                    "When enabling labelmap-to-image registration, "
                     "template_labelmap_background_ids must be provided."
                 )
             self.template_labelmap = template_labelmap
             self.template_labelmap_organ_mesh_ids = template_labelmap_organ_mesh_ids
             self.template_labelmap_organ_extra_ids = template_labelmap_organ_extra_ids
             self.template_labelmap_background_ids = template_labelmap_background_ids
-        self.use_m2i_registration = use_mask_to_image_registration
+        self.use_l2i_registration = use_labelmap_to_image_registration
 
     def _transform_model_dataset(
         self,
@@ -680,69 +619,70 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             "registered_template_labelmap": self.pca_template_labelmap,
         }
 
-    def register_mask_to_mask(self) -> Optional[dict]:
-        """Perform mask-based deformable registration of model to patient model.
+    def register_labelmap_to_labelmap(self) -> Optional[dict]:
+        """Perform labelmap-based deformable registration of template model to patient model.
 
-        Uses RegisterModelsDistanceMaps with Greedy affine followed by ICON deformable registration.
+        Uses RegisterModelsDistanceMaps with Greedy affine followed by ICON deformable
+        registration on distance maps derived from the model surfaces.
 
         Returns:
             dict: Dictionary containing:
-                - 'forward_transform': model to patient space transform
-                - 'inverse_transform': patient to model space transform
-                - 'registered_template_model_surface': Transformed model model
-                - 'registered_template_labelmap': Transformed model labelmap
+                - 'forward_transform': template to patient space transform
+                - 'inverse_transform': patient to template space transform
+                - 'registered_template_model_surface': Transformed template model surface
+                - 'registered_template_labelmap': Transformed template labelmap
         """
         self.log_section(
-            "Stage 3: Mask-to-Mask Deformable Registration",
+            "Stage 3: Labelmap-to-Labelmap Deformable Registration",
             width=70,
         )
 
-        if not self.use_m2m_registration:
-            self.log_info("Mask-to-mask registration is not enabled.")
+        if not self.use_l2l_registration:
+            self.log_info("Labelmap-to-labelmap registration is not enabled.")
             return None
 
-        # Create mask-based registrar
+        # Create labelmap-based registrar
         assert self.pca_template_model_surface is not None, (
             "PCA template model surface must be set"
         )
-        mask_registrar = RegisterModelsDistanceMaps(
+        labelmap_registrar = RegisterModelsDistanceMaps(
             moving_model=self.pca_template_model_surface,
             fixed_model=self.patient_model_surface,
             reference_image=self.patient_image,
-            roi_dilation_mm=self.roi_dilation_mm,
+            mask_dilation_mm=self.mask_dilation_mm,
         )
 
         # Run deformable registration
-        mask_result = mask_registrar.register(
+        l2l_result = labelmap_registrar.register(
             transform_type="Deformable",
         )
 
         # Store results
-        self.m2m_forward_transform = mask_result["forward_transform"]
-        self.m2m_inverse_transform = mask_result["inverse_transform"]
-        self.m2m_template_model_surface = mask_result["registered_model"]
+        self.l2l_forward_transform = l2l_result["forward_transform"]
+        self.l2l_inverse_transform = l2l_result["inverse_transform"]
+        self.l2l_template_model_surface = l2l_result["registered_model"]
 
-        self.registered_template_model_surface = self.m2m_template_model_surface
+        self.registered_template_model_surface = self.l2l_template_model_surface
 
         if self.pca_template_labelmap is not None:
-            self.m2m_template_labelmap = self.transform_tools.transform_image(
+            self.l2l_template_labelmap = self.transform_tools.transform_image(
                 self.pca_template_labelmap,
-                self.m2m_forward_transform,
+                self.l2l_forward_transform,
                 self.patient_image,
                 interpolation_method="nearest",
             )
         else:
-            self.m2m_template_labelmap = None
+            self.l2l_template_labelmap = None
 
-        self.registered_template_labelmap = self.m2m_template_labelmap
+        self.registered_template_labelmap = self.l2l_template_labelmap
 
-        self.log_info("Stage 3 complete: Mask-to-mask registration finished.")
+        self.log_info("Stage 3 complete: Labelmap-to-labelmap registration finished.")
 
         return {
-            "forward_transform": self.m2m_forward_transform,
-            "inverse_transform": self.m2m_inverse_transform,
-            "registered_template_model_surface": self.m2m_template_model_surface,
-            "registered_template_labelmap": self.m2m_template_labelmap,
+            "forward_transform": self.l2l_forward_transform,
+            "inverse_transform": self.l2l_inverse_transform,
+            "registered_template_model_surface": self.l2l_template_model_surface,
+            "registered_template_labelmap": self.l2l_template_labelmap,
         }
 
     def register_labelmap_to_image(
@@ -750,14 +690,15 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
     ) -> Optional[dict]:
         """Perform labelmap-to-image refinement.
 
-        Uses registration to align labelmap to actual image intensities.
+        Uses registration to align the propagated template labelmap to actual
+        image intensities.
 
         Returns:
             dict: Dictionary containing:
-                - 'inverse_transform': patient to model space transform
-                - 'forward_transform': model to patient space transform
-                - 'registered_template_model_surface': Transformed model model
-                - 'registered_template_labelmap': Transformed model labelmap
+                - 'inverse_transform': patient to template space transform
+                - 'forward_transform': template to patient space transform
+                - 'registered_template_model_surface': Transformed template model surface
+                - 'registered_template_labelmap': Transformed template labelmap
         """
         self.log_section(
             "Stage 4: Labelmap-to-Image Refinement (Icon Registration)", width=70
@@ -770,99 +711,101 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             or self.template_labelmap_background_ids is None
         ):
             raise ValueError(
-                "Mask-to-image registration requires template labelmap and label IDs. "
-                "Call set_use_mask_to_image_registration(True, template_labelmap, "
+                "Labelmap-to-image registration requires template labelmap and label IDs. "
+                "Call set_use_labelmap_to_image_registration(True, template_labelmap, "
                 "organ_mesh_ids, organ_extra_ids, background_ids) before run_workflow()."
             )
-        if self.m2m_template_labelmap is None:
+        if self.l2l_template_labelmap is None:
             raise ValueError(
-                "Mask-to-image registration requires a labelmap to have been set "
-                "(via set_use_mask_to_image_registration(True, ...)) before running "
-                "earlier stages so the labelmap is propagated through ICP/PCA/M2M."
+                "Labelmap-to-image registration requires a labelmap to have been set "
+                "(via set_use_labelmap_to_image_registration(True, ...)) before running "
+                "earlier stages so the labelmap is propagated through ICP/PCA/L2L."
             )
 
-        labelmap_arr = itk.GetArrayFromImage(self.m2m_template_labelmap).astype(
-            np.uint16
-        )
-        labelmap_arr = np.where(
-            np.isin(labelmap_arr, self.template_labelmap_background_ids),
+        template_labelmap_arr = itk.GetArrayFromImage(
+            self.l2l_template_labelmap
+        ).astype(np.uint16)
+        template_labelmap_arr = np.where(
+            np.isin(template_labelmap_arr, self.template_labelmap_background_ids),
             0,
-            labelmap_arr,
+            template_labelmap_arr,
         )
-        labelmap_arr = np.where(
-            np.isin(labelmap_arr, self.template_labelmap_organ_mesh_ids),
+        template_labelmap_arr = np.where(
+            np.isin(template_labelmap_arr, self.template_labelmap_organ_mesh_ids),
             0,
-            labelmap_arr,
+            template_labelmap_arr,
         )
-        labelmap_arr = np.where(
-            np.isin(labelmap_arr, self.template_labelmap_organ_extra_ids),
+        template_labelmap_arr = np.where(
+            np.isin(template_labelmap_arr, self.template_labelmap_organ_extra_ids),
             1,
-            labelmap_arr,
+            template_labelmap_arr,
         )
-        labelmap = itk.GetImageFromArray(labelmap_arr)
-        labelmap.CopyInformation(self.m2m_template_labelmap)
+        template_labelmap = itk.GetImageFromArray(template_labelmap_arr)
+        template_labelmap.CopyInformation(self.l2l_template_labelmap)
 
-        labelmap_roi = self._auto_generate_roi_mask(labelmap)
-
-        patient_mask = self._auto_generate_mask(
-            [self.patient_model_surface], dilate_mm=0
+        template_labelmap_mask = self.labelmap_tools.convert_labelmap_to_mask(
+            template_labelmap, dilation_in_mm=self.mask_dilation_mm
         )
-        patient_roi = self._auto_generate_roi_mask(patient_mask)
+
+        patient_mask = self.contour_tools.create_mask_from_mesh(
+            self.patient_model_surface,
+            self.patient_image,
+        )
 
         self.registrar_Greedy.set_fixed_image(self.patient_image)
-        self.registrar_Greedy.set_fixed_mask(patient_roi)
+        self.registrar_Greedy.set_fixed_mask(patient_mask)
 
         result = self.registrar_Greedy.register(
-            moving_image=labelmap, moving_mask=labelmap_roi
+            moving_image=template_labelmap, moving_mask=template_labelmap_mask
         )
-        self.m2i_inverse_transform = result["inverse_transform"]
-        self.m2i_forward_transform = result["forward_transform"]
+        self.l2i_inverse_transform = result["inverse_transform"]
+        self.l2i_forward_transform = result["forward_transform"]
 
         if use_ICON_refinement:
             # Configure Icon registration
             self.registrar_ICON.set_fixed_image(self.patient_image)
-            self.registrar_ICON.set_fixed_mask(patient_roi)
+            self.registrar_ICON.set_fixed_mask(patient_mask)
 
             # Perform Icon registration
             result = self.registrar_ICON.register(
-                initial_forward_transform=self.m2i_forward_transform,
-                moving_image=labelmap,
-                moving_mask=labelmap_roi,
+                initial_forward_transform=self.l2i_forward_transform,
+                moving_image=template_labelmap,
+                moving_mask=template_labelmap_mask,
             )
-            self.m2i_inverse_transform = result["inverse_transform"]
-            self.m2i_forward_transform = result["forward_transform"]
+            self.l2i_inverse_transform = result["inverse_transform"]
+            self.l2i_forward_transform = result["forward_transform"]
 
-        # Transform model with Icon result
-        assert self.m2m_template_model_surface is not None, (
-            "M2M template model surface must be set"
+        # Transform model with result
+        assert self.l2l_template_model_surface is not None, (
+            "L2L template model surface must be set"
         )
-        self.m2i_template_model_surface = cast(
+        self.l2i_template_model_surface = cast(
             pv.PolyData,
             self._transform_model_dataset(
-                self.m2m_template_model_surface,
-                self.m2i_inverse_transform,
+                self.l2l_template_model_surface,
+                self.l2i_inverse_transform,
                 with_deformation_magnitude=True,
             ),
         )
 
-        self.m2i_template_labelmap = self.transform_tools.transform_image(
+        self.l2i_template_labelmap = self.transform_tools.transform_image(
             self.template_labelmap,
-            self.m2i_forward_transform,
+            self.l2i_forward_transform,
             self.patient_image,
             interpolation_method="nearest",
         )
 
-        self.log_info("Stage 4 complete: Mask-to-image registration finished.")
+        self.log_info("Stage 4 complete: Labelmap-to-image registration finished.")
 
-        self.registered_template_model_surface = self.m2i_template_model_surface
+        self.registered_template_model_surface = self.l2i_template_model_surface
 
-        self.registered_template_labelmap = self.m2i_template_labelmap
+        self.registered_template_labelmap = self.l2i_template_labelmap
 
         return {
-            "inverse_transform": self.m2i_inverse_transform,
-            "forward_transform": self.m2i_forward_transform,
-            "registered_template_model_surface": self.m2i_template_model_surface,
-            "registered_template_labelmap": self.m2i_template_labelmap,
+            "inverse_transform": self.l2i_inverse_transform,
+            "forward_transform": self.l2i_forward_transform,
+            "registered_template_model_surface": self.l2i_template_model_surface,
+            "registered_template_labelmap": self.l2i_template_labelmap,
         }
 
     def transform_model(
@@ -905,10 +848,10 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
                 transform_steps.append(
                     ("PCA post-transform", self.pca_registrar.post_pca_transform)
                 )
-        if self.use_m2m_registration and self.m2m_inverse_transform is not None:
-            transform_steps.append(("Mask-to-mask", self.m2m_inverse_transform))
-        if self.use_m2i_registration and self.m2i_inverse_transform is not None:
-            transform_steps.append(("Mask-to-image", self.m2i_inverse_transform))
+        if self.use_l2l_registration and self.l2l_inverse_transform is not None:
+            transform_steps.append(("Labelmap-to-labelmap", self.l2l_inverse_transform))
+        if self.use_l2i_registration and self.l2i_inverse_transform is not None:
+            transform_steps.append(("Labelmap-to-image", self.l2i_inverse_transform))
 
         for i, (name, tfm) in enumerate(transform_steps, start=1):
             self.log_progress(i, len(transform_steps), prefix=f"Applying {name}")
@@ -940,14 +883,14 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
         1. ICP alignment (RegisterModelsICP)
         2. PCA registration (PCA data was provided)
-        3. Mask-to-mask deformable registration (RegisterModelsDistanceMaps)
-        4. Optional mask-to-image refinement (Icon); requires template labelmap and IDs
-            set via set_use_mask_to_image_registration(True, ...).
+        3. Labelmap-to-labelmap deformable registration (RegisterModelsDistanceMaps)
+        4. Optional labelmap-to-image refinement (Icon); requires template labelmap and IDs
+            set via set_use_labelmap_to_image_registration(True, ...).
 
         Args:
             use_ICON_registration_refinement: Whether to apply ICON refinement in the
-                mask-to-image stage (Stage 4). The mask-to-mask stage always uses
-                Greedy affine + ICON deformable. Default: False
+                labelmap-to-image stage (Stage 4). The labelmap-to-labelmap stage always
+                uses Greedy affine + ICON deformable. Default: False
 
         Returns:
             dict with registered_template_model and registered_template_model_surface
@@ -964,12 +907,12 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         # Stage 2: Optional PCA registration (if PCA data was set)
         self.register_model_to_model_pca()
 
-        # Stage 3: Optional Mask-to-mask deformable registration
-        if self.use_m2m_registration:
-            self.register_mask_to_mask()
+        # Stage 3: Optional Labelmap-to-labelmap deformable registration
+        if self.use_l2l_registration:
+            self.register_labelmap_to_labelmap()
 
-        # Stage 4: Optional mask-to-image refinement
-        if self.use_m2i_registration:
+        # Stage 4: Optional labelmap-to-image refinement
+        if self.use_l2i_registration:
             self.register_labelmap_to_image(
                 use_ICON_refinement=use_ICON_registration_refinement
             )
