@@ -214,6 +214,13 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             norm_to_max_distance=50.0,
         )
 
+        # Emulate CT intensity range by multiplying by 1000
+        tmp_arr = itk.GetArrayViewFromImage(self.fixed_distance_map_image)
+        tmp_arr *= 1000
+
+        tmp_arr = itk.GetArrayViewFromImage(self.moving_distance_map_image)
+        tmp_arr *= 1000
+
         # Create moving binary registration mask with dilation
         self.log_info(
             "Dilating moving mask by %.1fmm for registration mask...",
@@ -293,7 +300,7 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
             self.registrar_Greedy.set_fixed_image(self.fixed_distance_map_image)
             self.registrar_Greedy.set_fixed_mask(self.fixed_mask_image)
             self.registrar_Greedy.set_transform_type(greedy_type)
-            self.registrar_Greedy.set_metric("MeanSquares")
+            self.registrar_Greedy.set_metric("CC")
 
             result_Greedy = self.registrar_Greedy.register(
                 moving_image=self.moving_distance_map_image,
@@ -326,21 +333,21 @@ class RegisterModelsDistanceMaps(PhysioMotion4DBase):
                     interpolation_method="linear",
                 )
             )
-            moving_mask_affine_transformed = self.transform_tools.transform_image(
-                self.moving_mask_image,
-                forward_transform_Greedy,
-                self.reference_image,
-                interpolation_method="nearest",
-            )
+            # moving_mask_affine_transformed = self.transform_tools.transform_image(
+            # self.moving_mask_image,
+            # forward_transform_Greedy,
+            # self.reference_image,
+            # interpolation_method="nearest",
+            # )
 
             # Configure and run ICON
             self.registrar_ICON.set_number_of_iterations(icon_iterations)
             self.registrar_ICON.set_fixed_image(self.fixed_distance_map_image)
-            self.registrar_ICON.set_fixed_mask(self.fixed_mask_image)
+            # self.registrar_ICON.set_fixed_mask(self.fixed_mask_image)
 
             result_ICON = self.registrar_ICON.register(
                 moving_image=moving_distance_map_affine_transformed,
-                moving_mask=moving_mask_affine_transformed,
+                # moving_mask=moving_mask_affine_transformed,
             )
             forward_transform_ICON = result_ICON["forward_transform"]
             inverse_transform_ICON = result_ICON["inverse_transform"]

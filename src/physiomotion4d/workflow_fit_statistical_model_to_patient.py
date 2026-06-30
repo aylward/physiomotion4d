@@ -30,6 +30,7 @@ import numpy as np
 import pyvista as pv
 
 from .contour_tools import ContourTools
+from .image_tools import ImageTools
 from .labelmap_tools import LabelmapTools
 from .physiomotion4d_base import PhysioMotion4DBase
 from .register_images_greedy import RegisterImagesGreedy
@@ -39,41 +40,6 @@ from .register_models_icp import RegisterModelsICP
 from .register_models_pca import RegisterModelsPCA
 from .transform_tools import TransformTools
 from .workflow_convert_image_to_vtk import WorkflowConvertImageToVTK
-
-
-def _image_has_isotropic_spacing(image: itk.Image) -> bool:
-    """Return whether all image spacing values match within numeric tolerance."""
-    spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
-    return bool(np.allclose(spacing, spacing[0]))
-
-
-def _make_isotropic_image(image: itk.Image) -> itk.Image:
-    """Resample *image* to isotropic spacing using the finest voxel pitch.
-
-    Equivalent to TubeTK's ResampleImage.SetMakeHighResIso(True), implemented
-    with standard ITK ResampleImageFilter so that TubeTK is not needed here.
-    """
-    spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
-    size = np.asarray(image.GetLargestPossibleRegion().GetSize(), dtype=np.int64)
-
-    min_spacing = float(spacing.min())
-    new_spacing = [min_spacing] * 3
-    # Ceiling to avoid clipping the image boundary.
-    new_size = [int(np.ceil(size[i] * spacing[i] / min_spacing)) for i in range(3)]
-
-    ImageType = type(image)
-    interpolator = itk.LinearInterpolateImageFunction[ImageType, itk.D].New()
-    resampler = itk.ResampleImageFilter[ImageType, ImageType].New()
-    resampler.SetInput(image)
-    resampler.SetInterpolator(interpolator)
-    resampler.SetOutputSpacing(new_spacing)
-    resampler.SetSize(new_size)
-    resampler.SetOutputOrigin(image.GetOrigin())
-    resampler.SetOutputDirection(image.GetDirection())
-    resampler.Update()
-    result = resampler.GetOutput()
-    result.DisconnectPipeline()
-    return result
 
 
 class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
@@ -94,16 +60,12 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         3. **Labelmap-to-Labelmap**: Deformable registration using RegisterModelsDistanceMaps
         4. **Labelmap-to-Image**: Final refinement
 
-    **Labelmap Configuration:**
-        Labelmaps are automatically generated from models if not provided by the user
-        via set_labelmaps(). Auto-generated labelmaps use labelmap_dilation_mm parameter.
-
     Attributes:
         template_model (pv.DataSet): Generic anatomical model to be registered
         template_model_surface (pv.PolyData): Surface extracted from
             template_model_surface
-        template_model_labelmap (itk.Image): Multi-label labelmap for template model
-        template_model_mask (itk.Image): Binary mask for template model registration region
+        template_labelmap (itk.Image): Multi-label labelmap for template model
+        template_mask (itk.Image): Binary mask for template model registration region
         patient_models (list of pv.DataSet): Patient-specific models
         patient_model_surface (pv.PolyData): Primary patient model surface (first in
             list)
@@ -112,7 +74,6 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         patient_image (itk.Image): Reference image providing coordinate frame
         patient_labelmap (itk.Image): Multi-label labelmap for patient model
         patient_mask (itk.Image): Binary mask for patient registration region
-        labelmap_dilation_mm (float): Dilation for labelmap generation
         mask_dilation_mm (float): Dilation for binary mask generation
         transform_tools (TransformTools): Transform utilities
         registrar_ICON (RegisterImagesICON): ICON registration instance
@@ -120,6 +81,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         use_pca_registration (bool): Whether PCA registration is enabled (set via set_use_pca_registration)
         pca_model (dict): PCA model dict when PCA enabled; same structure as WorkflowCreateStatisticalModel output
         pca_number_of_modes (int): Number of PCA modes when PCA enabled
+        labelmap_interior_object_ids (list): List of labelmap IDs corresponding to interior objects that should
+            not be used when computing a distance map.
         icp_forward_point_transform : ICP transforms
         icp_inverse_point_transform : ICP inverse transforms
         icp_template_model_surface: template model surface after ICP alignment
@@ -160,6 +123,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         template_model: pv.DataSet,
         patient_models: list[pv.DataSet] | None = None,
         patient_image: Optional[itk.Image] = None,
+        patient_labelmap: Optional[itk.Image] = None,
+        template_labelmap: Optional[itk.Image] = None,
+        labelmap_interior_object_ids: Optional[list] = None,
         segmentation_method: str = "HeartSimplewareTrimmedBranches",
         log_level: int | str = logging.INFO,
     ):
@@ -172,6 +138,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             patient_image: Optional patient image providing the target coordinate frame.
                 If None, a reference image is created from the patient model surface
                 via create_reference_image (contour_tools).
+            labelmap_interior_object_ids: Optional list of labelmap IDs that should
+                not be used when computing the distance map since they are interior (surrounded
+                by other objects).
             segmentation_method: Segmentation backend used by
                 WorkflowConvertImageToVTK when patient_models is None and
                 patient_image is provided. One of
@@ -191,10 +160,12 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.template_model_surface = template_model.extract_surface(
             algorithm="dataset_surface"
         )
-        self.template_labelmap: Optional[itk.Image] = None
+        self.template_labelmap: Optional[itk.Image] = template_labelmap
         self.template_labelmap_organ_mesh_ids: Optional[list[int]] = None
         self.template_labelmap_organ_extra_ids: Optional[list[int]] = None
         self.template_labelmap_background_ids: Optional[list[int]] = None
+
+        self.labelmap_interior_object_ids: Optional[list] = labelmap_interior_object_ids
 
         if patient_models is None and patient_image is not None:
             convert_image_to_vtk = WorkflowConvertImageToVTK(
@@ -218,6 +189,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.patient_model_surface = self.combined_patient_model.extract_surface(
             algorithm="dataset_surface"
         )
+        self.patient_labelmap = patient_labelmap
 
         # Utilities (needed for create_reference_image when patient_image is None)
         self.transform_tools = TransformTools()
@@ -226,8 +198,12 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
         if patient_image is not None:
             self.patient_image = patient_image
-            if not _image_has_isotropic_spacing(self.patient_image):
-                self.patient_image = _make_isotropic_image(self.patient_image)
+            spacing = np.asarray(patient_image.GetSpacing(), dtype=np.float64)
+            isotropic_spacing = bool(np.allclose(spacing, spacing[0]))
+            if not isotropic_spacing:
+                self.patient_image = ImageTools().make_isotropic_image(
+                    self.patient_image
+                )
         else:
             self.patient_image = self.contour_tools.create_reference_image(
                 mesh=self.patient_model_surface,
@@ -246,14 +222,11 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.registrar_ICON.set_number_of_iterations(50)
 
         # Labelmap/mask configuration (auto-generated)
-        self.template_model_labelmap = None
-        self.patient_labelmap = None
-        self.template_model_mask = None
-        self.patient_mask = None
+        self.template_mask: Optional[itk.Image] = None
+        self.patient_mask: Optional[itk.Image] = None
 
         # Parameters for labelmap and mask generation
-        self.labelmap_dilation_mm: float = 0.0  # For auto-generated labelmap dilation
-        self.mask_dilation_mm: float = 25.0  # For binary registration mask generation
+        self.mask_dilation_mm: float = 10.0  # For binary registration mask generation
 
         # Stage 1: ICP alignment results
         self.icp_registrar: Optional[RegisterModelsICP] = None
@@ -297,21 +270,12 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.registered_template_model_surface: Optional[pv.PolyData] = None
         self.registered_template_labelmap: Optional[itk.Image] = None
 
-    def set_labelmap_dilation_mm(self, labelmap_dilation_mm: float) -> None:
-        """Set dilation amount for auto-generated labelmaps.
-
-        Args:
-            labelmap_dilation_mm: Dilation amount in millimeters applied when
-                auto-generating multi-label labelmaps from models. Default: 0mm
-        """
-        self.labelmap_dilation_mm = labelmap_dilation_mm
-
     def set_mask_dilation_mm(self, mask_dilation_mm: float) -> None:
         """Set dilation amount for binary registration masks.
 
         Args:
             mask_dilation_mm: Dilation amount in millimeters for binary registration
-                mask generation. Default: 25mm
+                mask generation. Default: 10mm
         """
         self.mask_dilation_mm = mask_dilation_mm
 
@@ -333,7 +297,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
                 "eigenvalues" and "components".
             pca_number_of_modes: Required when use is True. Number of PCA modes to use.
                 Default 0 means use all modes.
-
+            pca_uses_surface: Whether to use the surface of the patient model for PCA registration.
         Raises:
             ValueError: If use is True and pca_model is None.
         """
@@ -344,10 +308,10 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
                 )
             self.pca_model = pca_model
             self.pca_number_of_modes = pca_number_of_modes
-            self.pca_uses_surface = pca_uses_surface
         else:
             self.pca_model = None
             self.pca_number_of_modes = 0
+        self.pca_uses_surface = pca_uses_surface
         self.use_pca_registration = use_pca_registration
 
     def set_use_labelmap_to_labelmap_registration(
@@ -376,8 +340,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
 
         Args:
             use_labelmap_to_image_registration: Whether to use labelmap-to-image registration.
-            template_labelmap: Required when use is True. Template labelmap in template
-                model space (same geometry as template_model).
+            template_labelmap: Template labelmap in template model space (same geometry
+                as template_model). Required when use is True unless one was already
+                supplied to the constructor, in which case that value is used.
             template_labelmap_organ_mesh_ids: Required when use is True. Label IDs for
                 organ mesh in the template labelmap.
             template_labelmap_organ_extra_ids: Required when use is True. Label IDs for
@@ -390,6 +355,8 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
                 is None or missing.
         """
         if use_labelmap_to_image_registration:
+            if template_labelmap is None:
+                template_labelmap = self.template_labelmap
             if template_labelmap is None:
                 raise ValueError(
                     "When enabling labelmap-to-image registration, template_labelmap must be provided."
@@ -534,9 +501,21 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         if self.pca_uses_surface:
             pca_template_model = self.icp_template_model_surface
             fixed_model = self.patient_model_surface
+            fixed_distance_map = None
         else:
             pca_template_model = self.icp_template_model
             fixed_model = self.combined_patient_model
+            if self.patient_labelmap is not None:
+                fixed_distance_map = self.labelmap_tools.create_distance_map(
+                    self.patient_labelmap,
+                    max_distance_mm=10.0,
+                    distance_scale=5.0,
+                    preserve_labels=False,
+                    exclude_labels=self.labelmap_interior_object_ids,
+                    fill_background_only=True,
+                )
+            else:
+                fixed_distance_map = None
         assert pca_template_model is not None, "PCA template model must be set"
 
         self.pca_registrar = RegisterModelsPCA.from_pca_model(
@@ -544,6 +523,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             pca_model=self.pca_model,
             pca_number_of_modes=self.pca_number_of_modes,
             fixed_model=fixed_model,
+            fixed_distance_map=fixed_distance_map,
             reference_image=self.patient_image,
         )
 
@@ -715,16 +695,22 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
                 "Call set_use_labelmap_to_image_registration(True, template_labelmap, "
                 "organ_mesh_ids, organ_extra_ids, background_ids) before run_workflow()."
             )
-        if self.l2l_template_labelmap is None:
+        propagated_labelmap = (
+            self.l2l_template_labelmap
+            or self.pca_template_labelmap
+            or self.icp_template_labelmap
+            or self.template_labelmap
+        )
+        if propagated_labelmap is None:
             raise ValueError(
-                "Labelmap-to-image registration requires a labelmap to have been set "
-                "(via set_use_labelmap_to_image_registration(True, ...)) before running "
-                "earlier stages so the labelmap is propagated through ICP/PCA/L2L."
+                "Labelmap-to-image registration requires a propagated template labelmap. "
+                "Provide template_labelmap via set_use_labelmap_to_image_registration(), "
+                "or ensure an earlier stage (L2L, PCA, ICP) has produced one."
             )
 
-        template_labelmap_arr = itk.GetArrayFromImage(
-            self.l2l_template_labelmap
-        ).astype(np.uint16)
+        template_labelmap_arr = itk.GetArrayFromImage(propagated_labelmap).astype(
+            np.uint16
+        )
         template_labelmap_arr = np.where(
             np.isin(template_labelmap_arr, self.template_labelmap_background_ids),
             0,
@@ -732,7 +718,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         )
         template_labelmap_arr = np.where(
             np.isin(template_labelmap_arr, self.template_labelmap_organ_mesh_ids),
-            0,
+            1,
             template_labelmap_arr,
         )
         template_labelmap_arr = np.where(
@@ -741,9 +727,9 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             template_labelmap_arr,
         )
         template_labelmap = itk.GetImageFromArray(template_labelmap_arr)
-        template_labelmap.CopyInformation(self.l2l_template_labelmap)
+        template_labelmap.CopyInformation(propagated_labelmap)
 
-        template_labelmap_mask = self.labelmap_tools.convert_labelmap_to_mask(
+        template_mask = self.labelmap_tools.convert_labelmap_to_mask(
             template_labelmap, dilation_in_mm=self.mask_dilation_mm
         )
 
@@ -751,12 +737,15 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             self.patient_model_surface,
             self.patient_image,
         )
+        patient_mask = self.labelmap_tools.convert_labelmap_to_mask(
+            patient_mask, dilation_in_mm=self.mask_dilation_mm
+        )
 
         self.registrar_Greedy.set_fixed_image(self.patient_image)
         self.registrar_Greedy.set_fixed_mask(patient_mask)
 
         result = self.registrar_Greedy.register(
-            moving_image=template_labelmap, moving_mask=template_labelmap_mask
+            moving_image=template_labelmap, moving_mask=template_mask
         )
         self.l2i_inverse_transform = result["inverse_transform"]
         self.l2i_forward_transform = result["forward_transform"]
@@ -770,26 +759,33 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             result = self.registrar_ICON.register(
                 initial_forward_transform=self.l2i_forward_transform,
                 moving_image=template_labelmap,
-                moving_mask=template_labelmap_mask,
+                moving_mask=template_mask,
             )
             self.l2i_inverse_transform = result["inverse_transform"]
             self.l2i_forward_transform = result["forward_transform"]
 
-        # Transform model with result
-        assert self.l2l_template_model_surface is not None, (
-            "L2L template model surface must be set"
+        # Transform model with result — use the best available pre-L2I surface.
+        source_surface = (
+            self.l2l_template_model_surface
+            or self.pca_template_model_surface
+            or self.icp_template_model_surface
         )
+        if source_surface is None:
+            raise ValueError(
+                "Labelmap-to-image registration requires a propagated template model "
+                "surface from an earlier stage (L2L, PCA, or ICP)."
+            )
         self.l2i_template_model_surface = cast(
             pv.PolyData,
             self._transform_model_dataset(
-                self.l2l_template_model_surface,
+                source_surface,
                 self.l2i_inverse_transform,
                 with_deformation_magnitude=True,
             ),
         )
 
         self.l2i_template_labelmap = self.transform_tools.transform_image(
-            self.template_labelmap,
+            propagated_labelmap,
             self.l2i_forward_transform,
             self.patient_image,
             interpolation_method="nearest",

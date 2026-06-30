@@ -231,6 +231,48 @@ class ImageTools(PhysioMotion4DBase):
 
         return itk_image
 
+    def make_isotropic_image(self, image: itk.Image) -> itk.Image:
+        """Resample a 3-D *image* to isotropic spacing using the finest voxel pitch.
+
+        Equivalent to TubeTK's ResampleImage.SetMakeHighResIso(True), implemented
+        with standard ITK ResampleImageFilter so that TubeTK is not needed here.
+
+        Args:
+            image: 3-D ITK image to resample.
+
+        Returns:
+            Resampled image with uniform spacing equal to the smallest input spacing.
+
+        Raises:
+            ValueError: If *image* is not 3-D.
+        """
+        if image.GetImageDimension() != 3:
+            raise ValueError(
+                f"make_isotropic_image requires a 3-D image; "
+                f"got {image.GetImageDimension()}-D"
+            )
+        spacing = np.asarray(image.GetSpacing(), dtype=np.float64)
+        size = np.asarray(image.GetLargestPossibleRegion().GetSize(), dtype=np.int64)
+
+        min_spacing = float(spacing.min())
+        new_spacing = [min_spacing] * 3
+        # Ceiling to avoid clipping the image boundary.
+        new_size = [int(np.ceil(size[i] * spacing[i] / min_spacing)) for i in range(3)]
+
+        ImageType = type(image)
+        interpolator = itk.LinearInterpolateImageFunction[ImageType, itk.D].New()
+        resampler = itk.ResampleImageFilter[ImageType, ImageType].New()
+        resampler.SetInput(image)
+        resampler.SetInterpolator(interpolator)
+        resampler.SetOutputSpacing(new_spacing)
+        resampler.SetSize(new_size)
+        resampler.SetOutputOrigin(image.GetOrigin())
+        resampler.SetOutputDirection(image.GetDirection())
+        resampler.Update()
+        result = resampler.GetOutput()
+        result.DisconnectPipeline()
+        return result
+
     def flip_image(
         self,
         in_image: itk.Image,

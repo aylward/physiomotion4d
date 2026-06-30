@@ -66,13 +66,12 @@ class RegisterImagesGreedy(RegisterImagesBase):
         deformable_smoothing: Smoothing sigmas for deformable (e.g. "2.0vox 0.5vox")
     """
 
-    # picsl_greedy 0.0.12 segfaults when its multi-component metric (image +
-    # labelmap channels) allocates a working buffer for a fixed grid larger
-    # than roughly 100M voxels (empirically: 95M voxels succeeds, 104M crashes;
-    # single-channel metrics are unaffected at any size). When the labelmap
-    # channel is active, the metric inputs are isotropically downsampled to
-    # stay under this conservative cap. Greedy emits physical-space transforms,
-    # so a coarser metric grid only coarsens warp sampling, not the frame.
+    # picsl_greedy 0.0.12 segfaults when any metric allocates a working buffer
+    # for a fixed grid larger than roughly 100M voxels (empirically: 95M voxels
+    # succeeds, 104M crashes; this affects both single-channel and multi-component
+    # metrics). Metric inputs are isotropically downsampled to stay under this
+    # conservative cap. Greedy emits physical-space transforms, so a coarser
+    # metric grid only coarsens warp sampling, not the coordinate frame.
     _MAX_METRIC_VOXELS = 90_000_000
 
     def __init__(self, log_level: int | str = logging.INFO) -> None:
@@ -436,19 +435,7 @@ class RegisterImagesGreedy(RegisterImagesBase):
 
         moving_pre = moving_image_pre if moving_image_pre is not None else moving_image
 
-        # The labelmap is added as a second Greedy metric channel only when both
-        # the fixed and moving labelmaps are present. That multi-component
-        # metric crashes picsl_greedy on large grids, so downsample every metric
-        # input by a single isotropic scale when (and only when) the channel is
-        # active; the single-channel path stays full resolution.
-        use_labelmap_channel = (
-            self.fixed_labelmap is not None and moving_labelmap is not None
-        )
-        metric_scale = (
-            self._metric_downsample_scale(self.fixed_image_pre)
-            if use_labelmap_channel
-            else 1.0
-        )
+        metric_scale = self._metric_downsample_scale(self.fixed_image_pre)
 
         fixed_pre = self._downsample_image(self.fixed_image_pre, metric_scale)
         moving_pre = self._downsample_image(moving_pre, metric_scale)

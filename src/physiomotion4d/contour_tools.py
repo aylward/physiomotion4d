@@ -264,7 +264,7 @@ class ContourTools(PhysioMotion4DBase):
                 reference_image.GetLargestPossibleRegion().GetSize()[1],
                 reference_image.GetLargestPossibleRegion().GetSize()[0],
             ),
-            dtype=np.uint8,
+            dtype=np.uint16,
         )
         for i, mesh in enumerate(meshes):
             mask_image = self.create_mask_from_mesh(mesh, reference_image)

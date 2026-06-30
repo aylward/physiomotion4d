@@ -39,8 +39,8 @@ def test_transform_model_applies_staged_transform() -> None:
     transform.SetTranslation((1.0, 2.0, 3.0))
     workflow.icp_forward_point_transform = transform
     workflow.pca_coefficients = None
-    workflow.use_m2m_registration = False
-    workflow.use_m2i_registration = False
+    workflow.use_l2l_registration = False
+    workflow.use_l2i_registration = False
 
     output = workflow.transform_model()
 
@@ -160,8 +160,8 @@ def test_transform_model_preserves_unstructured_grid_topology() -> None:
     transform.SetTranslation((1.0, 2.0, 3.0))
     workflow.icp_forward_point_transform = transform
     workflow.pca_coefficients = None
-    workflow.use_m2m_registration = False
-    workflow.use_m2i_registration = False
+    workflow.use_l2l_registration = False
+    workflow.use_l2i_registration = False
 
     output = workflow.transform_model()
 

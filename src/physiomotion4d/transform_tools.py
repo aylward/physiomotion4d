@@ -364,7 +364,7 @@ class TransformTools(PhysioMotion4DBase):
         if with_deformation_magnitude:
             try:
                 import cupy as cp  # noqa: PLC0415
-            except ImportError:
+            except (ImportError, OSError):
                 cp = None
             if cp is not None:
                 try:

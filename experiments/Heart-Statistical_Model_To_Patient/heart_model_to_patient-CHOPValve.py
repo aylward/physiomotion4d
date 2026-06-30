@@ -58,7 +58,7 @@ registrar.set_use_pca_registration(
     True, pca_model=model_pca_data, pca_number_of_modes=model_pca_n_modes
 )
 
-# registrar.set_use_labelmap_to_labelmap_registration(True)
+registrar.set_use_labelmap_to_labelmap_registration(True)
 
 # %%
 patient_image = registrar.patient_image

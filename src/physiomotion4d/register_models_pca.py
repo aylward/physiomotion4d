@@ -137,7 +137,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
             self.fixed_distance_map = self._contour_tools.create_distance_map(
                 fixed_model,
                 reference_image,
-                squared_distance=True,
+                squared_distance=False,
                 negative_inside=False,
                 zero_inside=True,
                 norm_to_max_distance=200.0,
@@ -392,7 +392,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
         self.fixed_distance_map = self._contour_tools.create_distance_map(
             fixed_model,
             reference_image,
-            squared_distance=True,
+            squared_distance=False,
             negative_inside=False,
             zero_inside=True,
             norm_to_max_distance=200.0,
@@ -464,6 +464,7 @@ class RegisterModelsPCA(PhysioMotion4DBase):
 
         # Sample distance at each point
         n_valid_points = 0
+        n_invalid_points = 0
         total_distance = 0.0
         center = np.zeros(3)
         point = itk.Point[itk.D, 3]()
@@ -510,8 +511,15 @@ class RegisterModelsPCA(PhysioMotion4DBase):
                 total_distance += distance
                 n_valid_points += 1
             else:
-                self.log_warning("   Point %d is outside image bounds (%s)", i, point)
-                return self._fixed_distance_map_max_distance
+                n_invalid_points += 1
+
+        if n_invalid_points >= 0.05 * n_valid_points:
+            self.log_warning(
+                "%d of %d mapped outside of image. Rejecting.",
+                n_invalid_points,
+                n_valid_points + n_invalid_points,
+            )
+            return self._fixed_distance_map_max_distance
 
         # Compute mean distance
         mean_distance = total_distance / n_valid_points
