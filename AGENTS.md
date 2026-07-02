@@ -165,7 +165,6 @@ Version bumping: `bumpver update --patch`, `--minor`, or `--major`.
   changes.
 - Keep diffs small and reviewable.
 - Prefer editing existing modules over creating new ones.
-- Call out breaking changes explicitly.
 - No backward-compatibility shims: just change the code.
 
 ## Testing Role

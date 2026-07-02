@@ -8,7 +8,7 @@ Note: ICON requires CUDA-enabled GPU.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import itk
 import numpy as np
@@ -74,22 +74,24 @@ class TestRegisterImagesICON:
     def test_set_mass_preservation(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test setting mass preservation flag."""
         registrar_ICON.set_mass_preservation(True)
-        assert registrar_ICON.use_mass_preservation, "Mass preservation not set"
+        enabled = registrar_ICON.use_mass_preservation
+        assert enabled, "Mass preservation not set"
 
         registrar_ICON.set_mass_preservation(False)
-        assert not registrar_ICON.use_mass_preservation, (
-            "Mass preservation update failed"
-        )
+        disabled = registrar_ICON.use_mass_preservation
+        assert not disabled, "Mass preservation update failed"
 
         print("\nMass preservation setting works correctly")
 
     def test_set_multi_modality(self, registrar_ICON: RegisterImagesICON) -> None:
         """Test setting multi-modality flag."""
         registrar_ICON.set_multi_modality(True)
-        assert registrar_ICON.use_multi_modality, "Multi-modality not set"
+        enabled = registrar_ICON.use_multi_modality
+        assert enabled, "Multi-modality not set"
 
         registrar_ICON.set_multi_modality(False)
-        assert not registrar_ICON.use_multi_modality, "Multi-modality update failed"
+        disabled = registrar_ICON.use_multi_modality
+        assert not disabled, "Multi-modality update failed"
 
         print("\nMulti-modality setting works correctly")
 
@@ -310,8 +312,8 @@ class TestRegisterImagesICON:
         registrar_ICON.set_number_of_iterations(2)
         result = registrar_ICON.register(moving_image=moving_image)
 
-        inverse_transform = result["inverse_transform"]
-        forward_transform = result["forward_transform"]
+        inverse_transform = cast(itk.Transform, result["inverse_transform"])
+        forward_transform = cast(itk.Transform, result["forward_transform"])
 
         # Test point transformation
         test_point = itk.Point[itk.D, 3]()

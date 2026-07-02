@@ -10,6 +10,10 @@ import argparse
 import os
 import sys
 
+from ._method_factories import build_registration_method, build_segmentation_method
+from ..register_images_greedy import RegisterImagesGreedy
+from ..register_images_icon import RegisterImagesICON
+
 
 def main() -> int:
     """Command-line interface for the Image-to-USD workflow."""
@@ -112,15 +116,37 @@ Examples:
     try:
         from .. import WorkflowConvertImageToUSD
 
+        segmentation_method = build_segmentation_method(args.segmentation_method)
+        if args.segmentation_method == "ChestTotalSegmentator":
+            segmentation_method.contrast_threshold = 500
+        registration_method = build_registration_method(args.registration_method)
+        if (
+            args.registration_iterations is not None
+            and args.registration_iterations > 0
+        ):
+            if isinstance(registration_method, RegisterImagesGreedy):
+                registration_method.set_number_of_iterations(
+                    [
+                        args.registration_iterations,
+                        args.registration_iterations // 2,
+                        0,
+                    ]
+                )
+            elif isinstance(registration_method, RegisterImagesICON):
+                registration_method.set_number_of_iterations(
+                    args.registration_iterations
+                )
+        if isinstance(registration_method, RegisterImagesICON):
+            registration_method.set_mass_preservation(not args.contrast)
+
         processor = WorkflowConvertImageToUSD(
             input_filenames=args.input_files,
             contrast_enhanced=args.contrast,
             output_directory=args.output_dir,
             project_name=args.project_name,
             reference_image_filename=args.reference_image,
-            number_of_registration_iterations=args.registration_iterations,
-            segmentation_method=args.segmentation_method,
-            registration_method=args.registration_method,
+            segmentation_method=segmentation_method,
+            registration_method=registration_method,
             times_per_second=args.times_per_second,
         )
     except Exception as e:

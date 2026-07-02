@@ -12,6 +12,7 @@ import pyvista as pv
 
 # Import from PhysioMotion4D package
 from physiomotion4d import (
+    SegmentHeartSimplewareTrimmedBranches,
     WorkflowFitStatisticalModelToPatient,
 )
 from physiomotion4d.test_tools import TestTools
@@ -51,7 +52,7 @@ os.makedirs(output_dir, exist_ok=True)
 registrar = WorkflowFitStatisticalModelToPatient(
     template_model=template_model,
     patient_image=patient_image,
-    segmentation_method="HeartSimplewareTrimmedBranches",
+    segmentation_method=SegmentHeartSimplewareTrimmedBranches(),
 )
 
 registrar.set_use_pca_registration(

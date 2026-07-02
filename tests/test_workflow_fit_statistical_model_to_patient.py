@@ -10,6 +10,9 @@ import numpy as np
 import pyvista as pv
 
 from physiomotion4d.segment_heart_simpleware import SegmentHeartSimpleware
+from physiomotion4d.segment_heart_simpleware_trimmed_branches import (
+    SegmentHeartSimplewareTrimmedBranches,
+)
 from physiomotion4d.workflow_convert_image_to_vtk import WorkflowConvertImageToVTK
 from physiomotion4d.workflow_fit_statistical_model_to_patient import (
     WorkflowFitStatisticalModelToPatient,
@@ -49,20 +52,25 @@ def test_transform_model_applies_staged_transform() -> None:
 
 
 def test_fit_workflow_default_segmentation_method_is_trimmed_branches() -> None:
-    """Default segmentation_method must match the KCL-Heart-Model fit contract."""
+    """Default segmentation_method is None; see
+    test_fit_workflow_routes_default_to_image_to_vtk_with_trimmed_branches for
+    confirmation that the None default resolves to
+    SegmentHeartSimplewareTrimmedBranches, matching the KCL-Heart-Model fit
+    contract."""
     default = (
         inspect.signature(WorkflowFitStatisticalModelToPatient.__init__)
         .parameters["segmentation_method"]
         .default
     )
-    assert default == "HeartSimplewareTrimmedBranches"
+    assert default is None
 
 
 def test_fit_workflow_routes_default_to_image_to_vtk_with_trimmed_branches(
     monkeypatch: Any,
 ) -> None:
     """When patient_models is omitted, the workflow must invoke
-    WorkflowConvertImageToVTK with segmentation_method='HeartSimplewareTrimmedBranches'."""
+    WorkflowConvertImageToVTK with a SegmentHeartSimplewareTrimmedBranches
+    instance."""
     image = itk.image_from_array(np.zeros((3, 3, 3), dtype=np.float32))
     template = pv.PolyData(
         np.array(
@@ -107,29 +115,30 @@ def test_fit_workflow_routes_default_to_image_to_vtk_with_trimmed_branches(
         patient_image=image,
     )
 
-    assert captured["init_kwargs"]["segmentation_method"] == (
-        "HeartSimplewareTrimmedBranches"
+    assert isinstance(
+        captured["init_kwargs"]["segmentation_method"],
+        SegmentHeartSimplewareTrimmedBranches,
     )
     assert captured["run_kwargs"]["anatomy_groups"] == ["heart"]
     assert captured["run_kwargs"]["contrast_enhanced_study"] is False
     assert workflow.patient_models == [heart_mesh]
 
 
-def test_image_to_vtk_segmenter_dispatch_for_trimmed_branches() -> None:
-    """WorkflowConvertImageToVTK('HeartSimplewareTrimmedBranches') must
-    instantiate SegmentHeartSimpleware with branch trimming enabled, while
-    'HeartSimpleware' must leave it disabled."""
+def test_image_to_vtk_segmenter_uses_supplied_instance() -> None:
+    """WorkflowConvertImageToVTK must use whatever segmenter instance it's
+    given as-is: a SegmentHeartSimplewareTrimmedBranches instance stays a
+    SegmentHeartSimplewareTrimmedBranches, and a plain SegmentHeartSimpleware
+    instance stays a SegmentHeartSimpleware (not upgraded to the trimmed
+    subclass)."""
     trimmed = WorkflowConvertImageToVTK(
-        segmentation_method="HeartSimplewareTrimmedBranches"
-    )._create_segmenter()
-    assert isinstance(trimmed, SegmentHeartSimpleware)
-    assert trimmed._trim_branches is True
+        segmentation_method=SegmentHeartSimplewareTrimmedBranches()
+    )._segmenter
+    assert isinstance(trimmed, SegmentHeartSimplewareTrimmedBranches)
 
-    plain = WorkflowConvertImageToVTK(
-        segmentation_method="HeartSimpleware"
-    )._create_segmenter()
-    assert isinstance(plain, SegmentHeartSimpleware)
-    assert plain._trim_branches is False
+    plain_instance = SegmentHeartSimpleware()
+    plain = WorkflowConvertImageToVTK(segmentation_method=plain_instance)._segmenter
+    assert plain is plain_instance
+    assert not isinstance(plain, SegmentHeartSimplewareTrimmedBranches)
 
 
 def test_transform_model_preserves_unstructured_grid_topology() -> None:

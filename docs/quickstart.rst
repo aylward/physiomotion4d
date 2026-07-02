@@ -16,8 +16,9 @@ This guide will help you get started with PhysioMotion4D quickly.
 Tutorials
 =========
 
-The ``tutorials/`` directory contains nine end-to-end scripts, one per major
-workflow. Each script is a ``# %%`` percent-cell Python script that exercises
+The ``tutorials/`` directory contains eleven end-to-end scripts covering nine
+major workflows (Tutorials 9 and 10 each have MeshGraphNet and MLP variants).
+Each script is a ``# %%`` percent-cell Python script that exercises
 the workflow classes directly. Run as a regular file
 (``python tutorials/tutorial_01_...py``) or cell-by-cell in VS Code or Cursor.
 
@@ -44,9 +45,12 @@ Recommended run order:
 3. Tutorial 3 after downloading KCL-Heart-Model.
 4. Tutorial 4 after Tutorial 3 because it can consume Tutorial 3 output.
 5. Tutorial 6 after downloading DirLab-4DCT.
-6. Tutorial 7 after downloading DirLab-4DCT.
-7. Tutorial 8 after Tutorial 7 because it consumes the fitted PCA meshes.
-8. Tutorial 9 after Tutorial 8 because it trains from propagated meshes.
+6. Tutorial 8 after preparing your own cardiac gated CT, labelmaps, KCL volume
+   PCA model, and ICON weights (bring-your-own-data).
+7. Tutorial 9a and/or 9b after Tutorial 8 because they train from its fitted
+   meshes.
+8. Tutorial 10a and/or 10b after Tutorial 9a / 9b because they evaluate the
+   trained checkpoints.
 
 Prerequisites
 =============
@@ -105,7 +109,7 @@ For more control, use the Python API:
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
 
 **Step 2: Initialize with your data**
 
@@ -116,7 +120,7 @@ For more control, use the Python API:
        contrast_enhanced=True,
        output_directory="./results",
        project_name="cardiac_model",
-       registration_method="ICON",
+       registration_method=RegisterImagesICON(),
    )
 
 **Step 3: Run the workflow**
@@ -143,7 +147,7 @@ For more control over individual steps:
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
 
    # Initialize workflow
    workflow = WorkflowConvertImageToUSD(
@@ -151,7 +155,7 @@ For more control over individual steps:
        contrast_enhanced=True,
        output_directory="./results",
        project_name="cardiac_model",
-       registration_method="ICON",
+       registration_method=RegisterImagesICON(),
    )
 
    final_usd = workflow.process()
@@ -246,8 +250,9 @@ Download Sample Cardiac CT Data
    assert DataDownloadTools.VerifySlicerHeartCTData("sample_data")
 
 DirLab-4DCT data is manual-only; see ``data/README.md`` before running the
-high-resolution 4D CT reconstruction, lung-lobe PCA model, or PCA time-series
-propagation tutorials. Tutorial 9 additionally requires the optional
+high-resolution 4D CT reconstruction tutorial. Tutorials 8-10 are
+bring-your-own-data cardiac tutorials; see :doc:`tutorials` for their dataset
+layout. Tutorials 9a/9b/10a/10b additionally require the optional
 ``physicsnemo`` extra (``pip install "physiomotion4d[physicsnemo]"``);
 PhysicsNeMo itself requires Python >= 3.11.
 

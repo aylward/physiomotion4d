@@ -13,6 +13,11 @@ import os
 import sys
 import traceback
 
+from ..register_images_greedy import RegisterImagesGreedy
+from ..register_images_greedy_icon import RegisterImagesGreedyICON
+from ..register_images_icon import RegisterImagesICON
+from ._method_factories import build_registration_method
+
 
 def main() -> int:
     """Command-line interface for high-resolution 4D CT reconstruction."""
@@ -114,7 +119,8 @@ Examples:
     parser.add_argument(
         "--ICON-iterations",
         type=int,
-        help="ICON fine-tuning iterations. Default: 20",
+        default=None,
+        help="ICON fine-tuning iterations. Default: None",
     )
 
     # Reconstruction options
@@ -271,12 +277,28 @@ Examples:
     try:
         from .. import WorkflowReconstructHighres4DCT
 
+        registration_method = build_registration_method(args.registration_method)
+
+        # Set number of iterations based on registration method and CLI arguments
+        greedy_iterations = args.Greedy_iterations or [30, 15, 7, 3]
+        if args.ICON_iterations is None or args.ICON_iterations > 0:
+            icon_iterations = args.ICON_iterations
+        else:
+            icon_iterations = None
+        if isinstance(registration_method, RegisterImagesGreedyICON):
+            registration_method.greedy.set_number_of_iterations(greedy_iterations)
+            registration_method.icon.set_number_of_iterations(icon_iterations)
+        elif isinstance(registration_method, RegisterImagesGreedy):
+            registration_method.set_number_of_iterations(greedy_iterations)
+        elif isinstance(registration_method, RegisterImagesICON):
+            registration_method.set_number_of_iterations(icon_iterations)
+
         workflow = WorkflowReconstructHighres4DCT(
             time_series_images=time_series_images,
             fixed_image=fixed_image,
             reference_frame=args.reference_frame,
             register_reference=args.register_reference,
-            registration_method=args.registration_method,
+            registration_method=registration_method,
         )
 
         # Configure registration parameters
@@ -289,17 +311,6 @@ Examples:
 
         if moving_masks is not None:
             workflow.set_moving_masks(moving_masks)
-
-        # Set number of iterations based on registration method and CLI arguments
-        if args.Greedy_iterations:
-            workflow.set_number_of_iterations_Greedy(args.Greedy_iterations)
-        else:
-            workflow.set_number_of_iterations_Greedy([30, 15, 7, 3])
-
-        if args.icon_iterations:
-            workflow.set_number_of_iterations_ICON(args.icon_iterations)
-        else:
-            workflow.set_number_of_iterations_ICON(20)
 
     except (ValueError, RuntimeError, OSError) as e:
         print(f"Error initializing workflow: {e}")

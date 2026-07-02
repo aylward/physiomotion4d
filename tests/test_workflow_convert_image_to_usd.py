@@ -6,9 +6,72 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from physiomotion4d.physiomotion4d_base import PhysioMotion4DBase
+from physiomotion4d.register_images_base import RegisterImagesBase
+from physiomotion4d.register_images_icon import RegisterImagesICON
+from physiomotion4d.segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from physiomotion4d.workflow_convert_image_to_usd import WorkflowConvertImageToUSD
 import physiomotion4d.workflow_convert_image_to_usd as workflow_module
+
+
+def _make_workflow(**overrides: Any) -> WorkflowConvertImageToUSD:
+    """Construct a WorkflowConvertImageToUSD with minimal required args,
+    overridable via keyword (e.g. segmentation_method=..., output_directory=...)."""
+    kwargs: dict[str, Any] = {
+        "input_filenames": ["input.nrrd"],
+        "contrast_enhanced": False,
+        "output_directory": str(overrides.pop("output_directory", "results")),
+        "project_name": "patient",
+        "log_level": logging.CRITICAL,
+    }
+    kwargs.update(overrides)
+    return WorkflowConvertImageToUSD(**kwargs)
+
+
+def test_default_segmentation_and_registration_methods(tmp_path: Path) -> None:
+    """Omitting segmentation_method/registration_method defaults to
+    SegmentChestTotalSegmentator (contrast_threshold=500) and
+    RegisterImagesICON, matching this workflow's historical string defaults."""
+    workflow = _make_workflow(output_directory=tmp_path)
+
+    assert isinstance(workflow.segmenter, SegmentChestTotalSegmentator)
+    assert workflow.segmenter.contrast_threshold == 500
+    assert isinstance(workflow.registrar, RegisterImagesICON)
+
+
+def test_segmentation_method_rejects_wrong_type(tmp_path: Path) -> None:
+    """A non-SegmentAnatomyBase segmentation_method raises TypeError."""
+    with pytest.raises(TypeError, match="segmentation_method must be"):
+        _make_workflow(
+            output_directory=tmp_path, segmentation_method="ChestTotalSegmentator"
+        )
+
+
+def test_registration_method_rejects_wrong_type(tmp_path: Path) -> None:
+    """A non-RegisterImagesBase registration_method raises TypeError."""
+    with pytest.raises(TypeError, match="registration_method must be"):
+        _make_workflow(output_directory=tmp_path, registration_method="ICON")
+
+
+def test_caller_supplied_instances_are_used_as_is(tmp_path: Path) -> None:
+    """A caller-supplied segmenter/registrar instance is stored unmodified
+    (beyond the documented shared setters): the workflow must not apply its
+    default-only contrast_threshold=500 tuning to a caller-supplied segmenter."""
+    segmenter = SegmentChestTotalSegmentator()
+    original_contrast_threshold = segmenter.contrast_threshold
+    registrar: RegisterImagesBase = RegisterImagesICON()
+
+    workflow = _make_workflow(
+        output_directory=tmp_path,
+        segmentation_method=segmenter,
+        registration_method=registrar,
+    )
+
+    assert workflow.segmenter is segmenter
+    assert workflow.registrar is registrar
+    assert workflow.segmenter.contrast_threshold == original_contrast_threshold
 
 
 def test_create_usd_files_passes_times_per_second(
@@ -62,7 +125,8 @@ def test_create_usd_files_passes_times_per_second(
     )
     workflow.project_name = "patient"
     workflow.output_directory = str(tmp_path)
-    workflow.segmenter = FakeSegmenter()
+    # FakeSegmenter is a minimal test double, not a real SegmentAnatomyBase.
+    workflow.segmenter = FakeSegmenter()  # type: ignore[assignment]
     workflow.times_per_second = 12.5
     workflow._transformed_contours = {
         "all": [],

@@ -44,6 +44,7 @@ import yaml
 
 from .labelmap_tools import LabelmapTools
 from .physiomotion4d_base import PhysioMotion4DBase
+from .register_images_icon import RegisterImagesICON
 from .register_time_series_images import RegisterTimeSeriesImages
 from .transform_tools import TransformTools
 
@@ -776,15 +777,16 @@ class WorkflowFineTuneICONRegistration(PhysioMotion4DBase):
                     for labelmap in moving_labelmaps
                 ]
 
+        icon = RegisterImagesICON(log_level=self.log_level)
+        icon.set_number_of_iterations(number_of_iterations)
+        if weights_path is not None:
+            icon.set_weights_path(str(weights_path))
         self.registrar = RegisterTimeSeriesImages(
-            registration_method="ICON", log_level=self.log_level
+            registration_method=icon, log_level=self.log_level
         )
         self.registrar.set_modality(modality)
         self.registrar.set_fixed_image(reference_image)
         self.registrar.set_fixed_mask(reference_mask)
-        self.registrar.set_number_of_iterations_ICON(number_of_iterations)
-        if weights_path is not None:
-            self.registrar.registrar_ICON.set_weights_path(str(weights_path))
 
         # TODO: set reference frame and register reference
         result = self.registrar.register_time_series(

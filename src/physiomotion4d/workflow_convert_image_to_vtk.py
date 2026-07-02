@@ -9,10 +9,11 @@ directly.
 Typical usage::
 
     import itk
-    from physiomotion4d import WorkflowConvertImageToVTK
+    from physiomotion4d import SegmentChestTotalSegmentator, WorkflowConvertImageToVTK
 
     ct = itk.imread('chest_ct.nii.gz')
-    workflow = WorkflowConvertImageToVTK(segmentation_method='ChestTotalSegmentator')
+    segmenter = SegmentChestTotalSegmentator()
+    workflow = WorkflowConvertImageToVTK(segmentation_method=segmenter)
     result = workflow.run_workflow(ct, contrast_enhanced_study=True)
 
     # Combined single-file output (default)
@@ -35,6 +36,7 @@ import pyvista as pv
 from .contour_tools import ContourTools
 from .physiomotion4d_base import PhysioMotion4DBase
 from .segment_anatomy_base import SegmentAnatomyBase
+from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from .usd_anatomy_tools import USDAnatomyTools
 
 #: Ordered tuple of anatomy group names matching :meth:`SegmentAnatomyBase.segment` keys.
@@ -48,29 +50,16 @@ ANATOMY_GROUPS: tuple[str, ...] = (
     "contrast",
 )
 
-#: Supported segmentation backend identifiers.
-SEGMENTATION_METHODS: tuple[str, ...] = (
-    "ChestTotalSegmentator",
-    "HeartSimpleware",
-    "HeartSimplewareTrimmedBranches",
-)
-
 
 class WorkflowConvertImageToVTK(PhysioMotion4DBase):
     """Segment a CT image and produce per-anatomy-group VTK surfaces and meshes.
 
-    **Segmentation backends**
-
-    - ``'ChestTotalSegmentator'`` — :class:`SegmentChestTotalSegmentator`
-      (CPU-capable, default).
-    - ``'HeartSimpleware'`` — :class:`SegmentHeartSimpleware` (cardiac only;
-      requires a Simpleware Medical installation). **Behavior change**: this
-      workflow previously called ``set_trim_branches(True)`` for this option
-      implicitly. It no longer does — for the trimmed behavior, use
-      ``'HeartSimplewareTrimmedBranches'`` below.
-    - ``'HeartSimplewareTrimmedBranches'`` — :class:`SegmentHeartSimpleware`
-      with :meth:`SegmentHeartSimpleware.set_trim_branches` set to ``True``,
-      trimming pulmonary and great-vessel branches to the cardiac region.
+    ``segmentation_method`` accepts a pre-configured
+    :class:`SegmentAnatomyBase` instance (e.g. :class:`SegmentChestTotalSegmentator`,
+    :class:`SegmentHeartSimpleware`, or :class:`SegmentHeartSimplewareTrimmedBranches`
+    for cardiac-only segmentation with pulmonary/great-vessel branches
+    trimmed). Defaults to a new :class:`SegmentChestTotalSegmentator` when
+    omitted.
 
     **Output anatomy groups**
 
@@ -99,37 +88,32 @@ class WorkflowConvertImageToVTK(PhysioMotion4DBase):
 
     #: Valid anatomy group names.
     ANATOMY_GROUPS: tuple[str, ...] = ANATOMY_GROUPS
-    #: Valid segmentation method identifiers.
-    SEGMENTATION_METHODS: tuple[str, ...] = SEGMENTATION_METHODS
 
     def __init__(
         self,
-        segmentation_method: str = "ChestTotalSegmentator",
+        segmentation_method: Optional[SegmentAnatomyBase] = None,
         log_level: int | str = logging.INFO,
     ) -> None:
         """Initialize the workflow.
 
         Args:
-            segmentation_method: Segmentation backend to use.  One of
-                ``'ChestTotalSegmentator'`` (default), ``'HeartSimpleware'``,
-                or ``'HeartSimplewareTrimmedBranches'`` (HeartSimpleware with
-                pulmonary/great-vessel branches trimmed to the cardiac region).
+            segmentation_method: Segmentation backend instance. Defaults to
+                a new :class:`SegmentChestTotalSegmentator` when None.
             log_level: Logging level.  Default: ``logging.INFO``.
 
         Raises:
-            ValueError: If *segmentation_method* is not one of
-                :attr:`SEGMENTATION_METHODS`.
+            TypeError: If segmentation_method is neither None nor a
+                SegmentAnatomyBase instance.
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
-        if segmentation_method not in self.SEGMENTATION_METHODS:
-            raise ValueError(
-                f"Unknown segmentation_method '{segmentation_method}'. "
-                f"Choose from: {', '.join(self.SEGMENTATION_METHODS)}"
+        if segmentation_method is None:
+            segmentation_method = SegmentChestTotalSegmentator(log_level=log_level)
+        elif not isinstance(segmentation_method, SegmentAnatomyBase):
+            raise TypeError(
+                "segmentation_method must be a SegmentAnatomyBase instance or None"
             )
-
-        self.segmentation_method_name: str = segmentation_method
-        self._segmenter: Optional[SegmentAnatomyBase] = None
+        self._segmenter: SegmentAnatomyBase = segmentation_method
         self._contour_tools: ContourTools = ContourTools(log_level=log_level)
 
         # Build anatomy-group → RGB color from USDAnatomyTools.
@@ -145,29 +129,6 @@ class WorkflowConvertImageToVTK(PhysioMotion4DBase):
 
     # ─────────────────────────── Internal helpers ──────────────────────────
 
-    def _create_segmenter(self) -> SegmentAnatomyBase:
-        """Instantiate the chosen segmentation backend (lazy import)."""
-        if self.segmentation_method_name == "ChestTotalSegmentator":
-            from .segment_chest_total_segmentator import (
-                SegmentChestTotalSegmentator,
-            )
-
-            return SegmentChestTotalSegmentator(log_level=self.log_level)
-        if self.segmentation_method_name in (
-            "HeartSimpleware",
-            "HeartSimplewareTrimmedBranches",
-        ):
-            from .segment_heart_simpleware import SegmentHeartSimpleware
-
-            segmenter = SegmentHeartSimpleware(log_level=self.log_level)
-            segmenter.set_trim_branches(
-                self.segmentation_method_name == "HeartSimplewareTrimmedBranches"
-            )
-            return segmenter
-        raise ValueError(
-            f"Unknown segmentation method: {self.segmentation_method_name}"
-        )
-
     def _get_label_info_for_group(self, group: str) -> tuple[list[str], list[int]]:
         """Return ``(label_names, label_ids)`` for *group* from the active segmenter.
 
@@ -175,9 +136,6 @@ class WorkflowConvertImageToVTK(PhysioMotion4DBase):
         the group is not present (e.g. HeartSimpleware does not register
         lung/bone).
         """
-        assert self._segmenter is not None, (
-            "_create_segmenter() must be called before _get_label_info_for_group()"
-        )
         mask_ids = self._segmenter.taxonomy.labels_in_group(group)
         return list(mask_ids.values()), list(mask_ids.keys())
 
@@ -296,9 +254,8 @@ class WorkflowConvertImageToVTK(PhysioMotion4DBase):
         else:
             groups_to_process = list(self.ANATOMY_GROUPS)
 
-        # Create and run segmenter
-        self.log_info("Creating segmenter: %s", self.segmentation_method_name)
-        self._segmenter = self._create_segmenter()
+        # Run segmenter
+        self.log_info("Running segmenter: %s", type(self._segmenter).__name__)
 
         self.log_section("Running segmentation")
         seg_result: dict[str, Any] = self._segmenter.segment(

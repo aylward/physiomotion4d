@@ -22,10 +22,48 @@ from pathlib import Path
 import itk
 import numpy as np
 
-from physiomotion4d import RegisterTimeSeriesImages, SegmentHeartSimpleware
+from physiomotion4d import (
+    RegisterImagesBase,
+    RegisterImagesGreedy,
+    RegisterImagesGreedyICON,
+    RegisterImagesICON,
+    RegisterTimeSeriesImages,
+    SegmentHeartSimpleware,
+)
 from physiomotion4d.labelmap_tools import LabelmapTools
 from physiomotion4d.landmark_tools import LandmarkTools
 from physiomotion4d.transform_tools import TransformTools
+
+
+def _build_registrar(
+    reg_method: str,
+    greedy_iters,
+    icon_iterations,
+    weights_path,
+) -> RegisterImagesBase:
+    """Build a configured registrar instance for one of "Greedy", "ICON", or
+    "Greedy_ICON", matching this experiment's per-method config entries."""
+    if reg_method == "Greedy":
+        greedy = RegisterImagesGreedy()
+        if greedy_iters is not None:
+            greedy.set_number_of_iterations(greedy_iters)
+        return greedy
+    if reg_method == "ICON":
+        icon = RegisterImagesICON()
+        icon.set_number_of_iterations(icon_iterations)
+        if weights_path is not None:
+            icon.set_weights_path(str(weights_path))
+        return icon
+    if reg_method == "Greedy_ICON":
+        greedy_icon = RegisterImagesGreedyICON()
+        if greedy_iters is not None:
+            greedy_icon.greedy.set_number_of_iterations(greedy_iters)
+        greedy_icon.icon.set_number_of_iterations(icon_iterations)
+        if weights_path is not None:
+            greedy_icon.icon.set_weights_path(str(weights_path))
+        return greedy_icon
+    raise ValueError(f"Unknown registration method: {reg_method}")
+
 
 # %% [markdown]
 # ## 1. Hard-coded paths and configuration
@@ -142,7 +180,6 @@ landmark_tools = LandmarkTools()
 labelmap_tools = LabelmapTools()
 transform_tools = TransformTools()
 segmenter = SegmentHeartSimpleware()
-segmenter.set_trim_branches(False)
 
 
 # %% [markdown]
@@ -218,17 +255,15 @@ for subject_id in test_subjects:
         greedy_iters = method_cfg["greedy_iters"]
 
         print(f"  Method: {method_name}")
-        registrar = RegisterTimeSeriesImages(registration_method=reg_method)
+        registrar = RegisterTimeSeriesImages(
+            registration_method=_build_registrar(
+                reg_method, greedy_iters, icon_iterations, weights_path
+            )
+        )
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
         if use_mask:
             registrar.set_fixed_mask(fixed_mask)
-        if greedy_iters is not None:
-            registrar.set_number_of_iterations_greedy(greedy_iters)
-        if reg_method in ("ICON", "Greedy_ICON"):
-            registrar.set_number_of_iterations_ICON(icon_iterations)
-            if weights_path is not None:
-                registrar.registrar_ICON.set_weights_path(str(weights_path))
 
         result = registrar.register_time_series(
             moving_images=moving_images,

@@ -6,7 +6,9 @@ Time-Series Registration
 .. currentmodule:: physiomotion4d
 
 ``RegisterTimeSeriesImages`` registers ordered 3D image phases to a reference
-frame using Greedy, ICON, or combined ``Greedy_ICON`` methods.
+frame using a caller-supplied :class:`RegisterImagesBase` backend (e.g.
+:class:`RegisterImagesGreedy`, :class:`RegisterImagesICON`, or
+:class:`RegisterImagesGreedyICON` for combined Greedy-then-ICON refinement).
 
 Class Reference
 ===============
@@ -24,11 +26,11 @@ Basic Usage
 
    import itk
 
-   from physiomotion4d import RegisterTimeSeriesImages
+   from physiomotion4d import RegisterImagesGreedy, RegisterTimeSeriesImages
 
    images = [itk.imread(f"phase_{idx:02d}.mha") for idx in range(10)]
 
-   registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+   registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
    registrar.set_fixed_image(images[0])
 
    result = registrar.register_time_series(

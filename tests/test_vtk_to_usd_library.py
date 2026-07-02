@@ -159,7 +159,13 @@ class TestFromFilesValidation:
                 "OpenGL context"
             )
 
-        tt = TestTools(class_name="openusd", results_dir=tmp_path)
+        # mypy runs on Windows in this repo (no python_platform override), so
+        # it statically infers the `sys.platform == "win32"` branch above as
+        # always-taken and flags this line as unreachable; on the Linux CI
+        # runner (or any non-Windows dev machine) it is reachable.
+        tt = TestTools(  # type: ignore[unreachable]
+            class_name="openusd", results_dir=tmp_path
+        )
         screenshot = tt.save_screenshot_openusd(usd_path, "triangle.png")
 
         assert screenshot.exists()

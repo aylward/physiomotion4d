@@ -1,8 +1,10 @@
 """Time series image registration implementation.
 
-This module provides the RegisterTimeSeriesImages class for registering an ordered
-sequence of images (time series) to a fixed image. It supports Greedy, ICON, and
-combined Greedy initialization followed by ICON refinement.
+This module provides the RegisterTimeSeriesImages class for registering an
+ordered sequence of images (time series) to a fixed image using a
+caller-supplied RegisterImagesBase backend (e.g. RegisterImagesGreedy,
+RegisterImagesICON, or RegisterImagesGreedyICON for Greedy-then-ICON
+refinement).
 
 The class is particularly useful for 4D medical imaging applications such as cardiac
 CT where sequential frames need to be registered to a common frame.
@@ -15,24 +17,16 @@ import itk
 
 from .register_images_base import RegisterImagesBase
 from .register_images_greedy import RegisterImagesGreedy
-from .register_images_icon import RegisterImagesICON
 from .transform_tools import TransformTools
-
-REGISTRATION_METHODS: list[str] = [
-    "Greedy",
-    "ICON",
-    "Greedy_ICON",
-]
 
 
 class RegisterTimeSeriesImages(RegisterImagesBase):
     """Register a time series of images to a fixed image.
 
-    This class extends RegisterImagesBase to provide sequential registration of
-    multiple images (time series) to a fixed image. It supports Greedy, ICON, and
-    combined Greedy initialization followed by ICON refinement.
-    It can propagate information from prior registrations to initialize
-    subsequent ones.
+    This class extends RegisterImagesBase to provide sequential registration
+    of multiple images (time series) to a fixed image, using a
+    caller-supplied registration backend. It can propagate information from
+    prior registrations to initialize subsequent ones.
 
     The registration proceeds in two passes from a reference frame:
     1. Forward pass: from reference_frame to the end of the series
@@ -43,25 +37,22 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
 
     Key features:
     - Sequential registration of ordered image lists
-    - Support for Greedy, ICON, and Greedy+ICON backends
+    - Supports any RegisterImagesBase backend, including RegisterImagesChain
+      / RegisterImagesGreedyICON for multi-stage registration
     - Optional use of prior transforms to initialize next registration
     - Configurable starting point in the time series
     - Returns all transforms and loss values for the entire series
 
     Attributes:
-        registration_method_name (str): Registration method in use ('Greedy',
-            'ICON', or 'Greedy_ICON').
-        registrar_greedy (RegisterImagesGreedy): Internal Greedy registrar.
-        registrar_ICON (RegisterImagesICON): Internal ICON registrar (also used
-            as the refinement stage for 'Greedy_ICON').
+        registrar (RegisterImagesBase): The registration backend in use.
         transform_tools (TransformTools): Utility for transform operations.
 
     Example:
         >>> # Register a cardiac CT time series
-        >>> registrar = RegisterTimeSeriesImages(registration_method='Greedy')
+        >>> greedy = RegisterImagesGreedy()
+        >>> registrar = RegisterTimeSeriesImages(registration_method=greedy)
         >>> registrar.set_modality('ct')
         >>> registrar.set_fixed_image(fixed_image)
-        >>> registrar.set_number_of_iterations_greedy([40, 20, 10])
         >>>
         >>> # Register all time points to fixed image
         >>> result = registrar.register_time_series(
@@ -84,59 +75,34 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
     """
 
     def __init__(
-        self, registration_method: str = "Greedy", log_level: int | str = logging.INFO
+        self,
+        registration_method: Optional[RegisterImagesBase] = None,
+        log_level: int | str = logging.INFO,
     ) -> None:
         """Initialize the time series image registration class.
 
         Args:
-            registration_method (str): Registration method to use.
-                Options: 'Greedy', 'ICON', or 'Greedy_ICON'. Default: 'Greedy'
+            registration_method: Registration backend instance to use.
+                Defaults to a new RegisterImagesGreedy() when None.
             log_level: Logging level (default: logging.INFO)
 
         Raises:
-            ValueError: If registration_method is not supported.
+            TypeError: If registration_method is neither None nor a
+                RegisterImagesBase instance.
         """
         super().__init__(log_level=log_level)
 
-        self.registration_method_name: str = registration_method
-
-        self.registrar_greedy = RegisterImagesGreedy(log_level=log_level)
-        self.registrar_ICON = RegisterImagesICON(log_level=log_level)
-
-        # Set default iterations based on registration method
-        self.number_of_iterations_greedy: list[int] = [40, 20, 10]
-        self.number_of_iterations_ICON: Optional[int] = 50
-
-        if self.registration_method_name not in REGISTRATION_METHODS:
-            raise ValueError(
-                "registration_method must be one of "
-                f"{REGISTRATION_METHODS}, got '{registration_method}'"
+        if registration_method is None:
+            registration_method = RegisterImagesGreedy(log_level=log_level)
+        elif not isinstance(registration_method, RegisterImagesBase):
+            raise TypeError(
+                "registration_method must be a RegisterImagesBase instance or None"
             )
+        self.registrar: RegisterImagesBase = registration_method
 
         self.transform_tools: TransformTools = TransformTools()
 
         self.smooth_prior_transform_sigma: float = 0.5
-
-    def set_number_of_iterations_ICON(
-        self, number_of_iterations_ICON: Optional[int]
-    ) -> None:
-        """Set the number of iterations for ICON registration.
-
-        Args:
-            number_of_iterations_ICON: Number of fine-tuning steps for ICON
-        """
-        self.number_of_iterations_ICON = number_of_iterations_ICON
-
-    def set_number_of_iterations_greedy(
-        self, number_of_iterations_greedy: list[int]
-    ) -> None:
-        """Set the number of iterations for Greedy registration.
-
-        Args:
-            number_of_iterations_greedy: List of iterations per Greedy
-                resolution level, for example ``[40, 20, 10]``.
-        """
-        self.number_of_iterations_greedy = number_of_iterations_greedy
 
     def set_smooth_prior_transform_sigma(
         self, smooth_prior_transform_sigma: float
@@ -265,12 +231,11 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             calling this method.
 
         Example:
-            >>> registrar = RegisterTimeSeriesImages(registration_method='Greedy')
+            >>> greedy = RegisterImagesGreedy()
+            >>> registrar = RegisterTimeSeriesImages(registration_method=greedy)
             >>> registrar.set_fixed_image(fixed_image)
             >>> registrar.set_fixed_mask(fixed_mask)  # Optional
-            >>> registrar.set_number_of_iterations_greedy([30, 15, 5])
             >>>
-            >>> # Use new intuitive parameter names
             >>> result = registrar.register_time_series(
             ...     moving_images=image_list,
             ...     moving_masks=mask_list,  # Optional
@@ -292,22 +257,11 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
         if self.fixed_image is None:
             raise ValueError("Fixed image must be set before registering time series")
 
-        if self.registration_method_name in ["Greedy", "Greedy_ICON"]:
-            self.registrar_greedy.set_fixed_image(self.fixed_image)
-            self.registrar_greedy.set_modality(self.modality)
-            self.registrar_greedy.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_greedy.set_number_of_iterations(
-                self.number_of_iterations_greedy
-            )
-            self.registrar_greedy.set_fixed_mask(self.fixed_mask)
-            self.registrar_greedy.set_fixed_labelmap(self.fixed_labelmap)
-        if self.registration_method_name in ["ICON", "Greedy_ICON"]:
-            self.registrar_ICON.set_fixed_image(self.fixed_image)
-            self.registrar_ICON.set_modality(self.modality)
-            self.registrar_ICON.set_mask_dilation(self.mask_dilation_mm)
-            self.registrar_ICON.set_number_of_iterations(self.number_of_iterations_ICON)
-            self.registrar_ICON.set_fixed_mask(self.fixed_mask)
-            self.registrar_ICON.set_fixed_labelmap(self.fixed_labelmap)
+        self.registrar.set_fixed_image(self.fixed_image)
+        self.registrar.set_modality(self.modality)
+        self.registrar.set_mask_dilation(self.mask_dilation_mm)
+        self.registrar.set_fixed_mask(self.fixed_mask)
+        self.registrar.set_fixed_labelmap(self.fixed_labelmap)
 
         num_images = len(moving_images)
 
@@ -354,35 +308,11 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 if moving_labelmaps is not None
                 else None
             )
-            if self.registration_method_name == "Greedy":
-                result = self.registrar_greedy.register(
-                    moving_images[reference_frame],
-                    moving_mask=reference_mask,
-                    moving_labelmap=reference_labelmap,
-                )
-            elif self.registration_method_name == "ICON":
-                result = self.registrar_ICON.register(
-                    moving_images[reference_frame],
-                    moving_mask=reference_mask,
-                    moving_labelmap=reference_labelmap,
-                )
-            elif self.registration_method_name == "Greedy_ICON":
-                result = self.registrar_greedy.register(
-                    moving_images[reference_frame],
-                    moving_mask=reference_mask,
-                    moving_labelmap=reference_labelmap,
-                )
-                forward_initial = result["forward_transform"]
-                result = self.registrar_ICON.register(
-                    moving_images[reference_frame],
-                    moving_mask=reference_mask,
-                    moving_labelmap=reference_labelmap,
-                    initial_forward_transform=forward_initial,
-                )
-            else:
-                raise ValueError(
-                    f"Invalid registration method: {self.registration_method_name}"
-                )
+            result = self.registrar.register(
+                moving_images[reference_frame],
+                moving_mask=reference_mask,
+                moving_labelmap=reference_labelmap,
+            )
             forward_transform = result["forward_transform"]
             inverse_transform = result["inverse_transform"]
             loss = result["loss"]
@@ -429,35 +359,11 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 )
 
                 # Try registration with identity initialization
-                if self.registration_method_name == "Greedy":
-                    result_init_identity = self.registrar_greedy.register(
-                        moving_image=moving_image,
-                        moving_mask=moving_mask,
-                        moving_labelmap=moving_labelmap,
-                    )
-                elif self.registration_method_name == "ICON":
-                    result_init_identity = self.registrar_ICON.register(
-                        moving_image=moving_image,
-                        moving_mask=moving_mask,
-                        moving_labelmap=moving_labelmap,
-                    )
-                elif self.registration_method_name == "Greedy_ICON":
-                    result_init_identity = self.registrar_greedy.register(
-                        moving_image=moving_image,
-                        moving_mask=moving_mask,
-                        moving_labelmap=moving_labelmap,
-                    )
-                    forward_initial = result_init_identity["forward_transform"]
-                    result_init_identity = self.registrar_ICON.register(
-                        moving_image=moving_image,
-                        moving_mask=moving_mask,
-                        moving_labelmap=moving_labelmap,
-                        initial_forward_transform=forward_initial,
-                    )
-                else:
-                    raise ValueError(
-                        f"Invalid registration method: {self.registration_method_name}"
-                    )
+                result_init_identity = self.registrar.register(
+                    moving_image=moving_image,
+                    moving_mask=moving_mask,
+                    moving_labelmap=moving_labelmap,
+                )
                 forward_init_identity = result_init_identity["forward_transform"]
                 inverse_init_identity = result_init_identity["inverse_transform"]
                 loss_init_identity = result_init_identity["loss"]
@@ -465,38 +371,12 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
                 # Select best result based on prior usage
                 if prior_weight > 0.0:
                     # Try with prior transform initialization
-                    if self.registration_method_name == "Greedy":
-                        result_init_prior = self.registrar_greedy.register(
-                            moving_image=moving_image,
-                            moving_mask=moving_mask,
-                            moving_labelmap=moving_labelmap,
-                            initial_forward_transform=prior_forward,
-                        )
-                    elif self.registration_method_name == "ICON":
-                        result_init_prior = self.registrar_ICON.register(
-                            moving_image=moving_image,
-                            moving_mask=moving_mask,
-                            moving_labelmap=moving_labelmap,
-                            initial_forward_transform=prior_forward,
-                        )
-                    elif self.registration_method_name == "Greedy_ICON":
-                        result_init_prior = self.registrar_greedy.register(
-                            moving_image=moving_image,
-                            moving_mask=moving_mask,
-                            moving_labelmap=moving_labelmap,
-                            initial_forward_transform=prior_forward,
-                        )
-                        forward_initial = result_init_prior["forward_transform"]
-                        result_init_prior = self.registrar_ICON.register(
-                            moving_image=moving_image,
-                            moving_mask=moving_mask,
-                            moving_labelmap=moving_labelmap,
-                            initial_forward_transform=forward_initial,
-                        )
-                    else:
-                        raise ValueError(
-                            f"Invalid registration method: {self.registration_method_name}"
-                        )
+                    result_init_prior = self.registrar.register(
+                        moving_image=moving_image,
+                        moving_mask=moving_mask,
+                        moving_labelmap=moving_labelmap,
+                        initial_forward_transform=prior_forward,
+                    )
                     forward_init_prior = result_init_prior["forward_transform"]
                     inverse_init_prior = result_init_prior["inverse_transform"]
                     loss_init_prior = result_init_prior["loss"]
@@ -577,7 +457,8 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
             ValueError: If lengths of moving_images and inverse_transforms don't match
 
         Example:
-            >>> registrar = RegisterTimeSeriesImages(registration_method='Greedy')
+            >>> greedy = RegisterImagesGreedy()
+            >>> registrar = RegisterTimeSeriesImages(registration_method=greedy)
             >>> registrar.set_fixed_image(fixed_image)
             >>>
             >>> result = registrar.register_time_series(
@@ -687,65 +568,32 @@ class RegisterTimeSeriesImages(RegisterImagesBase):
     ) -> dict[str, Union[itk.Transform, float]]:
         """Registration method required by RegisterImagesBase.
 
-        This method is not typically called directly. Use register_time_series()
-        instead for time series registration.
+        Delegates to the configured ``registrar``. This method is not
+        typically called directly; use register_time_series() instead for
+        time series registration.
 
         Args:
             moving_image (itk.Image): Image to register
             moving_mask (itk.Image, optional): Binary mask
-            moving_image_pre (itk.Image, optional): Preprocessed image
+            moving_labelmap (itk.Image, optional): Multi-label segmentation
+            moving_image_pre (itk.Image, optional): Ignored - the registrar
+                computes its own preprocessing from the raw moving_image
             initial_forward_transform (itk.Transform, optional): Initial transform
 
         Returns:
             dict: Registration result with forward_transform, inverse_transform, and loss
         """
-        if self.registration_method_name == "Greedy":
-            res = self.registrar_greedy.registration_method(
-                moving_image=moving_image,
-                moving_mask=moving_mask,
-                moving_labelmap=moving_labelmap,
-                moving_image_pre=moving_image_pre,
-                initial_forward_transform=initial_forward_transform,
-            )
-            return {
-                "forward_transform": cast(itk.Transform, res["forward_transform"]),
-                "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
-                "loss": float(cast(float, res["loss"])),
-            }
-        if self.registration_method_name == "ICON":
-            res = self.registrar_ICON.registration_method(
-                moving_image=moving_image,
-                moving_mask=moving_mask,
-                moving_labelmap=moving_labelmap,
-                moving_image_pre=moving_image_pre,
-                initial_forward_transform=initial_forward_transform,
-            )
-            return {
-                "forward_transform": cast(itk.Transform, res["forward_transform"]),
-                "inverse_transform": cast(itk.Transform, res["inverse_transform"]),
-                "loss": float(cast(float, res["loss"])),
-            }
-        if self.registration_method_name == "Greedy_ICON":
-            initial_res = self.registrar_greedy.registration_method(
-                moving_image=moving_image,
-                moving_mask=moving_mask,
-                moving_labelmap=moving_labelmap,
-                moving_image_pre=moving_image_pre,
-                initial_forward_transform=initial_forward_transform,
-            )
-            forward_initial = initial_res["forward_transform"]
-            icon_res = self.registrar_ICON.registration_method(
-                moving_image=moving_image,
-                moving_mask=moving_mask,
-                moving_labelmap=moving_labelmap,
-                moving_image_pre=moving_image_pre,
-                initial_forward_transform=forward_initial,
-            )
-            return {
-                "forward_transform": cast(itk.Transform, icon_res["forward_transform"]),
-                "inverse_transform": cast(itk.Transform, icon_res["inverse_transform"]),
-                "loss": float(cast(float, icon_res["loss"])),
-            }
-        raise ValueError(
-            f"Invalid registration method: {self.registration_method_name}"
+        self._delegate_to(self.registrar, moving_image, moving_mask, moving_labelmap)
+        result = self.registrar.registration_method(
+            moving_image=moving_image,
+            moving_mask=moving_mask,
+            moving_labelmap=moving_labelmap,
+            moving_image_pre=None,
+            initial_forward_transform=initial_forward_transform,
         )
+        self._capture_delegate_result(self.registrar, result)
+        return {
+            "forward_transform": cast(itk.Transform, result["forward_transform"]),
+            "inverse_transform": cast(itk.Transform, result["inverse_transform"]),
+            "loss": float(cast(float, result["loss"])),
+        }

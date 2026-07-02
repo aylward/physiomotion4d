@@ -10,6 +10,8 @@ import os
 import sys
 import traceback
 
+from ._method_factories import SEGMENTATION_METHODS, build_segmentation_method
+
 ANATOMY_GROUPS = (
     "heart",
     "lung",
@@ -18,12 +20,6 @@ ANATOMY_GROUPS = (
     "soft_tissue",
     "other",
     "contrast",
-)
-
-SEGMENTATION_METHODS = (
-    "ChestTotalSegmentator",
-    "HeartSimpleware",
-    "HeartSimplewareTrimmedBranches",
 )
 
 
@@ -163,7 +159,7 @@ Examples
         from .. import WorkflowConvertImageToVTK
 
         workflow = WorkflowConvertImageToVTK(
-            segmentation_method=args.segmentation_method,
+            segmentation_method=build_segmentation_method(args.segmentation_method),
         )
         result = workflow.run_workflow(
             input_image=input_image,

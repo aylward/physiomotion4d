@@ -36,8 +36,9 @@ Strengths
 
 Weaknesses / Limitations
 ------------------------
-- Requires a GPU for ICON registration (``registration_method='ICON'``); use
-  ``registration_method='Greedy'`` for CPU-only environments (about 10x slower).
+- Requires a GPU for ICON registration (``registration_method=RegisterImagesICON()``);
+  use ``registration_method=RegisterImagesGreedy()`` for CPU-only environments
+  (about 10x slower).
 - Segmentation quality depends on TotalSegmentator's training distribution;
   unusual pathologies or pediatric anatomy may degrade results.
 - Large 4D datasets (>20 phases, high resolution) can require 32 GB+ RAM.
@@ -74,6 +75,7 @@ from pathlib import Path
 
 import itk
 
+from physiomotion4d.register_images_icon import RegisterImagesICON
 from physiomotion4d.test_tools import TestTools
 from physiomotion4d.workflow_convert_image_to_usd import (
     WorkflowConvertImageToUSD,
@@ -93,7 +95,6 @@ if __name__ == "__main__":
     FULL_DATA_DIR = DATA_DIR / "Slicer-Heart-CT"
     TEST_DATA_DIR = DATA_DIR / "test" / "slicer_heart_small"
     OUTPUT_DIR = TUTORIALS_DIR / "output" / "tutorial_01"
-    REGISTRATION_METHOD = "ICON"
     LOG_LEVEL = logging.INFO
 
     # %%
@@ -102,7 +103,6 @@ if __name__ == "__main__":
 
     data_dir = TEST_DATA_DIR if test_mode else FULL_DATA_DIR
     output_dir = OUTPUT_DIR
-    registration_method = REGISTRATION_METHOD
     log_level = LOG_LEVEL
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -111,6 +111,9 @@ if __name__ == "__main__":
         number_of_registration_iterations = 1
     else:
         number_of_registration_iterations = 10
+
+    registration_method = RegisterImagesICON(log_level=log_level)
+    registration_method.set_number_of_iterations(number_of_registration_iterations)
 
     # %%
     frame_files = sorted(data_dir.glob("slice_???.mha"))
@@ -134,7 +137,6 @@ if __name__ == "__main__":
         output_directory=str(output_dir),
         project_name="cardiac_model",
         registration_method=registration_method,
-        number_of_registration_iterations=number_of_registration_iterations,
         log_level=log_level,
         save_registered_images=True,
         save_registration_transforms=True,

@@ -48,15 +48,19 @@ Convert Image to USD
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import (
+       RegisterImagesICON,
+       SegmentChestTotalSegmentator,
+       WorkflowConvertImageToUSD,
+   )
 
    workflow = WorkflowConvertImageToUSD(
        input_filenames=["cardiac_4d.nrrd"],
        contrast_enhanced=True,
        output_directory="./results",
        project_name="patient_001",
-       segmentation_method="ChestTotalSegmentator",
-       registration_method="ICON",
+       segmentation_method=SegmentChestTotalSegmentator(),
+       registration_method=RegisterImagesICON(),
    )
 
    final_usd = workflow.process()
@@ -73,10 +77,12 @@ Image to VTK
 
    import itk
 
-   from physiomotion4d import WorkflowConvertImageToVTK
+   from physiomotion4d import SegmentChestTotalSegmentator, WorkflowConvertImageToVTK
 
    image = itk.imread("chest_ct.nii.gz")
-   workflow = WorkflowConvertImageToVTK(segmentation_method="ChestTotalSegmentator")
+   workflow = WorkflowConvertImageToVTK(
+       segmentation_method=SegmentChestTotalSegmentator()
+   )
    result = workflow.run_workflow(
        input_image=image,
        contrast_enhanced_study=True,
@@ -150,14 +156,14 @@ High-Resolution 4D CT Reconstruction
 
    import itk
 
-   from physiomotion4d import WorkflowReconstructHighres4DCT
+   from physiomotion4d import RegisterImagesGreedyICON, WorkflowReconstructHighres4DCT
 
    time_series_images = [itk.imread(f"phase_{idx:02d}.mha") for idx in range(10)]
    workflow = WorkflowReconstructHighres4DCT(
        time_series_images=time_series_images,
        fixed_image=time_series_images[0],
        reference_frame=0,
-       registration_method="Greedy_ICON",
+       registration_method=RegisterImagesGreedyICON(),
    )
 
    result = workflow.run_workflow(upsample_to_fixed_resolution=True)

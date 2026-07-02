@@ -27,7 +27,7 @@ Complete end-to-end cardiac CT processing:
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
 
    # Initialize workflow
    workflow = WorkflowConvertImageToUSD(
@@ -35,7 +35,7 @@ Complete end-to-end cardiac CT processing:
        contrast_enhanced=True,
        output_directory="./results",
        project_name="patient_001",
-       registration_method="ICON",
+       registration_method=RegisterImagesICON(),
    )
 
    # Run complete workflow
@@ -54,7 +54,7 @@ phase images:
 
    import itk
 
-   from physiomotion4d import WorkflowReconstructHighres4DCT
+   from physiomotion4d import RegisterImagesGreedyICON, WorkflowReconstructHighres4DCT
 
    # DirLab-4DCT data is manual-only. Place phase images under ./data/DirLab.
    phase_dir = Path("./data/DirLab/case1")
@@ -66,7 +66,7 @@ phase images:
        time_series_images=time_series_images,
        fixed_image=fixed_image,
        reference_frame=0,
-       registration_method="Greedy_ICON",
+       registration_method=RegisterImagesGreedyICON(),
    )
 
    result = workflow.run_workflow(upsample_to_fixed_resolution=True)
@@ -390,7 +390,7 @@ Batch process multiple datasets:
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
    import glob
    import os
 
@@ -411,7 +411,7 @@ Batch process multiple datasets:
            contrast_enhanced=True,
            output_directory=f"results/{patient_id}",
            project_name=patient_id,
-           registration_method="ICON",
+           registration_method=RegisterImagesICON(),
        )
 
        try:
@@ -474,14 +474,14 @@ Run the supported end-to-end workflow API:
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
 
    workflow = WorkflowConvertImageToUSD(
        input_filenames=["cardiac_4d.nrrd"],
        contrast_enhanced=True,
        output_directory="./results",
        project_name="cardiac_model",
-       registration_method="ICON",
+       registration_method=RegisterImagesICON(),
    )
 
    final_usd = workflow.process()

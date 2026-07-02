@@ -38,17 +38,43 @@ Time Series
 
    import itk
 
-   from physiomotion4d import RegisterTimeSeriesImages
+   from physiomotion4d import RegisterImagesGreedy, RegisterTimeSeriesImages
 
    images = [itk.imread(f"phase_{idx:02d}.mha") for idx in range(10)]
 
-   registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+   registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
    registrar.set_fixed_image(images[0])
    result = registrar.register_time_series(
        moving_images=images,
        reference_frame=0,
        register_reference=False,
    )
+
+Combining Registrars
+=====================
+
+Workflows that accept a ``registration_method`` (e.g.
+:class:`WorkflowConvertImageToUSD`, :class:`RegisterTimeSeriesImages`) take
+any :class:`RegisterImagesBase` instance, including a composite chain that
+runs multiple backends in sequence. :class:`RegisterImagesChain` runs an
+ordered list of registrars, feeding each stage's ``forward_transform`` as the
+next stage's ``initial_forward_transform``. :class:`RegisterImagesGreedyICON`
+is a named 2-stage convenience class for the common case of a fast Greedy
+registration followed by ICON refinement:
+
+.. code-block:: python
+
+   from physiomotion4d import RegisterImagesChain, RegisterImagesGreedy, RegisterImagesICON
+
+   # Arbitrary N-stage chain
+   registrar = RegisterImagesChain([RegisterImagesGreedy(), RegisterImagesICON()])
+
+   # Or, for the common Greedy-then-ICON case:
+   from physiomotion4d import RegisterImagesGreedyICON
+
+   registrar = RegisterImagesGreedyICON()
+   registrar.greedy.set_number_of_iterations([30, 15, 7, 3])
+   registrar.icon.set_number_of_iterations(20)
 
 Development Notes
 =================

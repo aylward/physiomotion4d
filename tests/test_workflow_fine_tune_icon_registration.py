@@ -79,7 +79,7 @@ def two_subject_dataset(tmp_path: Path) -> dict[str, Any]:
 def test_init_requires_output_dir_and_name(tmp_path: Path) -> None:
     """output_dir and fine_tune_name are required positional args."""
     with pytest.raises(TypeError):
-        WorkflowFineTuneICONRegistration(
+        WorkflowFineTuneICONRegistration(  # type: ignore[call-arg]
             subject_image_files=[["a.nii.gz"]],
         )
 

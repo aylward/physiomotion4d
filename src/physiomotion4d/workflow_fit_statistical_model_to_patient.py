@@ -38,6 +38,10 @@ from .register_images_icon import RegisterImagesICON
 from .register_models_distance_maps import RegisterModelsDistanceMaps
 from .register_models_icp import RegisterModelsICP
 from .register_models_pca import RegisterModelsPCA
+from .segment_anatomy_base import SegmentAnatomyBase
+from .segment_heart_simpleware_trimmed_branches import (
+    SegmentHeartSimplewareTrimmedBranches,
+)
 from .transform_tools import TransformTools
 from .workflow_convert_image_to_vtk import WorkflowConvertImageToVTK
 
@@ -126,7 +130,7 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         patient_labelmap: Optional[itk.Image] = None,
         template_labelmap: Optional[itk.Image] = None,
         labelmap_interior_object_ids: Optional[list] = None,
-        segmentation_method: str = "HeartSimplewareTrimmedBranches",
+        segmentation_method: Optional[SegmentAnatomyBase] = None,
         log_level: int | str = logging.INFO,
     ):
         """Initialize the model-to-image-and-model registration pipeline.
@@ -141,20 +145,30 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
             labelmap_interior_object_ids: Optional list of labelmap IDs that should
                 not be used when computing the distance map since they are interior (surrounded
                 by other objects).
-            segmentation_method: Segmentation backend used by
+            segmentation_method: Segmentation backend instance used by
                 WorkflowConvertImageToVTK when patient_models is None and
-                patient_image is provided. One of
-                ``'HeartSimplewareTrimmedBranches'`` (default — produces
-                cardiac extent that matches KCL-Heart-Model templates),
-                ``'HeartSimpleware'``, or ``'ChestTotalSegmentator'``.
+                patient_image is provided. Defaults to a new
+                :class:`SegmentHeartSimplewareTrimmedBranches` (matches
+                KCL-Heart-Model template extent) when None.
                 Ignored when patient_models is supplied.
             log_level: Logging level (logging.DEBUG, logging.INFO, logging.WARNING).
                 Default: logging.INFO
+
+        Raises:
+            TypeError: If segmentation_method is neither None nor a
+                SegmentAnatomyBase instance.
         """
         # Initialize base class with logging
         super().__init__(
             class_name="WorkflowFitStatisticalModelToPatient", log_level=log_level
         )
+
+        if segmentation_method is not None and not isinstance(
+            segmentation_method, SegmentAnatomyBase
+        ):
+            raise TypeError(
+                "segmentation_method must be a SegmentAnatomyBase instance or None"
+            )
 
         self.template_model = template_model
         self.template_model_surface = template_model.extract_surface(
@@ -168,6 +182,10 @@ class WorkflowFitStatisticalModelToPatient(PhysioMotion4DBase):
         self.labelmap_interior_object_ids: Optional[list] = labelmap_interior_object_ids
 
         if patient_models is None and patient_image is not None:
+            if segmentation_method is None:
+                segmentation_method = SegmentHeartSimplewareTrimmedBranches(
+                    log_level=log_level
+                )
             convert_image_to_vtk = WorkflowConvertImageToVTK(
                 segmentation_method=segmentation_method,
                 log_level=log_level,

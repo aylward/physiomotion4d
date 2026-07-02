@@ -57,6 +57,24 @@
        <p>Register respiratory CT phases and reconstruct a higher-resolution 4D volume series.</p>
        <span class="pm4d-card__meta">DirLab-4DCT</span>
      </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-8-fit-the-cardiac-ssm-and-propagate-through-gated-phases">
+       <span class="pm4d-card__number">08</span>
+       <h2>Fit the Cardiac SSM and Propagate Through Gated Phases</h2>
+       <p>Fit a PCA heart model to the reference phase and propagate it to every gated phase with ICON registration.</p>
+       <span class="pm4d-card__meta">Bring your own cardiac data</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-9a-9b-train-a-physicsnemo-cardiac-stage-model">
+       <span class="pm4d-card__number">09</span>
+       <h2>Train a PhysicsNeMo Cardiac Stage Model</h2>
+       <p>Train a PhysicsNeMo MeshGraphNet (9a) or MLP (9b) to predict cardiac meshes at requested stages.</p>
+       <span class="pm4d-card__meta">Tutorial 8 output</span>
+     </a>
+     <a class="pm4d-card" href="tutorials.html#tutorial-10a-10b-predict-and-evaluate-cardiac-surfaces">
+       <span class="pm4d-card__number">10</span>
+       <h2>Predict and Evaluate Cardiac Surfaces</h2>
+       <p>Load a Tutorial 9 checkpoint and predict cardiac surfaces at gated phases or caller-specified stages.</p>
+       <span class="pm4d-card__meta">Tutorial 9a / 9b output</span>
+     </a>
    </section>
 
    <section class="pm4d-topic-section" aria-label="Documentation topics">

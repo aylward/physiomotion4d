@@ -167,8 +167,9 @@ print(WorkflowConvertImageToUSD.__name__)
 
 ## Getting Started: Tutorials
 
-The `tutorials/` directory contains nine end-to-end Python scripts, one for each
-major workflow. They are the recommended starting point for new users.
+The `tutorials/` directory contains eleven end-to-end Python scripts covering
+nine major workflows (Tutorials 9 and 10 each have MeshGraphNet and MLP
+variants). They are the recommended starting point for new users.
 
 | # | Script | Workflow | Dataset |
 |---|--------|----------|---------|
@@ -291,7 +292,7 @@ For implementation details and advanced usage, see the CLI modules in `src/physi
 ### Python API - Basic Heart-Gated CT Processing
 
 ```python
-from physiomotion4d import WorkflowConvertImageToUSD
+from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
 
 # Initialize processor
 processor = WorkflowConvertImageToUSD(
@@ -299,7 +300,7 @@ processor = WorkflowConvertImageToUSD(
     contrast_enhanced=True,
     output_directory="./results",
     project_name="cardiac_model",
-    registration_method='ICON'  # or 'ANTS'
+    registration_method=RegisterImagesICON(),  # or RegisterImagesANTS()
 )
 
 # Run complete workflow
@@ -371,12 +372,15 @@ registerer.set_fixed_image(itk.imread("reference_frame.mha"))
 results = registerer.register(itk.imread("target_frame.mha"))
 
 # Option 3: Time series registration for 4D CT
-time_series_reg = RegisterTimeSeriesImages(
-    reference_index=0,
-    registration_method='ICON'  # or 'ANTS'
-)
+time_series_reg = RegisterTimeSeriesImages(registration_method=RegisterImagesICON())
+time_series_reg.set_fixed_image(itk.imread("time00.mha"))
 transforms = time_series_reg.register_time_series(
-    image_filenames=["time00.mha", "time01.mha", "time02.mha"]
+    moving_images=[
+        itk.imread("time00.mha"),
+        itk.imread("time01.mha"),
+        itk.imread("time02.mha"),
+    ],
+    reference_frame=0,
 )
 
 # Get forward and inverse displacement fields

@@ -60,6 +60,7 @@ import pyvista as pv
 
 from physiomotion4d import (
     ContourTools,
+    RegisterImagesICON,
     TransformTools,
     WorkflowFitStatisticalModelToPatient,
     WorkflowReconstructHighres4DCT,
@@ -207,16 +208,15 @@ if __name__ == "__main__":
             time_series_ids.append(time_id)
 
         if RECOMPUTE:
+            icon_registration_method = RegisterImagesICON()
+            icon_registration_method.set_weights_path(str(ICON_WEIGHTS_PATH))
+            icon_registration_method.set_number_of_iterations(None)
             reg_workflow = WorkflowReconstructHighres4DCT(
                 time_series_images=time_series,
                 fixed_image=ref_image,
-                registration_method="ICON",
-            )
-            reg_workflow.registrar.registrar_ICON.set_weights_path(
-                str(ICON_WEIGHTS_PATH)
+                registration_method=icon_registration_method,
             )
             reg_workflow.set_modality("ct")
-            reg_workflow.set_number_of_iterations_ICON(None)
             reg_result = reg_workflow.run_workflow()
 
             reconstructed_images = reg_result["reconstructed_images"]

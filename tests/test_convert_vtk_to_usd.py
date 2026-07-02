@@ -69,11 +69,11 @@ class TestConvertVTKToUSD:
             return meshes
         # Load existing contours
         print("\nLoading existing contour files...")
-        meshes = [
+        loaded_meshes: list[Any] = [
             pv.read(str(contour_output_dir / "heart_contours_slice000.vtp")),
             pv.read(str(contour_output_dir / "heart_contours_slice001.vtp")),
         ]
-        return meshes
+        return loaded_meshes
 
     def test_converter_initialization(self) -> None:
         """Test that ConvertVTKToUSD initializes correctly."""

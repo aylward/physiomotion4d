@@ -16,10 +16,44 @@ import os
 import itk
 import numpy as np
 
-from physiomotion4d import RegisterTimeSeriesImages, TransformTools
+from physiomotion4d import (
+    RegisterImagesBase,
+    RegisterImagesGreedy,
+    RegisterImagesGreedyICON,
+    RegisterImagesICON,
+    RegisterTimeSeriesImages,
+    TransformTools,
+)
 from physiomotion4d.test_tools import TestTools
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _build_registrar(method_name: str, iterations=None) -> RegisterImagesBase:
+    """Build a registrar instance for one of "Greedy", "ICON", or
+    "Greedy_ICON". When `iterations` is given, it matches this experiment's
+    `number_of_iterations_list` shape: a list for Greedy, an int for ICON,
+    or [greedy_list, icon_int] for Greedy_ICON. `iterations=None` builds an
+    unconfigured instance (used where only the transform-reconstruction
+    step is needed, which does not depend on iteration counts)."""
+    if method_name == "Greedy":
+        greedy = RegisterImagesGreedy()
+        if iterations is not None:
+            greedy.set_number_of_iterations(iterations)
+        return greedy
+    if method_name == "ICON":
+        icon = RegisterImagesICON()
+        if iterations is not None:
+            icon.set_number_of_iterations(iterations)
+        return icon
+    if method_name == "Greedy_ICON":
+        greedy_icon = RegisterImagesGreedyICON()
+        if iterations is not None:
+            greedy_icon.greedy.set_number_of_iterations(iterations[0])
+            greedy_icon.icon.set_number_of_iterations(iterations[1])
+        return greedy_icon
+    raise ValueError(f"Unknown registration method: {method_name}")
+
 
 # %% [markdown]
 # ## Load Data and Set Parameters
@@ -139,18 +173,11 @@ for method_idx, registration_method in enumerate(registration_methods):
     print(f"  Number of iterations: {number_of_iterations}")
 
     # Create registrar for this method
-    registrar = RegisterTimeSeriesImages(registration_method=registration_method)
+    registrar = RegisterTimeSeriesImages(
+        registration_method=_build_registrar(registration_method, number_of_iterations)
+    )
     registrar.set_modality("ct")
     registrar.set_fixed_image(fixed_image)
-
-    # Set iterations based on registration method
-    if registration_method == "Greedy":
-        registrar.set_number_of_iterations_greedy(number_of_iterations)
-    elif registration_method == "ICON":
-        registrar.set_number_of_iterations_ICON(number_of_iterations)
-    elif registration_method == "Greedy_ICON":
-        registrar.set_number_of_iterations_greedy(number_of_iterations[0])
-        registrar.set_number_of_iterations_ICON(number_of_iterations[1])
 
     # Perform registration
     result = registrar.register_time_series(
@@ -192,8 +219,11 @@ for registration_method in registration_methods:
     forward_transforms = result["forward_transforms"]
     inverse_transforms = result["inverse_transforms"]
 
-    # Get the registrar used for this method
-    registrar = RegisterTimeSeriesImages(registration_method=registration_method)
+    # Get the registrar used for this method (iterations are irrelevant here -
+    # reconstruct_time_series() only applies already-computed transforms)
+    registrar = RegisterTimeSeriesImages(
+        registration_method=_build_registrar(registration_method)
+    )
     registrar.set_fixed_image(fixed_image)
 
     print(f"Saving {registration_method.upper()} results...")
@@ -281,8 +311,11 @@ for registration_method in registration_methods:
     result = all_results[registration_method]
     inverse_transforms = result["inverse_transforms"]
 
-    # Get the registrar used for this method
-    registrar = RegisterTimeSeriesImages(registration_method=registration_method)
+    # Get the registrar used for this method (iterations are irrelevant here -
+    # reconstruct_time_series() only applies already-computed transforms)
+    registrar = RegisterTimeSeriesImages(
+        registration_method=_build_registrar(registration_method)
+    )
     registrar.set_fixed_image(fixed_image)
 
     print(f"\n{registration_method.upper()}: Reconstructing with upsampling...")

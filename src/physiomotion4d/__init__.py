@@ -52,6 +52,8 @@ from .register_images_greedy import RegisterImagesGreedy
 
 # Registration classes
 from .register_images_base import RegisterImagesBase
+from .register_images_chain import RegisterImagesChain
+from .register_images_greedy_icon import RegisterImagesGreedyICON
 from .register_images_icon import RegisterImagesICON
 from .register_models_distance_maps import RegisterModelsDistanceMaps
 from .register_models_icp import RegisterModelsICP
@@ -63,6 +65,9 @@ from .register_time_series_images import RegisterTimeSeriesImages
 from .segment_anatomy_base import SegmentAnatomyBase
 from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
 from .segment_heart_simpleware import SegmentHeartSimpleware
+from .segment_heart_simpleware_trimmed_branches import (
+    SegmentHeartSimplewareTrimmedBranches,
+)
 from .test_tools import TestTools
 from .transform_tools import TransformTools
 from .usd_anatomy_tools import USDAnatomyTools
@@ -92,11 +97,14 @@ __all__ = [
     "SegmentAnatomyBase",
     "SegmentChestTotalSegmentator",
     "SegmentHeartSimpleware",
+    "SegmentHeartSimplewareTrimmedBranches",
     # Registration classes
     "RegisterImagesBase",
     "RegisterImagesICON",
     "RegisterImagesANTS",
     "RegisterImagesGreedy",
+    "RegisterImagesChain",
+    "RegisterImagesGreedyICON",
     "RegisterTimeSeriesImages",
     "RegisterModelsPCA",
     "RegisterModelsICP",

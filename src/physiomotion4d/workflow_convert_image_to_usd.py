@@ -20,23 +20,11 @@ from .convert_image_4d_to_3d import ConvertImage4DTo3D
 from .convert_vtk_to_usd import ConvertVTKToUSD
 from .physiomotion4d_base import PhysioMotion4DBase
 from .register_images_base import RegisterImagesBase
-from .register_images_greedy import RegisterImagesGreedy
 from .register_images_icon import RegisterImagesICON
 from .segment_anatomy_base import SegmentAnatomyBase
 from .segment_chest_total_segmentator import SegmentChestTotalSegmentator
-from .segment_heart_simpleware import SegmentHeartSimpleware
 from .transform_tools import TransformTools
 from .usd_anatomy_tools import USDAnatomyTools
-
-#: Supported segmentation backend identifiers.
-SEGMENTATION_METHODS: tuple[str, ...] = (
-    "ChestTotalSegmentator",
-    "HeartSimpleware",
-    "HeartSimplewareTrimmedBranches",
-)
-
-#: Supported registration backend identifiers.
-REGISTRATION_METHODS: tuple[str, ...] = ("Greedy", "ICON")
 
 
 class WorkflowConvertImageToUSD(PhysioMotion4DBase):
@@ -46,16 +34,12 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
     This class implements the full workflow from 4D CT images to painted USD files
     suitable for visualization in NVIDIA Omniverse.
 
-    **Segmentation backends** (``segmentation_method``):
-
-    - ``'ChestTotalSegmentator'`` — :class:`SegmentChestTotalSegmentator`.
-    - ``'HeartSimpleware'`` — :class:`SegmentHeartSimpleware`. **Behavior
-      change**: this workflow previously called ``set_trim_branches(True)``
-      for this option implicitly. It no longer does — for the trimmed
-      behavior, use ``'HeartSimplewareTrimmedBranches'``.
-    - ``'HeartSimplewareTrimmedBranches'`` — :class:`SegmentHeartSimpleware`
-      with branch trimming enabled, matching the KCL-Heart-Model template
-      extent.
+    ``segmentation_method`` and ``registration_method`` accept a
+    pre-configured :class:`SegmentAnatomyBase` / :class:`RegisterImagesBase`
+    instance. Configure backend-specific parameters (iteration counts,
+    trim_branches, mass preservation, etc.) on the instance before passing
+    it in. Defaults to :class:`SegmentChestTotalSegmentator` /
+    :class:`RegisterImagesICON` when omitted.
     """
 
     def __init__(
@@ -65,9 +49,8 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
         output_directory: str,
         project_name: str,
         reference_image_filename: Optional[str] = None,
-        number_of_registration_iterations: Optional[int] = 1,
-        segmentation_method: str = "ChestTotalSegmentator",
-        registration_method: str = "ICON",
+        segmentation_method: Optional[SegmentAnatomyBase] = None,
+        registration_method: Optional[RegisterImagesBase] = None,
         times_per_second: float = 24.0,
         log_level: int | str = logging.INFO,
         save_registered_images: bool = True,
@@ -89,13 +72,14 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
             output_directory (str): Directory path where output files will be stored
             project_name (str): Project name for USD file organization
             reference_image_filename (Optional[str]): Path to reference image file
-            number_of_registration_iterations (Optional[int]): Number of registration iterations
-            segmentation_method (str): Segmentation backend to use:
-                ``'ChestTotalSegmentator'`` (default), ``'HeartSimpleware'``,
-                or ``'HeartSimplewareTrimmedBranches'`` (HeartSimpleware with
-                pulmonary/great-vessel branches trimmed to the cardiac region).
-            registration_method (str): Registration method to use:
-                ``'Greedy'`` or ``'ICON'`` (default: ``'ICON'``).
+            segmentation_method (Optional[SegmentAnatomyBase]): Segmentation
+                backend instance. Defaults to a new
+                :class:`SegmentChestTotalSegmentator` when None.
+            registration_method (Optional[RegisterImagesBase]): Registration
+                backend instance. Defaults to a new :class:`RegisterImagesICON`
+                when None. A caller-supplied instance is mutated (fixed
+                image/mask/modality) during :meth:`process` - pass a fresh
+                instance per run unless intentionally reusing state.
             times_per_second: Frames per second for animated USD time series.
                 Defaults to 24.0, matching the underlying VTK-to-USD converter.
             log_level: Logging level (default: logging.INFO)
@@ -105,6 +89,11 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
                 output_directory when True
             save_labelmaps: Write segmentation labelmaps and registration masks to
                 output_directory when True
+
+        Raises:
+            TypeError: If segmentation_method is neither None nor a
+                SegmentAnatomyBase instance, or registration_method is
+                neither None nor a RegisterImagesBase instance.
         """
         super().__init__(class_name=self.__class__.__name__, log_level=log_level)
 
@@ -113,83 +102,36 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
         self.output_directory = output_directory
         self.project_name = project_name
         self.reference_image_filename = reference_image_filename
-        self.number_of_registration_iterations = number_of_registration_iterations
         self.save_registered_images = save_registered_images
         self.save_registration_transforms = save_registration_transforms
         self.save_labelmaps = save_labelmaps
         self.times_per_second = times_per_second
 
-        # Validate segmentation method
-        if segmentation_method not in SEGMENTATION_METHODS:
-            raise ValueError(
-                f"Invalid segmentation_method '{segmentation_method}'. "
-                f"Must be one of: {', '.join(SEGMENTATION_METHODS)}."
+        if segmentation_method is None:
+            segmentation_method = SegmentChestTotalSegmentator(log_level=log_level)
+            segmentation_method.contrast_threshold = 500
+        elif not isinstance(segmentation_method, SegmentAnatomyBase):
+            raise TypeError(
+                "segmentation_method must be a SegmentAnatomyBase instance or None"
             )
-        self.segmentation_method = segmentation_method
+        self.segmenter: SegmentAnatomyBase = segmentation_method
 
-        # Validate registration method
-        if registration_method not in REGISTRATION_METHODS:
-            raise ValueError(
-                f"Invalid registration_method '{registration_method}'. "
-                f"Must be one of: {', '.join(REGISTRATION_METHODS)}."
+        if registration_method is None:
+            registration_method = RegisterImagesICON(log_level=log_level)
+            registration_method.set_mass_preservation(not contrast_enhanced)
+        elif not isinstance(registration_method, RegisterImagesBase):
+            raise TypeError(
+                "registration_method must be a RegisterImagesBase instance or None"
             )
-        self.registration_method = registration_method
+        registration_method.set_modality("ct")
+        registration_method.set_mask_dilation(5)
+        self.registrar: RegisterImagesBase = registration_method
 
         # Create output directory if it doesn't exist
         os.makedirs(output_directory, exist_ok=True)
 
         # Initialize processing components
         self.converter = ConvertImage4DTo3D(log_level=log_level)
-        self.segmenter: SegmentAnatomyBase
-        if self.segmentation_method == "ChestTotalSegmentator":
-            chest_segmenter = SegmentChestTotalSegmentator(log_level=log_level)
-            chest_segmenter.contrast_threshold = 500
-            self.segmenter = chest_segmenter
-        elif self.segmentation_method in (
-            "HeartSimpleware",
-            "HeartSimplewareTrimmedBranches",
-        ):
-            heart_segmenter = SegmentHeartSimpleware(log_level=log_level)
-            heart_segmenter.set_trim_branches(
-                self.segmentation_method == "HeartSimplewareTrimmedBranches"
-            )
-            self.segmenter = heart_segmenter
-        else:
-            raise ValueError(f"Unknown segmentation method: {self.segmentation_method}")
-
-        # Initialize registration method
-        self.registrar: RegisterImagesBase
-        if self.registration_method == "Greedy":
-            self.log_info("Initializing Greedy registration...")
-            greedy_registrar = RegisterImagesGreedy(log_level=log_level)
-            greedy_registrar.set_modality("ct")
-            greedy_registrar.set_transform_type("Deformable")
-            if (
-                number_of_registration_iterations is not None
-                and number_of_registration_iterations > 0
-            ):
-                greedy_registrar.set_number_of_iterations(
-                    [
-                        number_of_registration_iterations,
-                        number_of_registration_iterations // 2,
-                        0,
-                    ]
-                )
-            self.registrar = greedy_registrar
-        else:  # ICON (default)
-            self.log_info("Initializing ICON registration...")
-            icon_registrar = RegisterImagesICON(log_level=log_level)
-            icon_registrar.set_modality("ct")
-            if (
-                number_of_registration_iterations is not None
-                and number_of_registration_iterations > 0
-            ):
-                icon_registrar.set_number_of_iterations(
-                    number_of_registration_iterations
-                )
-            self.registrar = icon_registrar
-
-        self.registrar.set_mask_dilation(5)
         self.contour_tools = ContourTools()
 
         # Data storage for processing pipeline
@@ -372,13 +314,6 @@ class WorkflowConvertImageToUSD(PhysioMotion4DBase):
 
         # Set up registrar with fixed image
         self.registrar.set_fixed_image(self._fixed_image)
-        if self.registration_method == "ICON" and isinstance(
-            self.registrar, RegisterImagesICON
-        ):
-            if self.contrast_enhanced:
-                self.registrar.set_mass_preservation(False)
-            else:
-                self.registrar.set_mass_preservation(True)
 
         # Process each time point
         self._time_series_transforms = []

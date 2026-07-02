@@ -6,7 +6,7 @@ and performing image processing operations.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, Union, overload
 
 import itk
 import numpy as np
@@ -273,6 +273,28 @@ class ImageTools(PhysioMotion4DBase):
         result.DisconnectPipeline()
         return result
 
+    @overload
+    def flip_image(
+        self,
+        in_image: itk.Image,
+        in_mask: None = None,
+        flip_x: bool = False,
+        flip_y: bool = False,
+        flip_z: bool = False,
+        flip_and_make_identity: bool = False,
+    ) -> itk.Image: ...
+
+    @overload
+    def flip_image(
+        self,
+        in_image: itk.Image,
+        in_mask: itk.Image,
+        flip_x: bool = False,
+        flip_y: bool = False,
+        flip_z: bool = False,
+        flip_and_make_identity: bool = False,
+    ) -> tuple[itk.Image, itk.Image]: ...
+
     def flip_image(
         self,
         in_image: itk.Image,
@@ -281,7 +303,7 @@ class ImageTools(PhysioMotion4DBase):
         flip_y: bool = False,
         flip_z: bool = False,
         flip_and_make_identity: bool = False,
-    ) -> Any | tuple[Any, Any]:
+    ) -> Union[itk.Image, tuple[itk.Image, itk.Image]]:
         """
         Flip the image and mask.
 

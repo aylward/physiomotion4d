@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           lfs: true
 
@@ -58,7 +58,7 @@ jobs:
         # Python 3.11 is required because the [physicsnemo] extra pulls in
         # nvidia-physicsnemo, which requires Python >= 3.11.
         run: |
-          & "C:\Users\saylward\AppData\Local\Programs\Python\Python311/python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
+          & "C:\Users\saylward\AppData\Local\Programs\Python\Python311\python.exe" -m venv "$env:RUNNER_TEMP\physiomotion4d-venv"
           echo "$env:RUNNER_TEMP\physiomotion4d-venv\Scripts" >> $env:GITHUB_PATH
 
       - name: Cache uv packages
@@ -121,7 +121,7 @@ jobs:
           CUDA_VISIBLE_DEVICES: 0
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: health-test-results
@@ -144,10 +144,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download test results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: health-test-results
           path: results/
@@ -155,7 +155,7 @@ jobs:
         continue-on-error: true
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -172,7 +172,7 @@ jobs:
         run: cat dashboard/summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload dashboard artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: health-dashboard
           path: dashboard/

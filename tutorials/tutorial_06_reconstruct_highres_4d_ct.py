@@ -23,6 +23,7 @@ from pathlib import Path
 
 import itk
 
+from physiomotion4d.register_images_greedy_icon import RegisterImagesGreedyICON
 from physiomotion4d.test_tools import TestTools
 from physiomotion4d.workflow_reconstruct_highres_4d_ct import (
     WorkflowReconstructHighres4DCT,
@@ -45,7 +46,6 @@ if __name__ == "__main__":
     OUTPUT_DIR = TUTORIALS_DIR / "output" / "tutorial_06"
     BASELINES_DIR = REPO_ROOT / "tests" / "baselines"
     MAX_FRAMES = 4
-    REGISTRATION_METHOD = "Greedy_ICON"
     LOG_LEVEL = logging.INFO
 
     # %%
@@ -54,7 +54,6 @@ if __name__ == "__main__":
 
     data_dir = TEST_DATA_DIR if test_mode else FULL_DATA_DIR
     output_dir = OUTPUT_DIR
-    registration_method = REGISTRATION_METHOD
     log_level = LOG_LEVEL
 
     if test_mode:
@@ -79,6 +78,8 @@ if __name__ == "__main__":
 
     # %%
     # Workflow initialization
+    registration_method = RegisterImagesGreedyICON(log_level=log_level)
+    registration_method.greedy.set_number_of_iterations(number_of_iterations_Greedy)
     workflow = WorkflowReconstructHighres4DCT(
         time_series_images=time_series,
         fixed_image=fixed_image,
@@ -87,7 +88,6 @@ if __name__ == "__main__":
         log_level=log_level,
     )
     workflow.set_modality("ct")
-    workflow.set_number_of_iterations_Greedy(number_of_iterations_Greedy)
 
     # %%
     # Workflow execution

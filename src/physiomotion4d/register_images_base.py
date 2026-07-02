@@ -16,7 +16,7 @@ the register() method with their specific algorithm (e.g., Icon, ANTs, etc.).
 """
 
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 import itk
 
@@ -69,6 +69,11 @@ class RegisterImagesBase(PhysioMotion4DBase):
         >>> result = registrar.register(moving_image)
         >>> forward_tfm = result['forward_transform']  # warps moving image -> fixed grid
         >>> inverse_tfm = result['inverse_transform']  # warps fixed image -> moving grid
+
+    See :class:`RegisterImagesChain` to combine multiple registrars into a
+    multi-stage pipeline (e.g. a fast coarse registrar followed by a
+    refinement stage), and :class:`RegisterImagesGreedyICON` for the common
+    Greedy-then-ICON case.
     """
 
     def __init__(self, log_level: int | str = logging.INFO) -> None:
@@ -349,6 +354,82 @@ class RegisterImagesBase(PhysioMotion4DBase):
             "inverse_transform": self.inverse_transform,
             "loss": self.loss,
         }
+
+    def _delegate_to(
+        self,
+        other: "RegisterImagesBase",
+        moving_image: itk.Image,
+        moving_mask: Optional[itk.Image],
+        moving_labelmap: Optional[itk.Image],
+    ) -> None:
+        """Prepare ``other`` to run a standalone ``registration_method()`` call.
+
+        Uses direct attribute assignment for fixed_image/fixed_mask/
+        fixed_labelmap (not the public setters), since ``self.fixed_mask``
+        is already the dilated/converted mask produced by
+        :meth:`set_fixed_mask` -- calling it again on ``other`` would
+        re-dilate it. ``moving_mask`` is similarly already converted by the
+        outer :meth:`register` call and is passed through unchanged, since
+        mask conversion is backend-independent.
+
+        ``fixed_image_pre``/``moving_image_pre`` are deliberately NOT copied
+        from this instance: unlike mask conversion, intensity preprocessing
+        is backend-specific (e.g. ``RegisterImagesICON.preprocess()`` runs
+        uniGradICON preprocessing; ``RegisterImagesGreedy`` does not), so a
+        "pre" value this instance computed with its own (possibly no-op)
+        ``preprocess()`` cannot be trusted for ``other``. Instead, ``other``
+        computes its own ``fixed_image_pre`` via its own ``preprocess()``
+        (cached, matching :meth:`register`'s own caching), and
+        ``moving_image_pre`` is left unset so ``other.registration_method()``
+        preprocesses the moving image itself.
+
+        Args:
+            other: The registrar to prepare for a delegated call.
+            moving_image: Raw moving image for the delegated call.
+            moving_mask: Already-converted moving mask, or None.
+            moving_labelmap: Moving labelmap, or None.
+        """
+        other.modality = self.modality
+        other.mask_dilation_mm = self.mask_dilation_mm
+        # Recompute other.fixed_image_pre whenever the fixed image changes.
+        # The identity check preserves per-frame caching (many moving frames
+        # against one fixed image reuse the same pre) while preventing a stale
+        # pre from a previous, different fixed image - which would silently
+        # register against the wrong reference - when ``other`` is reused.
+        if other.fixed_image is not self.fixed_image:
+            other.fixed_image = self.fixed_image
+            other.fixed_image_pre = None
+        if other.fixed_image_pre is None:
+            other.fixed_image_pre = other.preprocess(
+                other.fixed_image, modality=other.modality
+            )
+        other.fixed_mask = self.fixed_mask
+        other.fixed_labelmap = self.fixed_labelmap
+        other.moving_image = moving_image
+        other.moving_image_pre = None
+        other.moving_mask = moving_mask
+        other.moving_labelmap = moving_labelmap
+
+    def _capture_delegate_result(
+        self,
+        other: "RegisterImagesBase",
+        result: dict[str, Union[itk.Transform, float]],
+    ) -> None:
+        """Mirror a delegate's registration result back onto it as state.
+
+        Matches what :meth:`register` would have set had it been called on
+        ``other`` directly, so ``other.get_registered_image()`` still works
+        afterward.
+
+        Args:
+            other: The registrar whose ``registration_method()`` produced
+                ``result``.
+            result: The dict returned by ``other.registration_method(...)``.
+        """
+        other.forward_transform = cast(itk.Transform, result["forward_transform"])
+        other.inverse_transform = cast(itk.Transform, result["inverse_transform"])
+        other.loss = cast(float, result["loss"])
+        other.moving_image_registered = None
 
     def get_registered_image(self) -> itk.Image:
         """Get the registered image.

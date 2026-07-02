@@ -112,8 +112,7 @@ Before editing any code:
 7. Follow the behavior guidelines given above.
 8. Implement in small, reviewable diffs.
 9. Update docstrings and tests for every changed public method.
-10. Call out breaking changes explicitly.
-11. Do not commit changes or make pull requests unless specifically told to do so.
+10. Do not commit changes or make pull requests unless specifically told to do so.
 
 Breaking changes are acceptable. Backward-compatibility shims are not.
 

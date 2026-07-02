@@ -32,14 +32,14 @@ Workflow Example
 
 .. code-block:: python
 
-   from physiomotion4d import WorkflowConvertImageToUSD
+   from physiomotion4d import RegisterImagesICON, WorkflowConvertImageToUSD
 
    workflow = WorkflowConvertImageToUSD(
        input_filenames=["cardiac_4d.nrrd"],
        contrast_enhanced=True,
        output_directory="./results",
        project_name="patient_001",
-       registration_method="ICON",
+       registration_method=RegisterImagesICON(),
    )
 
    final_usd = workflow.process()

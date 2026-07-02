@@ -14,6 +14,9 @@ import numpy as np
 import pytest
 
 from physiomotion4d import (
+    RegisterImagesGreedy,
+    RegisterImagesGreedyICON,
+    RegisterImagesICON,
     RegisterTimeSeriesImages,
     TestTools,
     TransformTools,
@@ -26,62 +29,60 @@ class TestRegisterTimeSeriesImages:
 
     _class_name = "registration_time_series_images"
 
-    def test_registrar_initialization_Greedy_ICON(self) -> None:
-        """Test that RegisterTimeSeriesImages initializes correctly with Greedy_ICON."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy_ICON")
-        assert registrar is not None, "Registrar not initialized"
-        assert registrar.registration_method_name == "Greedy_ICON", (
-            "Method not set correctly"
-        )
-        assert registrar.registrar_greedy is not None, (
-            "Internal Greedy registrar not created"
-        )
-        assert registrar.registrar_ICON is not None, (
-            "Internal ICON registrar not created"
+    def test_registrar_initialization_default(self) -> None:
+        """Test that the default registration_method is RegisterImagesGreedy."""
+        registrar = RegisterTimeSeriesImages()
+        assert isinstance(registrar.registrar, RegisterImagesGreedy), (
+            "Default registrar should be RegisterImagesGreedy"
         )
 
-        print("\nTime series registrar initialized with Greedy_ICON")
+        print("\nTime series registrar defaults to RegisterImagesGreedy")
+
+    def test_registrar_initialization_Greedy_ICON(self) -> None:
+        """Initializes correctly with a RegisterImagesGreedyICON instance."""
+        registrar = RegisterTimeSeriesImages(
+            registration_method=RegisterImagesGreedyICON()
+        )
+        assert registrar is not None, "Registrar not initialized"
+        assert isinstance(registrar.registrar, RegisterImagesGreedyICON), (
+            "Method not set correctly"
+        )
+
+        print("\nTime series registrar initialized with RegisterImagesGreedyICON")
 
     def test_registrar_initialization_ICON(self) -> None:
-        """Test that RegisterTimeSeriesImages initializes correctly with ICON."""
-        registrar = RegisterTimeSeriesImages(registration_method="ICON")
+        """RegisterTimeSeriesImages initializes correctly with RegisterImagesICON."""
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesICON())
         assert registrar is not None, "Registrar not initialized"
-        assert registrar.registration_method_name == "ICON", "Method not set correctly"
-        assert registrar.registrar_greedy is not None, (
-            "Internal Greedy registrar not created"
-        )
-        assert registrar.registrar_ICON is not None, (
-            "Internal ICON registrar not created"
-        )
-
-        print("\nTime series registrar initialized with ICON")
-
-    def test_registrar_initialization_greedy(self) -> None:
-        """Test that RegisterTimeSeriesImages initializes correctly with Greedy."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
-        assert registrar is not None, "Registrar not initialized"
-        assert registrar.registration_method_name == "Greedy", (
+        assert isinstance(registrar.registrar, RegisterImagesICON), (
             "Method not set correctly"
         )
-        assert registrar.registrar_greedy is not None, (
-            "Internal Greedy registrar not created"
-        )
-        assert registrar.registrar_ICON is not None, (
-            "Internal ICON registrar not created"
+
+        print("\nTime series registrar initialized with RegisterImagesICON")
+
+    def test_registrar_initialization_greedy(self) -> None:
+        """RegisterTimeSeriesImages initializes correctly with RegisterImagesGreedy."""
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
+        assert registrar is not None, "Registrar not initialized"
+        assert isinstance(registrar.registrar, RegisterImagesGreedy), (
+            "Method not set correctly"
         )
 
-        print("\nTime series registrar initialized with Greedy")
+        print("\nTime series registrar initialized with RegisterImagesGreedy")
 
     def test_registrar_initialization_invalid_method(self) -> None:
-        """Test that invalid registration method raises error."""
-        with pytest.raises(ValueError, match="registration_method must be"):
-            RegisterTimeSeriesImages(registration_method="invalid")
+        """Test that a non-RegisterImagesBase registration method raises TypeError."""
+        with pytest.raises(
+            TypeError, match="registration_method must be a RegisterImagesBase"
+        ):
+            invalid_method: Any = "invalid"
+            RegisterTimeSeriesImages(registration_method=invalid_method)
 
         print("\nInvalid method correctly rejected")
 
     def test_set_modality(self) -> None:
         """Test setting imaging modality."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
         registrar.set_modality("ct")
         assert registrar.modality == "ct", "Modality not set correctly"
 
@@ -89,7 +90,7 @@ class TestRegisterTimeSeriesImages:
 
     def test_set_fixed_image(self, test_images: list[Any]) -> None:
         """Test setting fixed image."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
         fixed_image = test_images[0]
 
         registrar.set_fixed_image(fixed_image)
@@ -99,30 +100,25 @@ class TestRegisterTimeSeriesImages:
         print(f"  Image size: {itk.size(registrar.fixed_image)}")
 
     def test_set_number_of_iterations(self) -> None:
-        """Test setting number of iterations."""
-        registrar_Greedy_ICON = RegisterTimeSeriesImages(
-            registration_method="Greedy_ICON"
+        """Test setting number of iterations on the underlying registrar(s)."""
+        greedy_icon = RegisterImagesGreedyICON()
+        iterations_greedy_icon = [30, 15, 5]
+        greedy_icon.greedy.set_number_of_iterations(iterations_greedy_icon)
+        assert greedy_icon.greedy.number_of_iterations == iterations_greedy_icon, (
+            "Greedy_ICON iterations not set correctly"
         )
-        iterations_Greedy_ICON = [30, 15, 5]
 
-        registrar_Greedy_ICON.set_number_of_iterations_greedy(iterations_Greedy_ICON)
-        assert (
-            registrar_Greedy_ICON.number_of_iterations_greedy == iterations_Greedy_ICON
-        ), "Greedy_ICON iterations not set correctly"
-
-        registrar_greedy = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
         iterations_greedy = [25, 10, 3]
-
-        registrar_greedy.set_number_of_iterations_greedy(iterations_greedy)
-        assert registrar_greedy.number_of_iterations_greedy == iterations_greedy, (
+        greedy.set_number_of_iterations(iterations_greedy)
+        assert greedy.number_of_iterations == iterations_greedy, (
             "Greedy iterations not set correctly"
         )
 
-        registrar_ICON = RegisterTimeSeriesImages(registration_method="ICON")
-        iterations_ICON = 50
-
-        registrar_ICON.set_number_of_iterations_ICON(iterations_ICON)
-        assert registrar_ICON.number_of_iterations_ICON == iterations_ICON, (
+        icon = RegisterImagesICON()
+        iterations_icon = 50
+        icon.set_number_of_iterations(iterations_icon)
+        assert icon.number_of_iterations == iterations_icon, (
             "ICON iterations not set correctly"
         )
 
@@ -140,10 +136,11 @@ class TestRegisterTimeSeriesImages:
         print(f"  Fixed image: {itk.size(fixed_image)}")
         print(f"  Number of moving images: {len(moving_images)}")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([20, 10, 2])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_greedy([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -221,10 +218,11 @@ class TestRegisterTimeSeriesImages:
         print(f"  Number of moving images: {len(moving_images)}")
         print("  Using prior transform weight: 0.5")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([20, 10, 2])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_greedy([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -278,10 +276,11 @@ class TestRegisterTimeSeriesImages:
 
         print("\nRegistering time series (identity start)...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([20, 10, 2])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_greedy([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -306,10 +305,11 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTesting different starting indices...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([10, 5, 1])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_greedy([10, 5, 1])
 
         # Test starting from beginning, middle, and end
         for starting_index in [0, 1]:
@@ -329,7 +329,7 @@ class TestRegisterTimeSeriesImages:
 
     def test_register_time_series_error_no_fixed_image(self) -> None:
         """Test that error is raised if fixed image not set."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
 
         moving_images = [None, None, None]  # Dummy list
 
@@ -342,7 +342,7 @@ class TestRegisterTimeSeriesImages:
         self, test_images: list[Any]
     ) -> None:
         """Test that error is raised for invalid starting index."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
         registrar.set_fixed_image(test_images[0])
 
         moving_images = test_images[1:4]
@@ -365,7 +365,7 @@ class TestRegisterTimeSeriesImages:
         self, test_images: list[Any]
     ) -> None:
         """Test that error is raised for invalid prior portion value."""
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        registrar = RegisterTimeSeriesImages(registration_method=RegisterImagesGreedy())
         registrar.set_fixed_image(test_images[0])
 
         moving_images = test_images[1:4]
@@ -395,10 +395,11 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTesting transform application...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([20, 10, 2])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_greedy([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -445,10 +446,11 @@ class TestRegisterTimeSeriesImages:
 
         print("\nTesting time series registration with ICON...")
 
-        registrar = RegisterTimeSeriesImages(registration_method="ICON")
+        icon = RegisterImagesICON()
+        icon.set_number_of_iterations(5)  # ICON uses single int
+        registrar = RegisterTimeSeriesImages(registration_method=icon)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_ICON(5)  # ICON uses single int
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -491,11 +493,12 @@ class TestRegisterTimeSeriesImages:
         print("\nTesting time series registration with mask...")
         print(f"  Mask voxels: {np.sum(fixed_mask_arr)}")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([20, 10, 2])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
         registrar.set_fixed_mask(fixed_mask)
-        registrar.set_number_of_iterations_greedy([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
@@ -517,10 +520,11 @@ class TestRegisterTimeSeriesImages:
         print(f"  Total images: {len(moving_images)}")
         print("  Starting from middle (index 2)")
 
-        registrar = RegisterTimeSeriesImages(registration_method="Greedy")
+        greedy = RegisterImagesGreedy()
+        greedy.set_number_of_iterations([20, 10, 2])
+        registrar = RegisterTimeSeriesImages(registration_method=greedy)
         registrar.set_modality("ct")
         registrar.set_fixed_image(fixed_image)
-        registrar.set_number_of_iterations_greedy([20, 10, 2])
 
         result = registrar.register_time_series(
             moving_images=moving_images,
